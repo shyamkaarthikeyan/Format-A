@@ -17,7 +17,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate DOCX
-      const { spawn } = await import('child_process');
       const python = spawn('python3', ['server/document_generator.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -60,7 +59,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate LaTeX
-      const { spawn } = await import('child_process');
       const python = spawn('python3', ['server/document_generator.py', '--latex'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
