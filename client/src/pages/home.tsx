@@ -25,7 +25,7 @@ export default function Home() {
 
   // Fetch document if ID exists
   const { data: document, isLoading } = useQuery({
-    queryKey: ["/api/documents", documentId],
+    queryKey: [`/api/documents/${documentId}`],
     enabled: !!documentId,
   });
 
@@ -59,7 +59,8 @@ export default function Home() {
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents", documentId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/documents/${documentId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
     },
     onError: () => {
       toast({
@@ -131,11 +132,11 @@ export default function Home() {
     );
   }
 
-  const currentDocument = document || {
+  const currentDocument: Document = document || {
     id: 0,
     title: "",
-    abstract: "",
-    keywords: "",
+    abstract: null,
+    keywords: null,
     authors: [],
     sections: [],
     references: [],
