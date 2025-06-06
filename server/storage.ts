@@ -1,4 +1,4 @@
-import { documents, type Document, type InsertDocument, type UpdateDocument } from "@shared/schema";
+import { documents, type Document, type InsertDocument, type UpdateDocument, type Author, type Section, type Reference, type Figure, type DocumentSettings } from "@shared/schema";
 
 export interface IStorage {
   getDocument(id: number): Promise<Document | undefined>;
@@ -42,17 +42,17 @@ export class MemStorage implements IStorage {
       acceptedDate: insertDocument.acceptedDate || null,
       funding: insertDocument.funding || null,
       doi: insertDocument.doi || null,
-      authors: Array.isArray(insertDocument.authors) ? insertDocument.authors : [],
-      sections: Array.isArray(insertDocument.sections) ? insertDocument.sections : [],
-      references: Array.isArray(insertDocument.references) ? insertDocument.references : [],
-      figures: Array.isArray(insertDocument.figures) ? insertDocument.figures : [],
+      authors: (insertDocument.authors as any) || [],
+      sections: (insertDocument.sections as any) || [],
+      references: (insertDocument.references as any) || [],
+      figures: (insertDocument.figures as any) || [],
       settings: insertDocument.settings || {
         fontSize: "9.5pt",
         columns: "double",
-        exportFormat: "docx" as const,
+        exportFormat: "docx",
         includePageNumbers: true,
         includeCopyright: true
-      },
+      } as DocumentSettings,
       createdAt: now,
       updatedAt: now
     };
@@ -74,11 +74,11 @@ export class MemStorage implements IStorage {
       acceptedDate: updateDocument.acceptedDate !== undefined ? updateDocument.acceptedDate : existing.acceptedDate,
       funding: updateDocument.funding !== undefined ? updateDocument.funding : existing.funding,
       doi: updateDocument.doi !== undefined ? updateDocument.doi : existing.doi,
-      authors: updateDocument.authors !== undefined ? updateDocument.authors : existing.authors,
-      sections: updateDocument.sections !== undefined ? updateDocument.sections : existing.sections,
-      references: updateDocument.references !== undefined ? updateDocument.references : existing.references,
-      figures: updateDocument.figures !== undefined ? updateDocument.figures : existing.figures,
-      settings: updateDocument.settings !== undefined ? updateDocument.settings : existing.settings,
+      authors: updateDocument.authors !== undefined ? updateDocument.authors as Author[] : existing.authors,
+      sections: updateDocument.sections !== undefined ? updateDocument.sections as Section[] : existing.sections,
+      references: updateDocument.references !== undefined ? updateDocument.references as Reference[] : existing.references,
+      figures: updateDocument.figures !== undefined ? updateDocument.figures as Figure[] : existing.figures,
+      settings: updateDocument.settings !== undefined ? updateDocument.settings as DocumentSettings : existing.settings,
       updatedAt: new Date().toISOString()
     };
     this.documents.set(id, updated);
