@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [zoom, setZoom] = useState(75);
   const [previewMode, setPreviewMode] = useState<"ieee" | "raw">("ieee");
   const { toast } = useToast();
-
-  // Force re-render when document changes
-  useEffect(() => {
-    // This ensures the preview updates when document data changes
-  }, [document]);
 
   const generateDocxMutation = useMutation({
     mutationFn: async () => {

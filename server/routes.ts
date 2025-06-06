@@ -2,7 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
-import { generateIEEEDocx } from "./document-generator";
 import multer from "multer";
 
 const upload = multer({ 
@@ -122,13 +121,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const docxBuffer = await generateIEEEDocx(document);
-      
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `attachment; filename="${document.title || 'document'}.docx"`);
-      res.send(docxBuffer);
+      // In a real implementation, this would use the docx library to generate the document
+      // For now, we'll return a placeholder response
+      res.json({ 
+        message: "DOCX generation would be implemented here",
+        downloadUrl: `/api/documents/${id}/download/docx`,
+        document: document
+      });
     } catch (error) {
-      console.error('DOCX generation error:', error);
       res.status(500).json({ message: "Failed to generate DOCX" });
     }
   });
