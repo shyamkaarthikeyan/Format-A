@@ -146,7 +146,15 @@ export default function Home() {
       exportFormat: "docx",
       includePageNumbers: true,
       includeCopyright: true
-    }
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receivedDate: null,
+    revisedDate: null,
+    acceptedDate: null,
+    funding: null,
+    doi: null,
+    acknowledgments: null
   };
 
   return (

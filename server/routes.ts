@@ -133,6 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/documents/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      console.log("PATCH request body:", JSON.stringify(req.body, null, 2));
       const validatedData = updateDocumentSchema.parse(req.body);
       const document = await storage.updateDocument(id, validatedData);
       if (!document) {
@@ -140,6 +141,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(document);
     } catch (error) {
+      console.error("Document update validation error:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+      }
       res.status(400).json({ message: "Invalid document data", error: error });
     }
   });
