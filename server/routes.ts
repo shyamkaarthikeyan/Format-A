@@ -10,6 +10,91 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Document generation routes
+  app.post('/api/generate/docx', async (req, res) => {
+    try {
+      const documentData = req.body;
+      
+      // Call Python script to generate DOCX
+      const { spawn } = require('child_process');
+      const python = spawn('python3', ['server/document_generator.py'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      // Send document data to Python script
+      python.stdin.write(JSON.stringify(documentData));
+      python.stdin.end();
+      
+      let outputBuffer = Buffer.alloc(0);
+      let errorOutput = '';
+      
+      python.stdout.on('data', (data: Buffer) => {
+        outputBuffer = Buffer.concat([outputBuffer, data]);
+      });
+      
+      python.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on('close', (code: number) => {
+        if (code !== 0) {
+          console.error('Python script error:', errorOutput);
+          res.status(500).json({ error: 'Failed to generate document' });
+          return;
+        }
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+        res.send(outputBuffer);
+      });
+      
+    } catch (error) {
+      console.error('Document generation error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/generate/latex', async (req, res) => {
+    try {
+      const documentData = req.body;
+      
+      // Call Python script to generate LaTeX
+      const { spawn } = require('child_process');
+      const python = spawn('python3', ['server/document_generator.py', '--latex'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      python.stdin.write(JSON.stringify(documentData));
+      python.stdin.end();
+      
+      let outputBuffer = Buffer.alloc(0);
+      let errorOutput = '';
+      
+      python.stdout.on('data', (data: Buffer) => {
+        outputBuffer = Buffer.concat([outputBuffer, data]);
+      });
+      
+      python.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on('close', (code: number) => {
+        if (code !== 0) {
+          console.error('Python script error:', errorOutput);
+          res.status(500).json({ error: 'Failed to generate document' });
+          return;
+        }
+        
+        res.setHeader('Content-Type', 'text/x-tex');
+        res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.tex"');
+        res.send(outputBuffer);
+      });
+      
+    } catch (error) {
+      console.error('LaTeX generation error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
   // Get all documents
   app.get("/api/documents", async (req, res) => {
     try {
