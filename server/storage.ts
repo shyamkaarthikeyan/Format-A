@@ -23,7 +23,7 @@ export class MemStorage implements IStorage {
 
   async getAllDocuments(): Promise<Document[]> {
     return Array.from(this.documents.values()).sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      new Date(b.updatedAt || new Date()).getTime() - new Date(a.updatedAt || new Date()).getTime()
     );
   }
 
@@ -31,8 +31,26 @@ export class MemStorage implements IStorage {
     const id = this.currentId++;
     const now = new Date().toISOString();
     const document: Document = { 
-      ...insertDocument, 
-      id, 
+      id,
+      title: insertDocument.title || "",
+      abstract: insertDocument.abstract || null,
+      keywords: insertDocument.keywords || null,
+      receivedDate: insertDocument.receivedDate || null,
+      revisedDate: insertDocument.revisedDate || null,
+      acceptedDate: insertDocument.acceptedDate || null,
+      funding: insertDocument.funding || null,
+      acknowledgments: insertDocument.acknowledgments || null,
+      authors: insertDocument.authors || [],
+      sections: insertDocument.sections || [],
+      references: insertDocument.references || [],
+      figures: insertDocument.figures || [],
+      settings: insertDocument.settings || {
+        fontSize: "9.5pt",
+        columns: "2",
+        exportFormat: "docx",
+        includePageNumbers: true,
+        includeCopyright: true
+      },
       createdAt: now,
       updatedAt: now
     };

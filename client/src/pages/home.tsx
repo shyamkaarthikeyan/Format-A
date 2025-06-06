@@ -192,7 +192,7 @@ export default function Home() {
           <div className="lg:col-span-2 space-y-6">
             <Card className="p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="metadata" className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
                     <span className="hidden sm:inline">Metadata</span>
@@ -204,10 +204,6 @@ export default function Home() {
                   <TabsTrigger value="content" className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
                     <span className="hidden sm:inline">Content</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="figures" className="flex items-center gap-2">
-                    <Image className="w-4 h-4" />
-                    <span className="hidden sm:inline">Figures</span>
                   </TabsTrigger>
                   <TabsTrigger value="references" className="flex items-center gap-2">
                     <Quote className="w-4 h-4" />
@@ -236,14 +232,7 @@ export default function Home() {
                   />
                 </TabsContent>
 
-                <TabsContent value="figures" className="mt-6">
-                  <FigureForm
-                    figures={currentDocument.figures || []}
-                    documentId={documentId}
-                    sections={currentDocument.sections || []}
-                    onUpdate={(figures) => saveDocument({ figures })}
-                  />
-                </TabsContent>
+
 
                 <TabsContent value="references" className="mt-6">
                   <ReferenceForm

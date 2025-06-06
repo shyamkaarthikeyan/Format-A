@@ -107,43 +107,67 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const renderIEEEPreview = () => {
     return (
       <div 
-        className="bg-white p-6 shadow-sm min-h-[500px]"
+        className="bg-white shadow-sm min-h-[500px] ieee-format"
         style={{ 
           transform: `scale(${zoom / 100})`,
           transformOrigin: "top left",
           width: `${100 / (zoom / 100)}%`,
           height: `${100 / (zoom / 100)}%`,
           fontFamily: "'Times New Roman', serif",
-          fontSize: "12px",
-          lineHeight: "1.4"
+          fontSize: "9.5px",
+          lineHeight: "10px",
+          padding: "0.75in",
+          margin: 0,
+          textAlign: "justify",
+          columnCount: 2,
+          columnGap: "0.25in"
         }}
       >
         {/* Title */}
         {document.title && (
-          <h1 className="text-center text-lg font-bold mb-4 leading-tight">
+          <div 
+            className="text-center font-bold mb-3"
+            style={{ 
+              fontSize: "24px", 
+              lineHeight: "26px",
+              columnSpan: "all",
+              marginBottom: "12px"
+            }}
+          >
             {document.title}
-          </h1>
+          </div>
         )}
 
         {/* Authors */}
         {document.authors && document.authors.length > 0 && (
-          <div className="text-center mb-4 space-y-2">
-            {document.authors.map((author, index) => (
-              <div key={author.id}>
-                <div className="font-semibold">{author.name}</div>
-                {author.department && (
-                  <div className="text-xs italic">{author.department}</div>
-                )}
-                {author.organization && (
-                  <div className="text-xs italic">{author.organization}</div>
-                )}
-                {(author.city || author.state) && (
-                  <div className="text-xs italic">
-                    {author.city}{author.city && author.state && ", "}{author.state}
-                  </div>
-                )}
-              </div>
-            ))}
+          <div 
+            className="text-center mb-4"
+            style={{ 
+              columnSpan: "all",
+              marginBottom: "12px"
+            }}
+          >
+            <div className="flex justify-center space-x-8">
+              {document.authors.map((author, index) => (
+                <div key={author.id} className="text-center">
+                  <div className="font-bold">{author.name}</div>
+                  {author.department && (
+                    <div className="italic text-xs">{author.department}</div>
+                  )}
+                  {author.organization && (
+                    <div className="italic text-xs">{author.organization}</div>
+                  )}
+                  {(author.city || author.state) && (
+                    <div className="italic text-xs">
+                      {author.city}{author.city && author.state && ", "}{author.state}
+                    </div>
+                  )}
+                  {author.email && (
+                    <div className="text-xs">{author.email}</div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -264,24 +288,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           
           <div className="flex space-x-2">
             <Button
-              variant="outline"
               size="sm"
-              className="flex-1"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => generateDocxMutation.mutate()}
               disabled={generateDocxMutation.isPending}
             >
-              <FileText className="w-4 h-4 mr-2 text-blue-600" />
-              {generateDocxMutation.isPending ? "Generating..." : "DOCX"}
+              <FileText className="w-4 h-4 mr-2" />
+              {generateDocxMutation.isPending ? "Generating..." : "Generate IEEE Paper (Word)"}
             </Button>
             <Button
-              variant="outline"
               size="sm"
-              className="flex-1"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               onClick={() => generateLatexMutation.mutate()}
               disabled={generateLatexMutation.isPending}
             >
-              <Code className="w-4 h-4 mr-2 text-green-600" />
-              {generateLatexMutation.isPending ? "Generating..." : "LaTeX"}
+              <Code className="w-4 h-4 mr-2" />
+              {generateLatexMutation.isPending ? "Generating..." : "Generate IEEE Paper (LaTeX)"}
             </Button>
           </div>
         </CardContent>
