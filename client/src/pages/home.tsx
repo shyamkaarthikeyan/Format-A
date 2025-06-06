@@ -141,21 +141,21 @@ export default function Home() {
     sections: [],
     references: [],
     figures: [],
+    receivedDate: null,
+    revisedDate: null,
+    acceptedDate: null,
+    funding: null,
+    acknowledgments: null,
+    doi: null,
     settings: {
       fontSize: "9.5pt",
-      columns: "double",
+      columns: "2",
       exportFormat: "docx",
       includePageNumbers: true,
       includeCopyright: true
     },
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    receivedDate: null,
-    revisedDate: null,
-    acceptedDate: null,
-    funding: null,
-    doi: null,
-    acknowledgments: null
+    updatedAt: new Date().toISOString()
   };
 
   return (

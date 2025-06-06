@@ -40,6 +40,7 @@ export class MemStorage implements IStorage {
       acceptedDate: insertDocument.acceptedDate || null,
       funding: insertDocument.funding || null,
       acknowledgments: insertDocument.acknowledgments || null,
+      doi: null,
       authors: insertDocument.authors || [],
       sections: insertDocument.sections || [],
       references: insertDocument.references || [],
