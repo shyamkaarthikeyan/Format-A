@@ -1,0 +1,159 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
+import multer from "multer";
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Get all documents
+  app.get("/api/documents", async (req, res) => {
+    try {
+      const documents = await storage.getAllDocuments();
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  // Get single document
+  app.get("/api/documents/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch document" });
+    }
+  });
+
+  // Create new document
+  app.post("/api/documents", async (req, res) => {
+    try {
+      const validatedData = insertDocumentSchema.parse(req.body);
+      const document = await storage.createDocument(validatedData);
+      res.status(201).json(document);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid document data", error: error });
+    }
+  });
+
+  // Update document
+  app.patch("/api/documents/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = updateDocumentSchema.parse(req.body);
+      const document = await storage.updateDocument(id, validatedData);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid document data", error: error });
+    }
+  });
+
+  // Delete document
+  app.delete("/api/documents/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteDocument(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // Upload figure
+  app.post("/api/documents/:id/figures", upload.single("figure"), async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const document = await storage.getDocument(documentId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const figureId = `fig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const figure = {
+        id: figureId,
+        fileName: `${figureId}.${req.file.originalname.split('.').pop()}`,
+        originalName: req.file.originalname,
+        caption: req.body.caption || "",
+        size: req.body.size || "medium",
+        position: req.body.position || "here",
+        sectionId: req.body.sectionId,
+        order: document.figures?.length || 0,
+        mimeType: req.file.mimetype,
+        data: req.file.buffer.toString('base64')
+      };
+
+      const updatedFigures = [...(document.figures || []), figure];
+      await storage.updateDocument(documentId, { figures: updatedFigures });
+
+      res.status(201).json(figure);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to upload figure" });
+    }
+  });
+
+  // Generate DOCX
+  app.post("/api/documents/:id/generate/docx", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // In a real implementation, this would use the docx library to generate the document
+      // For now, we'll return a placeholder response
+      res.json({ 
+        message: "DOCX generation would be implemented here",
+        downloadUrl: `/api/documents/${id}/download/docx`,
+        document: document
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate DOCX" });
+    }
+  });
+
+  // Generate LaTeX
+  app.post("/api/documents/:id/generate/latex", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // In a real implementation, this would use the LaTeX template from the Python code
+      res.json({ 
+        message: "LaTeX generation would be implemented here",
+        downloadUrl: `/api/documents/${id}/download/latex`,
+        document: document
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate LaTeX" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
