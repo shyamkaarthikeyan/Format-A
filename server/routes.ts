@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { spawn } from "child_process";
 import { storage } from "./storage";
 import { insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
 import multer from "multer";
@@ -16,7 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate DOCX
-      const { spawn } = require('child_process');
+      const { spawn } = await import('child_process');
       const python = spawn('python3', ['server/document_generator.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -59,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate LaTeX
-      const { spawn } = require('child_process');
+      const { spawn } = await import('child_process');
       const python = spawn('python3', ['server/document_generator.py', '--latex'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
