@@ -268,7 +268,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               size="sm"
               className="flex-1"
               onClick={() => generateDocxMutation.mutate()}
-              disabled={generateDocxMutation.isPending || !documentId}
+              disabled={generateDocxMutation.isPending}
             >
               <FileText className="w-4 h-4 mr-2 text-blue-600" />
               {generateDocxMutation.isPending ? "Generating..." : "DOCX"}
@@ -278,7 +278,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               size="sm"
               className="flex-1"
               onClick={() => generateLatexMutation.mutate()}
-              disabled={generateLatexMutation.isPending || !documentId}
+              disabled={generateLatexMutation.isPending}
             >
               <Code className="w-4 h-4 mr-2 text-green-600" />
               {generateLatexMutation.isPending ? "Generating..." : "LaTeX"}
