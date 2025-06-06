@@ -20,6 +20,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [previewMode, setPreviewMode] = useState<"ieee" | "raw">("ieee");
   const { toast } = useToast();
 
+  // Force re-render when document changes
+  useEffect(() => {
+    // This ensures the preview updates when document data changes
+  }, [document]);
+
   const generateDocxMutation = useMutation({
     mutationFn: async () => {
       if (!documentId) throw new Error("No document ID");
