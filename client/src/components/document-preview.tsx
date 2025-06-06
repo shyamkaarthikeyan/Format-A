@@ -173,16 +173,34 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
         {/* Abstract */}
         {document.abstract && (
-          <div className="mb-4 text-justify text-xs leading-relaxed">
-            <span className="italic font-semibold">Abstract—</span>
+          <div 
+            className="mb-3"
+            style={{ 
+              textAlign: "justify",
+              marginBottom: "10px",
+              textIndent: "0.2in",
+              marginLeft: "0.2in",
+              marginRight: "0.2in"
+            }}
+          >
+            <span className="italic font-bold">Abstract—</span>
             {document.abstract}
           </div>
         )}
 
         {/* Keywords */}
         {document.keywords && (
-          <div className="mb-4 text-xs leading-relaxed">
-            <span className="font-semibold">Keywords: </span>
+          <div 
+            className="mb-4"
+            style={{ 
+              textAlign: "justify",
+              marginBottom: "10px",
+              textIndent: "0.2in",
+              marginLeft: "0.2in",
+              marginRight: "0.2in"
+            }}
+          >
+            <span className="font-bold">Keywords: </span>
             {document.keywords}
           </div>
         )}
@@ -204,20 +222,29 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     {block.type === "text" && block.content && (
                       <p className="text-justify text-xs">{block.content}</p>
                     )}
-                    {block.type === "image" && block.imageId && (
-                      <div className="my-4 text-center">
-                        {block.content && (
-                          <img 
-                            src={block.content} 
-                            alt={block.caption || "Figure"} 
-                            className="max-w-full h-auto mx-auto border border-gray-300"
-                            style={{ maxWidth: "200px" }}
-                          />
-                        )}
+                    {block.type === "image" && block.content && (
+                      <div className="text-center my-2">
+                        <img 
+                          src={block.content} 
+                          alt={block.caption || "Figure"} 
+                          className="mx-auto border border-gray-300"
+                          style={{ 
+                            maxWidth: block.size === "very-small" ? "1.2in" :
+                                     block.size === "small" ? "1.8in" :
+                                     block.size === "large" ? "3.2in" : "2.5in",
+                            maxHeight: "4in"
+                          }}
+                        />
                         {block.caption && (
-                          <p className="text-xs mt-2 italic">
-                            Fig. {index + 1}. {block.caption}
-                          </p>
+                          <div 
+                            className="mt-1"
+                            style={{ 
+                              fontSize: "9px",
+                              textAlign: "center"
+                            }}
+                          >
+                            Fig. {index + 1}: {block.caption}
+                          </div>
                         )}
                       </div>
                     )}
@@ -225,15 +252,25 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 ))}
 
                 {/* Subsections */}
-                {section.subsections.map((subsection) => (
+                {section.subsections.map((subsection, subIndex) => (
                   <div key={subsection.id} className="mb-2">
                     {subsection.title && (
                       <h3 className="font-bold text-xs mb-1">
-                        {String.fromCharCode(65 + subsection.order)}. {subsection.title}
+                        {index + 1}.{subIndex + 1} {subsection.title}
                       </h3>
                     )}
                     {subsection.content && (
-                      <p className="text-justify text-xs">{subsection.content}</p>
+                      <div 
+                        style={{ 
+                          textAlign: "justify",
+                          textIndent: "0.2in",
+                          marginLeft: "0.2in",
+                          marginRight: "0.2in",
+                          marginBottom: "12px"
+                        }}
+                      >
+                        {subsection.content}
+                      </div>
                     )}
                   </div>
                 ))}
