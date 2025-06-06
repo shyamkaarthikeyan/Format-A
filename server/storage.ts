@@ -46,13 +46,13 @@ export class MemStorage implements IStorage {
       sections: (insertDocument.sections as any) || [],
       references: (insertDocument.references as any) || [],
       figures: (insertDocument.figures as any) || [],
-      settings: insertDocument.settings || {
+      settings: (insertDocument.settings as any) || {
         fontSize: "9.5pt",
         columns: "double",
         exportFormat: "docx",
         includePageNumbers: true,
         includeCopyright: true
-      } as DocumentSettings,
+      },
       createdAt: now,
       updatedAt: now
     };
@@ -74,11 +74,11 @@ export class MemStorage implements IStorage {
       acceptedDate: updateDocument.acceptedDate !== undefined ? updateDocument.acceptedDate : existing.acceptedDate,
       funding: updateDocument.funding !== undefined ? updateDocument.funding : existing.funding,
       doi: updateDocument.doi !== undefined ? updateDocument.doi : existing.doi,
-      authors: updateDocument.authors !== undefined ? updateDocument.authors as Author[] : existing.authors,
-      sections: updateDocument.sections !== undefined ? updateDocument.sections as Section[] : existing.sections,
-      references: updateDocument.references !== undefined ? updateDocument.references as Reference[] : existing.references,
-      figures: updateDocument.figures !== undefined ? updateDocument.figures as Figure[] : existing.figures,
-      settings: updateDocument.settings !== undefined ? updateDocument.settings as DocumentSettings : existing.settings,
+      authors: updateDocument.authors !== undefined ? updateDocument.authors as any : existing.authors,
+      sections: updateDocument.sections !== undefined ? updateDocument.sections as any : existing.sections,
+      references: updateDocument.references !== undefined ? updateDocument.references as any : existing.references,
+      figures: updateDocument.figures !== undefined ? updateDocument.figures as any : existing.figures,
+      settings: updateDocument.settings !== undefined ? updateDocument.settings as any : existing.settings,
       updatedAt: new Date().toISOString()
     };
     this.documents.set(id, updated);
