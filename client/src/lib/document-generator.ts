@@ -9,13 +9,19 @@ export interface GenerationResult {
 
 export async function generateDocxDocument(document: Document): Promise<GenerationResult> {
   try {
-    // In a real implementation, this would use a library like docx to generate the document
-    // For now, we'll simulate the generation process
-    
-    const ieeeContent = generateIEEEDocument(document);
-    
-    // Create a blob with the content (simplified approach)
-    const blob = new Blob([ieeeContent], { type: 'text/plain' });
+    const response = await fetch('/api/generate/docx', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(document),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate document: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     
     return {
@@ -26,51 +32,26 @@ export async function generateDocxDocument(document: Document): Promise<Generati
     console.error('Error generating DOCX:', error);
     return {
       success: false,
-      error: 'Failed to generate DOCX document'
+      error: error instanceof Error ? error.message : 'Failed to generate DOCX document'
     };
   }
 }
 
 export async function generateLatexDocument(document: Document): Promise<GenerationResult> {
   try {
-    // LaTeX template based on the Python code
-    const latexTemplate = `
-\\documentclass[conference]{IEEEtran}
-\\IEEEoverridecommandlockouts
-\\usepackage{cite}
-\\usepackage{amsmath,amssymb,amsfonts}
-\\usepackage{graphicx}
-\\usepackage{textcomp}
-\\usepackage{xcolor}
+    const response = await fetch('/api/generate/latex', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(document),
+    });
 
-\\begin{document}
+    if (!response.ok) {
+      throw new Error(`Failed to generate LaTeX document: ${response.statusText}`);
+    }
 
-\\title{${document.title || ''}}
-\\author{${formatAuthorsLatex(document.authors || [])}}
-
-\\maketitle
-
-\\begin{abstract}
-${document.abstract || ''}
-\\end{abstract}
-
-\\begin{IEEEkeywords}
-${document.keywords || ''}
-\\end{IEEEkeywords}
-
-${formatSectionsLatex(document.sections || [])}
-
-\\section*{Acknowledgment}
-${document.funding || ''}
-
-\\begin{thebibliography}{${document.references?.length || 0}}
-${formatReferencesLatex(document.references || [])}
-\\end{thebibliography}
-
-\\end{document}
-    `.trim();
-    
-    const blob = new Blob([latexTemplate], { type: 'text/plain' });
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     
     return {
@@ -81,7 +62,7 @@ ${formatReferencesLatex(document.references || [])}
     console.error('Error generating LaTeX:', error);
     return {
       success: false,
-      error: 'Failed to generate LaTeX document'
+      error: error instanceof Error ? error.message : 'Failed to generate LaTeX document'
     };
   }
 }

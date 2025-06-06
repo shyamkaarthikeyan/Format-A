@@ -22,20 +22,37 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
   const generateDocxMutation = useMutation({
     mutationFn: async () => {
-      if (!documentId) throw new Error("No document ID");
-      const res = await apiRequest("POST", `/api/documents/${documentId}/generate/docx`);
-      return await res.json();
+      // Validation based on Streamlit implementation
+      if (!document.title) {
+        throw new Error("Please enter a title.");
+      }
+      if (!document.authors || !document.authors.some(author => author.name)) {
+        throw new Error("Please enter at least one author name.");
+      }
+      
+      const { generateDocxDocument, downloadFile } = await import("@/lib/document-generator");
+      const result = await generateDocxDocument(document);
+      
+      if (!result.success) {
+        throw new Error(result.error || "Failed to generate document");
+      }
+      
+      if (result.downloadUrl) {
+        downloadFile(result.downloadUrl, "ieee_paper.docx");
+      }
+      
+      return result;
     },
     onSuccess: () => {
       toast({
-        title: "DOCX Generated",
-        description: "Document has been generated successfully.",
+        title: "Word Document Generated",
+        description: "IEEE-formatted Word document has been downloaded successfully.",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to generate DOCX document.",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -43,20 +60,37 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
   const generateLatexMutation = useMutation({
     mutationFn: async () => {
-      if (!documentId) throw new Error("No document ID");
-      const res = await apiRequest("POST", `/api/documents/${documentId}/generate/latex`);
-      return await res.json();
+      // Validation based on Streamlit implementation
+      if (!document.title) {
+        throw new Error("Please enter a title.");
+      }
+      if (!document.authors || !document.authors.some(author => author.name)) {
+        throw new Error("Please enter at least one author name.");
+      }
+      
+      const { generateLatexDocument, downloadFile } = await import("@/lib/document-generator");
+      const result = await generateLatexDocument(document);
+      
+      if (!result.success) {
+        throw new Error(result.error || "Failed to generate document");
+      }
+      
+      if (result.downloadUrl) {
+        downloadFile(result.downloadUrl, "ieee_paper.tex");
+      }
+      
+      return result;
     },
     onSuccess: () => {
       toast({
-        title: "LaTeX Generated",
-        description: "LaTeX document has been generated successfully.",
+        title: "LaTeX Document Generated",
+        description: "IEEE-formatted LaTeX file has been downloaded successfully.",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to generate LaTeX document.",
+        description: error.message,
         variant: "destructive",
       });
     },

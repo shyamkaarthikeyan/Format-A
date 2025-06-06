@@ -12,6 +12,7 @@ export const documents = pgTable("documents", {
   acceptedDate: text("accepted_date"),
   funding: text("funding"),
   doi: text("doi"),
+  acknowledgments: text("acknowledgments"),
   authors: json("authors").$type<Author[]>().default([]),
   sections: json("sections").$type<Section[]>().default([]),
   references: json("references").$type<Reference[]>().default([]),
