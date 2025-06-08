@@ -180,7 +180,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               marginBottom: "10px",
               textIndent: "0.2in",
               marginLeft: "0.2in",
-              marginRight: "0.2in"
+              marginRight: "0.2in",
+              wordSpacing: "normal",
+              hyphens: "auto"
             }}
           >
             <span className="italic font-bold">Abstract—</span>
@@ -306,41 +308,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         <CardContent className="space-y-4">
           <div className="flex space-x-2">
             <Button
-              variant={previewMode === "ieee" ? "default" : "outline"}
-              size="sm"
-              className="flex-1"
-              onClick={() => setPreviewMode("ieee")}
-            >
-              IEEE Format
-            </Button>
-            <Button
-              variant={previewMode === "raw" ? "default" : "outline"}
-              size="sm"
-              className="flex-1"
-              onClick={() => setPreviewMode("raw")}
-            >
-              Raw Content
-            </Button>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button
               size="sm"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => generateDocxMutation.mutate()}
               disabled={generateDocxMutation.isPending}
             >
               <FileText className="w-4 h-4 mr-2" />
-              {generateDocxMutation.isPending ? "Generating..." : "Generate IEEE Paper (Word)"}
+              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
             </Button>
             <Button
               size="sm"
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               onClick={() => generateLatexMutation.mutate()}
               disabled={generateLatexMutation.isPending}
             >
-              <Code className="w-4 h-4 mr-2" />
-              {generateLatexMutation.isPending ? "Generating..." : "Generate IEEE Paper (LaTeX)"}
+              <FileText className="w-4 h-4 mr-2" />
+              {generateLatexMutation.isPending ? "Generating..." : "Download PDF"}
             </Button>
           </div>
         </CardContent>
@@ -377,15 +360,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
           
           <div className="p-4 bg-gray-100 max-h-96 overflow-auto">
-            {previewMode === "ieee" ? (
-              renderIEEEPreview()
-            ) : (
-              <div className="bg-white p-6 shadow-sm text-sm">
-                <pre className="whitespace-pre-wrap font-mono text-xs">
-                  {JSON.stringify(document, null, 2)}
-                </pre>
-              </div>
-            )}
+            {renderIEEEPreview()}
           </div>
         </CardContent>
       </Card>

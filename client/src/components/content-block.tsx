@@ -41,12 +41,52 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
         </div>
         
         {block.type === "text" ? (
-          <Textarea
-            rows={4}
-            placeholder="Enter text content"
-            value={block.content || ""}
-            onChange={(e) => onUpdate({ content: e.target.value })}
-          />
+          <div className="space-y-3">
+            <Textarea
+              rows={4}
+              placeholder="Enter text content"
+              value={block.content || ""}
+              onChange={(e) => onUpdate({ content: e.target.value })}
+            />
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add Image to This Text Block (Optional)
+              </label>
+              <FileUpload
+                onFileSelect={(file, base64) => {
+                  onUpdate({ 
+                    imageId: `img_${Date.now()}`,
+                    content: block.content || "",
+                    caption: block.caption || ""
+                  });
+                }}
+                accept="image/*"
+                maxSize={10 * 1024 * 1024}
+              />
+              {block.imageId && (
+                <div className="mt-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Image caption"
+                    value={block.caption || ""}
+                    onChange={(e) => onUpdate({ caption: e.target.value })}
+                    className="mb-2"
+                  />
+                  <select
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    value={block.size || "medium"}
+                    onChange={(e) => onUpdate({ size: e.target.value as any })}
+                  >
+                    <option value="very-small">Very Small (1.2")</option>
+                    <option value="small">Small (1.8")</option>
+                    <option value="medium">Medium (2.5")</option>
+                    <option value="large">Large (3.2")</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             <FileUpload

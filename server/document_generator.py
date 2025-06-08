@@ -209,27 +209,7 @@ def add_authors(doc, authors):
     
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-def add_footnote(doc, footnote_data):
-    """Add the first footnote with submission/revision/DOI info."""
-    footnote_text = ""
-    if footnote_data.get('receivedDate'):
-        footnote_text += f"Manuscript received {footnote_data['receivedDate']}; "
-    if footnote_data.get('revisedDate'):
-        footnote_text += f"revised {footnote_data['revisedDate']}; "
-    if footnote_data.get('acceptedDate'):
-        footnote_text += f"accepted {footnote_data['acceptedDate']}. "
-    if footnote_data.get('funding'):
-        footnote_text += f"This work was supported by {footnote_data['funding']}. "
-    if footnote_data.get('doi'):
-        footnote_text += f"(DOI: {footnote_data['doi']})"
-    
-    if footnote_text.strip():
-        para = doc.add_paragraph()
-        run = para.add_run(footnote_text.strip())
-        run.font.name = IEEE_CONFIG['font_name']
-        run.font.size = IEEE_CONFIG['font_size_caption']
-        para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(6)
+# Footnote functionality removed as requested
 
 def add_abstract(doc, abstract):
     """Add the abstract section with italicized 'Abstract—'."""
