@@ -70,11 +70,36 @@ export interface DocumentSettings {
   includeCopyright: boolean;
 }
 
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-}).extend({
+// MongoDB Document type with string ID
+export type Document = {
+  id: string;
+  title: string;
+  abstract: string | null;
+  keywords: string | null;
+  receivedDate: string | null;
+  revisedDate: string | null;
+  acceptedDate: string | null;
+  funding: string | null;
+  doi: string | null;
+  acknowledgments: string | null;
+  authors: Author[];
+  sections: Section[];
+  references: Reference[];
+  figures: Figure[];
+  settings: DocumentSettings;
+};
+
+// MongoDB-compatible schemas
+export const insertDocumentSchema = z.object({
+  title: z.string().default(""),
+  abstract: z.string().nullable().optional(),
+  keywords: z.string().nullable().optional(),
+  receivedDate: z.string().nullable().optional(),
+  revisedDate: z.string().nullable().optional(),
+  acceptedDate: z.string().nullable().optional(),
+  funding: z.string().nullable().optional(),
+  doi: z.string().nullable().optional(),
+  acknowledgments: z.string().nullable().optional(),
   authors: z.array(z.object({
     id: z.string(),
     name: z.string(),
@@ -145,5 +170,4 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
 export const updateDocumentSchema = insertDocumentSchema.partial();
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type Document = typeof documents.$inferSelect;
 export type UpdateDocument = z.infer<typeof updateDocumentSchema>;
