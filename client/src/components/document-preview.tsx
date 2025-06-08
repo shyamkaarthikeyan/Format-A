@@ -171,133 +171,73 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         )}
 
-        {/* Abstract - IEEE Standard Format */}
+        {/* Abstract Section */}
         {document.abstract && (
-          <div 
-            className="mb-3 text-xs"
-            style={{ 
-              textAlign: "justify",
-              marginBottom: "12px",
-              marginLeft: "0.5in",
-              marginRight: "0.5in",
-              lineHeight: "1.2",
-              wordSpacing: "0.1em",
-              hyphens: "auto",
-              textJustify: "inter-word"
-            }}
-          >
-            <span className="italic font-bold">Abstract—</span>
-            {document.abstract}
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2 text-center">Abstract</h3>
+            <p 
+              className="text-sm text-gray-700 leading-relaxed text-justify"
+              style={{
+                marginLeft: "0.5in",
+                marginRight: "0.5in",
+                lineHeight: "1.4",
+                wordSpacing: "normal",
+                hyphens: "auto"
+              }}
+            >
+              {document.abstract}
+            </p>
           </div>
         )}
 
         {/* Keywords */}
         {document.keywords && (
-          <div 
-            className="mb-4"
-            style={{ 
-              textAlign: "justify",
-              marginBottom: "10px",
-              textIndent: "0.2in",
-              marginLeft: "0.2in",
-              marginRight: "0.2in"
-            }}
-          >
-            <span className="font-bold">Keywords: </span>
-            {document.keywords}
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Keywords</h3>
+            <p className="text-sm text-gray-700 italic">
+              {document.keywords}
+            </p>
           </div>
         )}
 
-        {/* Sections - Two Column Layout */}
+        {/* Sections */}
         {document.sections && document.sections.length > 0 && (
-          <div 
-            className="space-y-3"
-            style={{
-              columnCount: 2,
-              columnGap: "0.25in",
-              columnFill: "balance"
-            }}
-          >
-            {document.sections.map((section, index) => (
-              <div key={section.id} className="break-inside-avoid">
-                {section.title && (
-                  <h2 className="font-bold text-xs mb-2" style={{ breakAfter: "avoid" }}>
-                    {index + 1}. {section.title.toUpperCase()}
-                  </h2>
-                )}
-                
-                {/* Content Blocks */}
-                {section.contentBlocks.map((block) => (
-                  <div key={block.id} className="mb-2 break-inside-avoid">
-                    {block.type === "text" && block.content && (
-                      <p 
-                        className="text-justify text-xs"
-                        style={{
-                          textIndent: "0.125in",
-                          lineHeight: "1.2",
-                          wordSpacing: "normal",
-                          hyphens: "auto"
-                        }}
-                      >
-                        {block.content}
-                      </p>
-                    )}
-                    {block.type === "image" && block.content && (
-                      <div className="text-center my-2 break-inside-avoid">
-                        <img 
-                          src={block.content} 
-                          alt={block.caption || "Figure"} 
-                          className="mx-auto border border-gray-300"
-                          style={{ 
-                            maxWidth: block.size === "very-small" ? "1.2in" :
-                                     block.size === "small" ? "1.8in" :
-                                     block.size === "large" ? "3.2in" : "2.5in",
-                            maxHeight: "3in"
-                          }}
-                        />
-                        {block.caption && (
-                          <div 
-                            className="mt-1"
-                            style={{ 
-                              fontSize: "9px",
-                              textAlign: "center"
-                            }}
-                          >
-                            Fig. {index + 1}: {block.caption}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* Subsections */}
-                {section.subsections.map((subsection, subIndex) => (
-                  <div key={subsection.id} className="mb-2 break-inside-avoid">
-                    {subsection.title && (
-                      <h3 className="font-bold text-xs mb-1" style={{ breakAfter: "avoid" }}>
-                        {index + 1}.{subIndex + 1} {subsection.title}
-                      </h3>
-                    )}
-                    {subsection.content && (
-                      <div 
-                        className="text-xs"
-                        style={{ 
-                          textAlign: "justify",
-                          textIndent: "0.125in",
-                          lineHeight: "1.2",
-                          wordSpacing: "normal",
-                          marginBottom: "12px",
-                          hyphens: "auto"
-                        }}
-                      >
-                        {subsection.content}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Content</h3>
+            <div className="space-y-3">
+              {document.sections.map((section, index) => (
+                <div key={section.id}>
+                  <h4 className="font-medium text-sm mb-1">
+                    {section.title}
+                  </h4>
+                  {/* Content Blocks */}
+                  {section.contentBlocks && section.contentBlocks.map((block) => (
+                    <div key={block.id}>
+                      {block.type === "text" && block.content && (
+                        <p className="text-xs text-gray-600 leading-relaxed text-justify mb-2">
+                          {block.content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  {/* Subsections */}
+                  {section.subsections && section.subsections.map((subsection) => (
+                    <div key={subsection.id} className="ml-2">
+                      {subsection.title && (
+                        <h5 className="font-medium text-xs mb-1">
+                          {subsection.title}
+                        </h5>
+                      )}
+                      {subsection.content && (
+                        <p className="text-xs text-gray-600 leading-relaxed text-justify">
+                          {subsection.content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

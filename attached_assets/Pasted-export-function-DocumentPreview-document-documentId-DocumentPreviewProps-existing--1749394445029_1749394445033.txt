@@ -1,0 +1,73 @@
+export function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
+  // ...existing code...
+
+  return (
+    <Card className="h-fit">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="w-4 h-4" />
+          Document Preview
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Title */}
+        <div className="text-center">
+          <h1 className="font-bold text-lg mb-2">{document.title || "Untitled Document"}</h1>
+          {/* Authors */}
+          {document.authors && document.authors.length > 0 && (
+            <div className="text-sm text-gray-600 mb-4">
+              {document.authors.map((author, index) => (
+                <span key={index}>
+                  {author.name}
+                  {author.affiliation && ` (${author.affiliation})`}
+                  {index < document.authors.length - 1 && ", "}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Abstract Section */}
+        {document.abstract && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2 text-center">Abstract</h3>
+            <p className="text-sm text-gray-700 leading-relaxed text-justify">
+              {document.abstract}
+            </p>
+          </div>
+        )}
+
+        {/* Keywords */}
+        {document.keywords && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Keywords</h3>
+            <p className="text-sm text-gray-700 italic">
+              {document.keywords}
+            </p>
+          </div>
+        )}
+
+        {/* Sections */}
+        {document.sections && document.sections.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Content</h3>
+            <div className="space-y-3">
+              {document.sections.map((section, index) => (
+                <div key={index}>
+                  <h4 className="font-medium text-sm mb-1">
+                    {section.title}
+                  </h4>
+                  <p className="text-xs text-gray-600 leading-relaxed text-justify">
+                    {section.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Additional sections for references, figures, etc. */}
+      </CardContent>
+    </Card>
+  );
+}
