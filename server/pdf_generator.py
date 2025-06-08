@@ -55,7 +55,7 @@ def create_ieee_pdf(form_data):
         parent=styles['Normal'],
         fontSize=9,
         spaceAfter=12,
-        alignment=TA_LEFT,
+        alignment=TA_JUSTIFY,
         leftIndent=0.5*inch,
         rightIndent=0.5*inch,
         fontName='Times-Roman'

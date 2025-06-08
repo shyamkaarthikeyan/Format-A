@@ -171,7 +171,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         )}
 
-        {/* Abstract - Single Column Layout */}
+        {/* Abstract - IEEE Standard Format */}
         {document.abstract && (
           <div 
             className="mb-3 text-xs"
@@ -181,8 +181,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               marginLeft: "0.5in",
               marginRight: "0.5in",
               lineHeight: "1.2",
-              wordSpacing: "normal",
-              hyphens: "auto"
+              wordSpacing: "0.1em",
+              hyphens: "auto",
+              textJustify: "inter-word"
             }}
           >
             <span className="italic font-bold">Abstract—</span>

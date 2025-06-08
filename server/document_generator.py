@@ -224,8 +224,8 @@ def add_abstract(doc, abstract):
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Use left alignment instead of justify to prevent word stretching
-        para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        # IEEE abstract: justified text in an indented block
+        para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
         para.paragraph_format.widow_control = False
@@ -233,9 +233,27 @@ def add_abstract(doc, abstract):
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
         
-        # Add indentation for IEEE style
+        # IEEE standard indentation for abstract
         para.paragraph_format.left_indent = Inches(0.5)
         para.paragraph_format.right_indent = Inches(0.5)
+        
+        # Apply fine-tuned justification settings to reduce word spacing
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        pPr = para._element.get_or_add_pPr()
+        
+        # Add justification with low expansion
+        jc = OxmlElement('w:jc')
+        jc.set(qn('w:val'), 'both')
+        pPr.append(jc)
+        
+        # Control word spacing
+        spacing = OxmlElement('w:spacing')
+        spacing.set(qn('w:before'), '0')
+        spacing.set(qn('w:after'), str(int(IEEE_CONFIG['line_spacing'].pt)))
+        spacing.set(qn('w:line'), str(int(IEEE_CONFIG['line_spacing'].pt * 20)))
+        spacing.set(qn('w:lineRule'), 'exact')
+        pPr.append(spacing)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
