@@ -12,7 +12,7 @@ import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
 
 import { clientStorage } from "@/lib/localStorage";
-import { generateClientDocx, generateClientPdf } from "@/lib/clientGenerator";
+import { generateSimpleDocx, generateSimplePdf } from "@/lib/simpleGenerator";
 import type { Document, InsertDocument, UpdateDocument } from "../../../shared/schema-client.js";
 
 export default function HomeClient() {
@@ -95,7 +95,7 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
-      const result = await generateClientDocx(currentDocument);
+      const result = await generateSimpleDocx(currentDocument);
       if (result.success) {
         toast({
           title: "Word Document Generated",
@@ -124,7 +124,7 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
-      const result = await generateClientPdf(currentDocument);
+      const result = await generateSimplePdf(currentDocument);
       if (result.success) {
         toast({
           title: "PDF Generated",
@@ -298,7 +298,7 @@ export default function HomeClient() {
               <CardContent>
                 <FigureForm 
                   figures={documentToDisplay.figures} 
-                  documentId={currentDocument?.id || null}
+                  documentId={currentDocument?.id || ""}
                   sections={documentToDisplay.sections}
                   onUpdate={(figures) => handleUpdateDocument({ figures })} 
                 />

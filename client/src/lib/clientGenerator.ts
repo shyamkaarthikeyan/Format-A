@@ -51,7 +51,7 @@ export async function generateClientDocx(document: Document): Promise<Generation
             }),
             new Paragraph({
               text: document.abstract,
-              alignment: 'justify'
+              alignment: 'both'
             })
           ] : []),
           
@@ -77,7 +77,7 @@ export async function generateClientDocx(document: Document): Promise<Generation
               if (block.type === 'text' && block.content) {
                 return [new Paragraph({
                   text: block.content,
-                  alignment: 'justify',
+                  alignment: 'both',
                   spacing: { after: 200 }
                 })];
               }
