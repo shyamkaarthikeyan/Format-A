@@ -58,8 +58,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentData = req.body;
       
-      // Call Python script to generate LaTeX
-      const python = spawn('python3', ['server/document_generator.py', '--latex'], {
+      // Call Python script to generate Word document first
+      const python = spawn('python3', ['server/document_generator.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
