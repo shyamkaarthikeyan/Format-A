@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ZoomIn, ZoomOut, Download, FileText, Code } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import SimplePaginatedPreview from "./simple-paginated-preview";
+import IEEEDocumentPreview from "./ieee-document-preview";
 import type { Document } from "@shared/schema";
 
 interface DocumentPreviewProps {
@@ -165,7 +165,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             height: `${100 / (zoom / 100)}%`,
           }}
         >
-          <SimplePaginatedPreview document={document} />
+          <IEEEDocumentPreview document={document} />
         </div>
       );
     } else {
