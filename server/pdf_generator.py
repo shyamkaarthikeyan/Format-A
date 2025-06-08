@@ -18,14 +18,15 @@ def create_ieee_pdf(form_data):
     """Generate IEEE-formatted PDF document"""
     buffer = io.BytesIO()
     
-    # Create PDF document
+    # Create PDF document with IEEE margins
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
         rightMargin=0.75*inch,
         leftMargin=0.75*inch,
         topMargin=1*inch,
-        bottomMargin=1*inch
+        bottomMargin=1*inch,
+        showBoundary=0
     )
     
     # Define styles
@@ -120,8 +121,26 @@ def create_ieee_pdf(form_data):
         story.append(keywords_para)
         story.append(Spacer(1, 18))
     
-    # Sections
+    # Add column break for two-column layout
     if form_data.get('sections'):
+        story.append(PageBreak())
+        
+        # Create two-column frame for sections
+        from reportlab.platypus import KeepTogether
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_JUSTIFY
+        
+        # Two-column body style
+        two_col_body_style = ParagraphStyle(
+            'TwoColBody',
+            parent=styles['Normal'],
+            fontSize=9,
+            spaceAfter=6,
+            alignment=TA_JUSTIFY,
+            fontName='Times-Roman',
+            firstLineIndent=0.125*inch
+        )
+        
         for idx, section in enumerate(form_data['sections']):
             if section.get('title'):
                 section_title = f"{idx + 1}. {section['title'].upper()}"
@@ -132,7 +151,7 @@ def create_ieee_pdf(form_data):
             if section.get('contentBlocks'):
                 for block in section['contentBlocks']:
                     if block.get('type') == 'text' and block.get('content'):
-                        content_para = Paragraph(block['content'], body_style)
+                        content_para = Paragraph(block['content'], two_col_body_style)
                         story.append(content_para)
             
             # Subsections
@@ -144,7 +163,7 @@ def create_ieee_pdf(form_data):
                         story.append(sub_heading_para)
                     
                     if subsection.get('content'):
-                        sub_content_para = Paragraph(subsection['content'], body_style)
+                        sub_content_para = Paragraph(subsection['content'], two_col_body_style)
                         story.append(sub_content_para)
             
             story.append(Spacer(1, 12))

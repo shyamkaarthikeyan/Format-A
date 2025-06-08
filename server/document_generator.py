@@ -217,14 +217,13 @@ def add_abstract(doc, abstract):
         para = doc.add_paragraph()
         run = para.add_run("Abstract—")
         run.italic = True
-        run.bold = True
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         run = para.add_run(abstract)
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        # IEEE abstract: justified text in an indented block
+        # Apply advanced justification controls to abstract
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -233,27 +232,24 @@ def add_abstract(doc, abstract):
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
         
-        # IEEE standard indentation for abstract
-        para.paragraph_format.left_indent = Inches(0.5)
-        para.paragraph_format.right_indent = Inches(0.5)
+        # Add advanced spacing controls to prevent word stretching
+        para_element = para._element
+        pPr = para_element.get_or_add_pPr()
         
-        # Apply fine-tuned justification settings to reduce word spacing
-        from docx.oxml.ns import qn
-        from docx.oxml import OxmlElement
-        pPr = para._element.get_or_add_pPr()
-        
-        # Add justification with low expansion
+        # Set justification method
         jc = OxmlElement('w:jc')
         jc.set(qn('w:val'), 'both')
         pPr.append(jc)
         
-        # Control word spacing
-        spacing = OxmlElement('w:spacing')
-        spacing.set(qn('w:before'), '0')
-        spacing.set(qn('w:after'), str(int(IEEE_CONFIG['line_spacing'].pt)))
-        spacing.set(qn('w:line'), str(int(IEEE_CONFIG['line_spacing'].pt * 20)))
-        spacing.set(qn('w:lineRule'), 'exact')
-        pPr.append(spacing)
+        # Control text alignment
+        textAlignment = OxmlElement('w:textAlignment')
+        textAlignment.set(qn('w:val'), 'baseline')
+        pPr.append(textAlignment)
+        
+        # Prevent excessive word spacing
+        adjust_right_ind = OxmlElement('w:adjustRightInd')
+        adjust_right_ind.set(qn('w:val'), '0')
+        pPr.append(adjust_right_ind)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
