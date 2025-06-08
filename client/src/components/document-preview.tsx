@@ -97,15 +97,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const url = URL.createObjectURL(blob);
       
       // Create download link and trigger download
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = url;
       link.download = "ieee_paper.pdf";
-      document.body.appendChild(link);
+      window.document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      window.document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      return result;
+      return { success: true };
     },
     onSuccess: () => {
       toast({
