@@ -224,17 +224,35 @@ def add_abstract(doc, abstract):
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
+        # Apply advanced justification controls to abstract
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(10)
+        para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
         para.paragraph_format.widow_control = False
         para.paragraph_format.keep_with_next = False
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
-        # Reduce the margins for single-column abstract to prevent excessive stretching
-        para.paragraph_format.first_line_indent = Inches(0.15)
-        para.paragraph_format.left_indent = Inches(0.75)
-        para.paragraph_format.right_indent = Inches(0.75)
+        
+        # Add advanced spacing controls to prevent word stretching
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        para_element = para._element
+        pPr = para_element.get_or_add_pPr()
+        
+        # Set justification method
+        jc = OxmlElement('w:jc')
+        jc.set(qn('w:val'), 'both')
+        pPr.append(jc)
+        
+        # Control text alignment
+        textAlignment = OxmlElement('w:textAlignment')
+        textAlignment.set(qn('w:val'), 'baseline')
+        pPr.append(textAlignment)
+        
+        # Prevent excessive word spacing
+        adjust_right_ind = OxmlElement('w:adjustRightInd')
+        adjust_right_ind.set(qn('w:val'), '0')
+        pPr.append(adjust_right_ind)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
