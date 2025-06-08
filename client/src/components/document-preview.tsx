@@ -30,18 +30,31 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
       
-      const { generateDocxDocument, downloadFile } = await import("@/lib/document-generator");
-      const result = await generateDocxDocument(document);
-      
-      if (!result.success) {
-        throw new Error(result.error || "Failed to generate document");
+      const response = await fetch('/api/generate/docx', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(document),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate document: ${response.statusText}`);
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       
-      if (result.downloadUrl) {
-        downloadFile(result.downloadUrl, "ieee_paper.docx");
-      }
+      // Create download link and trigger download
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = "ieee_paper.docx";
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
-      return result;
+      return { success: true };
     },
     onSuccess: () => {
       toast({
@@ -68,16 +81,29 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
       
-      const { generateLatexDocument, downloadFile } = await import("@/lib/document-generator");
-      const result = await generateLatexDocument(document);
-      
-      if (!result.success) {
-        throw new Error(result.error || "Failed to generate document");
+      const response = await fetch('/api/generate/latex', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(document),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF document: ${response.statusText}`);
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       
-      if (result.downloadUrl) {
-        downloadFile(result.downloadUrl, "ieee_paper.pdf");
-      }
+      // Create download link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = "ieee_paper.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
       return result;
     },
