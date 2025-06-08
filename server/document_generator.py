@@ -217,6 +217,7 @@ def add_abstract(doc, abstract):
         para = doc.add_paragraph()
         run = para.add_run("Abstract—")
         run.italic = True
+        run.bold = True
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         run = para.add_run(abstract)
@@ -225,11 +226,14 @@ def add_abstract(doc, abstract):
         
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
+        para.paragraph_format.space_after = Pt(10)
         para.paragraph_format.widow_control = False
         para.paragraph_format.keep_with_next = False
-        para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
+        para.paragraph_format.line_spacing = Pt(10)
         para.paragraph_format.line_spacing_rule = 0
+        para.paragraph_format.first_line_indent = Inches(0.2)
+        para.paragraph_format.left_indent = Inches(0.2)
+        para.paragraph_format.right_indent = Inches(0.2)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
@@ -403,7 +407,6 @@ def generate_ieee_document(form_data):
     
     add_title(doc, form_data.get('title', ''))
     add_authors(doc, form_data.get('authors', []))
-    add_footnote(doc, form_data.get('footnote', {}))
     add_abstract(doc, form_data.get('abstract', ''))
     add_keywords(doc, form_data.get('keywords', ''))
 
