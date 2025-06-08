@@ -43,16 +43,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
+      console.log('Blob size:', blob.size, 'bytes');
+      console.log('Blob type:', blob.type);
+      
+      if (blob.size === 0) {
+        throw new Error('Generated document is empty');
+      }
+      
       const url = URL.createObjectURL(blob);
       
       // Create download link and trigger download
       const link = window.document.createElement('a');
       link.href = url;
       link.download = "ieee_paper.docx";
+      link.style.display = 'none';
       window.document.body.appendChild(link);
-      link.click();
-      window.document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      
+      // Force download with a slight delay
+      setTimeout(() => {
+        link.click();
+        window.document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
       
       return { success: true };
     },
@@ -94,16 +106,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
+      console.log('PDF Blob size:', blob.size, 'bytes');
+      console.log('PDF Blob type:', blob.type);
+      
+      if (blob.size === 0) {
+        throw new Error('Generated PDF document is empty');
+      }
+      
       const url = URL.createObjectURL(blob);
       
       // Create download link and trigger download
       const link = window.document.createElement('a');
       link.href = url;
       link.download = "ieee_paper.pdf";
+      link.style.display = 'none';
       window.document.body.appendChild(link);
-      link.click();
-      window.document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      
+      // Force download with a slight delay
+      setTimeout(() => {
+        link.click();
+        window.document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
       
       return { success: true };
     },
