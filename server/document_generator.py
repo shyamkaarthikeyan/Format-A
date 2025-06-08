@@ -214,45 +214,34 @@ def add_authors(doc, authors):
 def add_abstract(doc, abstract):
     """Add the abstract section with italicized 'Abstract—'."""
     if abstract:
-        para = doc.add_paragraph()
-        run = para.add_run("Abstract—")
-        run.italic = True
-        run.bold = True
-        run.font.name = IEEE_CONFIG['font_name']
-        run.font.size = IEEE_CONFIG['font_size_body']
-        run = para.add_run(abstract)
-        run.font.name = IEEE_CONFIG['font_name']
-        run.font.size = IEEE_CONFIG['font_size_body']
+        # Use the same justified paragraph approach as content sections
+        para = add_justified_paragraph(
+            doc, 
+            f"Abstract—{abstract}",
+            indent_left=Inches(0.5),
+            indent_right=Inches(0.5),
+            space_before=Pt(0),
+            space_after=IEEE_CONFIG['line_spacing']
+        )
         
-        # Apply advanced justification controls to abstract
-        para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
-        para.paragraph_format.widow_control = False
-        para.paragraph_format.keep_with_next = False
-        para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
-        para.paragraph_format.line_spacing_rule = 0
-        
-        # Add advanced spacing controls to prevent word stretching
-        from docx.oxml.ns import qn
-        from docx.oxml import OxmlElement
-        para_element = para._element
-        pPr = para_element.get_or_add_pPr()
-        
-        # Set justification method
-        jc = OxmlElement('w:jc')
-        jc.set(qn('w:val'), 'both')
-        pPr.append(jc)
-        
-        # Control text alignment
-        textAlignment = OxmlElement('w:textAlignment')
-        textAlignment.set(qn('w:val'), 'baseline')
-        pPr.append(textAlignment)
-        
-        # Prevent excessive word spacing
-        adjust_right_ind = OxmlElement('w:adjustRightInd')
-        adjust_right_ind.set(qn('w:val'), '0')
-        pPr.append(adjust_right_ind)
+        # Format the "Abstract—" part
+        if para.runs and len(para.runs) > 0:
+            # Find and format the "Abstract—" text
+            full_text = para.runs[0].text
+            para.runs[0].text = ""
+            
+            # Add "Abstract—" with italic formatting
+            run = para.runs[0]
+            run.text = "Abstract—"
+            run.italic = True
+            run.bold = True
+            run.font.name = IEEE_CONFIG['font_name']
+            run.font.size = IEEE_CONFIG['font_size_body']
+            
+            # Add the rest of the abstract text
+            run = para.add_run(abstract)
+            run.font.name = IEEE_CONFIG['font_name']
+            run.font.size = IEEE_CONFIG['font_size_body']
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
