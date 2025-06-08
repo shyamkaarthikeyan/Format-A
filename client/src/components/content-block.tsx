@@ -58,6 +58,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                   onUpdate({ 
                     imageId: `img_${Date.now()}`,
                     content: block.content || "",
+                    imageData: base64,
                     caption: block.caption || ""
                   });
                 }}

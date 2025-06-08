@@ -200,46 +200,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate DOCX
-  app.post("/api/documents/:id/generate/docx", async (req, res) => {
+  // Generate PDF
+  app.post("/api/generate/pdf", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const document = await storage.getDocument(id);
+      const document = req.body;
       
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
+      // Generate LaTeX and convert to PDF using Python backend
+      const python = spawn('python3', ['-c', `
+import sys
+import json
+sys.path.append('server')
+from document_generator import generate_latex_document
 
-      // In a real implementation, this would use the docx library to generate the document
-      // For now, we'll return a placeholder response
-      res.json({ 
-        message: "DOCX generation would be implemented here",
-        downloadUrl: `/api/documents/${id}/download/docx`,
-        document: document
+# Read input from stdin
+input_data = json.loads(sys.stdin.read())
+latex_content = generate_latex_document(input_data)
+print(latex_content)
+`]);
+
+      let output = '';
+      let error = '';
+
+      python.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+
+      python.stderr.on('data', (data: Buffer) => {
+        error += data.toString();
+      });
+
+      python.stdin.write(JSON.stringify(document));
+      python.stdin.end();
+
+      python.on('close', (code) => {
+        if (code === 0 && output.trim()) {
+          // For now, return LaTeX content as text file
+          // In production, you would compile this to PDF using pdflatex
+          res.setHeader('Content-Type', 'application/x-tex');
+          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.tex"');
+          res.send(output.trim());
+        } else {
+          console.error('Python error:', error);
+          res.status(500).json({ error: 'Failed to generate PDF: ' + error });
+        }
       });
     } catch (error) {
-      res.status(500).json({ message: "Failed to generate DOCX" });
-    }
-  });
-
-  // Generate LaTeX
-  app.post("/api/documents/:id/generate/latex", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const document = await storage.getDocument(id);
-      
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      // In a real implementation, this would use the LaTeX template from the Python code
-      res.json({ 
-        message: "LaTeX generation would be implemented here",
-        downloadUrl: `/api/documents/${id}/download/latex`,
-        document: document
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to generate LaTeX" });
+      res.status(500).json({ error: 'Server error: ' + (error as Error).message });
     }
   });
 

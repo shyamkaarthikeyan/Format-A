@@ -177,12 +177,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             className="mb-3"
             style={{ 
               textAlign: "justify",
-              marginBottom: "10px",
-              textIndent: "0.2in",
-              marginLeft: "0.2in",
-              marginRight: "0.2in",
+              marginBottom: "12px",
+              textIndent: "14.4px",
+              marginLeft: "18px",
+              marginRight: "18px",
               wordSpacing: "normal",
-              hyphens: "auto"
+              hyphens: "auto",
+              lineHeight: "10px"
             }}
           >
             <span className="italic font-bold">Abstract—</span>
