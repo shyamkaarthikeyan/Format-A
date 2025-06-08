@@ -224,7 +224,8 @@ def add_abstract(doc, abstract):
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        # Use left alignment instead of justify to prevent word stretching
+        para.alignment = WD_ALIGN_PARAGRAPH.LEFT
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
         para.paragraph_format.widow_control = False
@@ -232,20 +233,9 @@ def add_abstract(doc, abstract):
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
         
-        # Apply specific paragraph properties to control justification
-        from docx.oxml.ns import qn
-        from docx.oxml import OxmlElement
-        pPr = para._element.get_or_add_pPr()
-        
-        # Set tab stops for better word distribution
-        tabs = OxmlElement('w:tabs')
-        pPr.append(tabs)
-        
-        # Add hanging indent to reduce line width slightly
-        ind = OxmlElement('w:ind')
-        ind.set(qn('w:left'), '720')  # 0.5 inch
-        ind.set(qn('w:right'), '720')  # 0.5 inch
-        pPr.append(ind)
+        # Add indentation for IEEE style
+        para.paragraph_format.left_indent = Inches(0.5)
+        para.paragraph_format.right_indent = Inches(0.5)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""

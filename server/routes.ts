@@ -95,38 +95,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Write DOCX to temp file
           fs.writeFileSync(docxPath, outputBuffer);
           
-          // Convert to PDF using LibreOffice
+          // Convert to PDF using LibreOffice with better error handling
           const { spawn } = require('child_process');
-          const libreoffice = spawn('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', tempDir, docxPath]);
+          const libreoffice = spawn('libreoffice', [
+            '--headless', 
+            '--convert-to', 
+            'pdf', 
+            '--outdir', 
+            tempDir, 
+            docxPath
+          ], {
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+          
+          let conversionError = '';
+          
+          libreoffice.stderr.on('data', (data: Buffer) => {
+            conversionError += data.toString();
+          });
           
           libreoffice.on('close', (code: number) => {
             try {
-              if (code === 0 && fs.existsSync(pdfPath)) {
-                const pdfBuffer = fs.readFileSync(pdfPath);
+              // Wait longer for LibreOffice to complete conversion
+              setTimeout(() => {
+                console.log(`LibreOffice exit code: ${code}`);
+                console.log(`PDF file exists: ${fs.existsSync(pdfPath)}`);
+                console.log(`DOCX file exists: ${fs.existsSync(docxPath)}`);
                 
-                res.setHeader('Content-Type', 'application/pdf');
-                res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
-                res.send(pdfBuffer);
+                if (code === 0 && fs.existsSync(pdfPath)) {
+                  const stats = fs.statSync(pdfPath);
+                  console.log(`PDF file size: ${stats.size} bytes`);
+                  
+                  if (stats.size > 1000) { // PDF should be at least 1KB
+                    const pdfBuffer = fs.readFileSync(pdfPath);
+                    
+                    // Verify it's actually a PDF
+                    if (pdfBuffer.subarray(0, 4).toString() === '%PDF') {
+                      res.setHeader('Content-Type', 'application/pdf');
+                      res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                      res.send(pdfBuffer);
+                      
+                      // Clean up temp files
+                      fs.unlinkSync(docxPath);
+                      fs.unlinkSync(pdfPath);
+                      return;
+                    } else {
+                      console.error('Generated file is not a valid PDF');
+                    }
+                  } else {
+                    console.error(`Generated PDF is too small: ${stats.size} bytes`);
+                  }
+                } else {
+                  console.error('PDF conversion failed or file not found');
+                  if (conversionError) console.error('Conversion error:', conversionError);
+                }
                 
-                // Clean up temp files
-                fs.unlinkSync(docxPath);
-                fs.unlinkSync(pdfPath);
-              } else {
-                // Fallback: return DOCX if PDF conversion fails
+                // Fallback to DOCX
+                console.log('Falling back to DOCX download');
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
                 res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
                 res.send(outputBuffer);
-                if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
-              }
+                
+                // Clean up temp files
+                try {
+                  if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
+                  if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+                } catch (cleanupErr) {
+                  console.error('Cleanup error:', cleanupErr);
+                }
+              }, 2000); // Increased wait time
             } catch (error) {
+              console.error('Error during PDF processing:', error);
               res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
               res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
               res.send(outputBuffer);
+              try {
+                if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
+                if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+              } catch (cleanupError) {
+                console.error('Cleanup error:', cleanupError);
+              }
             }
           });
           
-          libreoffice.on('error', () => {
-            // Fallback: return DOCX if LibreOffice is not available
+          libreoffice.on('error', (error) => {
+            console.error('LibreOffice process error:', error);
+            // Return DOCX as fallback
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
             res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
             res.send(outputBuffer);
