@@ -231,6 +231,21 @@ def add_abstract(doc, abstract):
         para.paragraph_format.keep_with_next = False
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
+        
+        # Apply specific paragraph properties to control justification
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        pPr = para._element.get_or_add_pPr()
+        
+        # Set tab stops for better word distribution
+        tabs = OxmlElement('w:tabs')
+        pPr.append(tabs)
+        
+        # Add hanging indent to reduce line width slightly
+        ind = OxmlElement('w:ind')
+        ind.set(qn('w:left'), '720')  # 0.5 inch
+        ind.set(qn('w:right'), '720')  # 0.5 inch
+        pPr.append(ind)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""

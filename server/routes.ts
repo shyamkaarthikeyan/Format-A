@@ -77,16 +77,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorOutput += data.toString();
       });
       
-      python.on('close', (code: number) => {
+      python.on('close', async (code: number) => {
         if (code !== 0) {
           console.error('Python script error:', errorOutput);
           res.status(500).json({ error: 'Failed to generate document' });
           return;
         }
         
-        res.setHeader('Content-Type', 'text/x-tex');
-        res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.tex"');
-        res.send(outputBuffer);
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          
+          const tempDir = '/tmp';
+          const docxPath = path.join(tempDir, `ieee_paper_${Date.now()}.docx`);
+          const pdfPath = docxPath.replace('.docx', '.pdf');
+          
+          // Write DOCX to temp file
+          fs.writeFileSync(docxPath, outputBuffer);
+          
+          // Convert to PDF using LibreOffice
+          const { spawn } = require('child_process');
+          const libreoffice = spawn('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', tempDir, docxPath]);
+          
+          libreoffice.on('close', (code: number) => {
+            try {
+              if (code === 0 && fs.existsSync(pdfPath)) {
+                const pdfBuffer = fs.readFileSync(pdfPath);
+                
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                res.send(pdfBuffer);
+                
+                // Clean up temp files
+                fs.unlinkSync(docxPath);
+                fs.unlinkSync(pdfPath);
+              } else {
+                // Fallback: return DOCX if PDF conversion fails
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+                res.send(outputBuffer);
+                if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
+              }
+            } catch (error) {
+              res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+              res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+              res.send(outputBuffer);
+            }
+          });
+          
+          libreoffice.on('error', () => {
+            // Fallback: return DOCX if LibreOffice is not available
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+            res.send(outputBuffer);
+            if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
+          });
+        } catch (error) {
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+          res.send(outputBuffer);
+        }
       });
       
     } catch (error) {

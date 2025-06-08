@@ -58,7 +58,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     },
   });
 
-  const generateLatexMutation = useMutation({
+  const generatePdfMutation = useMutation({
     mutationFn: async () => {
       // Validation based on Streamlit implementation
       if (!document.title) {
@@ -76,15 +76,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
       
       if (result.downloadUrl) {
-        downloadFile(result.downloadUrl, "ieee_paper.tex");
+        downloadFile(result.downloadUrl, "ieee_paper.pdf");
       }
       
       return result;
     },
     onSuccess: () => {
       toast({
-        title: "LaTeX Document Generated",
-        description: "IEEE-formatted LaTeX file has been downloaded successfully.",
+        title: "PDF Document Generated",
+        description: "IEEE-formatted PDF file has been downloaded successfully.",
       });
     },
     onError: (error: Error) => {
@@ -171,16 +171,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         )}
 
-        {/* Abstract */}
+        {/* Abstract - Single Column Layout */}
         {document.abstract && (
           <div 
-            className="mb-3"
+            className="mb-3 text-xs"
             style={{ 
               textAlign: "justify",
-              marginBottom: "10px",
-              textIndent: "0.2in",
-              marginLeft: "0.2in",
-              marginRight: "0.2in",
+              marginBottom: "12px",
+              marginLeft: "0.5in",
+              marginRight: "0.5in",
+              lineHeight: "1.2",
               wordSpacing: "normal",
               hyphens: "auto"
             }}
@@ -207,25 +207,42 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         )}
 
-        {/* Sections */}
+        {/* Sections - Two Column Layout */}
         {document.sections && document.sections.length > 0 && (
-          <div className="space-y-3">
+          <div 
+            className="space-y-3"
+            style={{
+              columnCount: 2,
+              columnGap: "0.25in",
+              columnFill: "balance"
+            }}
+          >
             {document.sections.map((section, index) => (
-              <div key={section.id}>
+              <div key={section.id} className="break-inside-avoid">
                 {section.title && (
-                  <h2 className="font-bold text-xs mb-2">
+                  <h2 className="font-bold text-xs mb-2" style={{ breakAfter: "avoid" }}>
                     {index + 1}. {section.title.toUpperCase()}
                   </h2>
                 )}
                 
                 {/* Content Blocks */}
                 {section.contentBlocks.map((block) => (
-                  <div key={block.id} className="mb-2">
+                  <div key={block.id} className="mb-2 break-inside-avoid">
                     {block.type === "text" && block.content && (
-                      <p className="text-justify text-xs">{block.content}</p>
+                      <p 
+                        className="text-justify text-xs"
+                        style={{
+                          textIndent: "0.125in",
+                          lineHeight: "1.2",
+                          wordSpacing: "normal",
+                          hyphens: "auto"
+                        }}
+                      >
+                        {block.content}
+                      </p>
                     )}
                     {block.type === "image" && block.content && (
-                      <div className="text-center my-2">
+                      <div className="text-center my-2 break-inside-avoid">
                         <img 
                           src={block.content} 
                           alt={block.caption || "Figure"} 
@@ -234,7 +251,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                             maxWidth: block.size === "very-small" ? "1.2in" :
                                      block.size === "small" ? "1.8in" :
                                      block.size === "large" ? "3.2in" : "2.5in",
-                            maxHeight: "4in"
+                            maxHeight: "3in"
                           }}
                         />
                         {block.caption && (
@@ -255,20 +272,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
                 {/* Subsections */}
                 {section.subsections.map((subsection, subIndex) => (
-                  <div key={subsection.id} className="mb-2">
+                  <div key={subsection.id} className="mb-2 break-inside-avoid">
                     {subsection.title && (
-                      <h3 className="font-bold text-xs mb-1">
+                      <h3 className="font-bold text-xs mb-1" style={{ breakAfter: "avoid" }}>
                         {index + 1}.{subIndex + 1} {subsection.title}
                       </h3>
                     )}
                     {subsection.content && (
                       <div 
+                        className="text-xs"
                         style={{ 
                           textAlign: "justify",
-                          textIndent: "0.2in",
-                          marginLeft: "0.2in",
-                          marginRight: "0.2in",
-                          marginBottom: "12px"
+                          textIndent: "0.125in",
+                          lineHeight: "1.2",
+                          wordSpacing: "normal",
+                          marginBottom: "12px",
+                          hyphens: "auto"
                         }}
                       >
                         {subsection.content}
@@ -319,11 +338,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             <Button
               size="sm"
               className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => generateLatexMutation.mutate()}
-              disabled={generateLatexMutation.isPending}
+              onClick={() => generatePdfMutation.mutate()}
+              disabled={generatePdfMutation.isPending}
             >
               <FileText className="w-4 h-4 mr-2" />
-              {generateLatexMutation.isPending ? "Generating..." : "Download PDF"}
+              {generatePdfMutation.isPending ? "Generating..." : "Download PDF"}
             </Button>
           </div>
         </CardContent>
