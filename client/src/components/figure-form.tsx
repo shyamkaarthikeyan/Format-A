@@ -14,7 +14,7 @@ import type { Figure, Section } from "@shared/schema";
 
 interface FigureFormProps {
   figures: Figure[];
-  documentId: number | null;
+  documentId: string | null;
   sections: Section[];
   onUpdate: (figures: Figure[]) => void;
 }

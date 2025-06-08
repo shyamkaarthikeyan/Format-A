@@ -70,11 +70,22 @@ export interface DocumentSettings {
   includeCopyright: boolean;
 }
 
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-}).extend({
+export type Document = {
+  id: string;
+  title: string;
+  abstract: string | null;
+  keywords: string | null;
+  authors: Author[];
+  sections: Section[];
+  references: Reference[];
+  figures: Figure[];
+  settings: DocumentSettings;
+};
+
+export const insertDocumentSchema = z.object({
+  title: z.string(),
+  abstract: z.string().nullable(),
+  keywords: z.string().nullable(),
   authors: z.array(z.object({
     id: z.string(),
     name: z.string(),
@@ -145,5 +156,4 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
 export const updateDocumentSchema = insertDocumentSchema.partial();
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type Document = typeof documents.$inferSelect;
 export type UpdateDocument = z.infer<typeof updateDocumentSchema>;

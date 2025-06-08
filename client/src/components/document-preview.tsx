@@ -12,7 +12,7 @@ import type { Document } from "@shared/schema";
 
 interface DocumentPreviewProps {
   document: Document;
-  documentId: number | null;
+  documentId: string | null;
 }
 
 export default function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
