@@ -17,7 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate DOCX
-      const python = spawn('python3', ['server/ieee_document_generator.py'], {
+      const python = spawn('python3', ['server/ieee_generator_fixed.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
