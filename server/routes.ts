@@ -58,8 +58,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentData = req.body;
       
-      // Call Python script to generate Word document first
-      const python = spawn('python3', ['server/document_generator.py'], {
+      // Call Python script to generate PDF directly
+      const python = spawn('python3', ['server/pdf_generator.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
@@ -77,119 +77,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorOutput += data.toString();
       });
       
-      python.on('close', async (code: number) => {
+      python.on('close', (code: number) => {
         if (code !== 0) {
-          console.error('Python script error:', errorOutput);
-          res.status(500).json({ error: 'Failed to generate document' });
+          console.error('PDF generation error:', errorOutput);
+          res.status(500).json({ error: 'Failed to generate PDF document' });
           return;
         }
         
-        try {
-          const fs = require('fs');
-          const path = require('path');
-          
-          const tempDir = '/tmp';
-          const docxPath = path.join(tempDir, `ieee_paper_${Date.now()}.docx`);
-          const pdfPath = docxPath.replace('.docx', '.pdf');
-          
-          // Write DOCX to temp file
-          fs.writeFileSync(docxPath, outputBuffer);
-          
-          // Convert to PDF using LibreOffice with better error handling
-          const { spawn } = require('child_process');
-          const libreoffice = spawn('libreoffice', [
-            '--headless', 
-            '--convert-to', 
-            'pdf', 
-            '--outdir', 
-            tempDir, 
-            docxPath
-          ], {
-            stdio: ['pipe', 'pipe', 'pipe']
-          });
-          
-          let conversionError = '';
-          
-          libreoffice.stderr.on('data', (data: Buffer) => {
-            conversionError += data.toString();
-          });
-          
-          libreoffice.on('close', (code: number) => {
-            try {
-              // Wait longer for LibreOffice to complete conversion
-              setTimeout(() => {
-                console.log(`LibreOffice exit code: ${code}`);
-                console.log(`PDF file exists: ${fs.existsSync(pdfPath)}`);
-                console.log(`DOCX file exists: ${fs.existsSync(docxPath)}`);
-                
-                if (code === 0 && fs.existsSync(pdfPath)) {
-                  const stats = fs.statSync(pdfPath);
-                  console.log(`PDF file size: ${stats.size} bytes`);
-                  
-                  if (stats.size > 1000) { // PDF should be at least 1KB
-                    const pdfBuffer = fs.readFileSync(pdfPath);
-                    
-                    // Verify it's actually a PDF
-                    if (pdfBuffer.subarray(0, 4).toString() === '%PDF') {
-                      res.setHeader('Content-Type', 'application/pdf');
-                      res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
-                      res.send(pdfBuffer);
-                      
-                      // Clean up temp files
-                      fs.unlinkSync(docxPath);
-                      fs.unlinkSync(pdfPath);
-                      return;
-                    } else {
-                      console.error('Generated file is not a valid PDF');
-                    }
-                  } else {
-                    console.error(`Generated PDF is too small: ${stats.size} bytes`);
-                  }
-                } else {
-                  console.error('PDF conversion failed or file not found');
-                  if (conversionError) console.error('Conversion error:', conversionError);
-                }
-                
-                // Fallback to DOCX
-                console.log('Falling back to DOCX download');
-                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-                res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-                res.send(outputBuffer);
-                
-                // Clean up temp files
-                try {
-                  if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
-                  if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-                } catch (cleanupErr) {
-                  console.error('Cleanup error:', cleanupErr);
-                }
-              }, 2000); // Increased wait time
-            } catch (error) {
-              console.error('Error during PDF processing:', error);
-              res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-              res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-              res.send(outputBuffer);
-              try {
-                if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
-                if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-              } catch (cleanupError) {
-                console.error('Cleanup error:', cleanupError);
-              }
-            }
-          });
-          
-          libreoffice.on('error', (error) => {
-            console.error('LibreOffice process error:', error);
-            // Return DOCX as fallback
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-            res.send(outputBuffer);
-            if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath);
-          });
-        } catch (error) {
-          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+        // Verify it's a valid PDF
+        if (outputBuffer.length > 1000 && outputBuffer.subarray(0, 4).toString() === '%PDF') {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
           res.send(outputBuffer);
+        } else {
+          console.error('Generated PDF is invalid or too small');
+          res.status(500).json({ error: 'Failed to generate valid PDF document' });
         }
       });
       
