@@ -1,4 +1,4 @@
-import type { Document, InsertDocument, UpdateDocument } from '../../../shared/schema.js';
+import type { Document, InsertDocument, UpdateDocument } from '../../../shared/schema-client.js';
 
 const STORAGE_KEY = 'ieee_documents';
 
@@ -49,22 +49,16 @@ export class LocalStorage implements IClientStorage {
       title: insertDocument.title || '',
       abstract: insertDocument.abstract || null,
       keywords: insertDocument.keywords || null,
-      receivedDate: insertDocument.receivedDate || null,
-      revisedDate: insertDocument.revisedDate || null,
-      acceptedDate: insertDocument.acceptedDate || null,
-      funding: insertDocument.funding || null,
-      doi: insertDocument.doi || null,
-      acknowledgments: insertDocument.acknowledgments || null,
       authors: insertDocument.authors || [],
       sections: insertDocument.sections || [],
       references: insertDocument.references || [],
       figures: insertDocument.figures || [],
       settings: insertDocument.settings || {
-        fontSize: "9.5pt",
-        columns: "double",
+        fontSize: "10pt",
+        columns: "2",
         exportFormat: "docx",
         includePageNumbers: true,
-        includeCopyright: true
+        includeCopyright: false
       }
     };
 

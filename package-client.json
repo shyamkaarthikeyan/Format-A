@@ -1,0 +1,35 @@
+{
+  "name": "ieee-generator-client",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.config-client.ts",
+    "build": "vite build --config vite.config-client.ts",
+    "preview": "vite preview --config vite.config-client.ts"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "wouter": "^3.0.0",
+    "lucide-react": "^0.263.1",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^1.14.0",
+    "class-variance-authority": "^0.7.0",
+    "docx": "^8.2.2",
+    "jspdf": "^2.5.1",
+    "file-saver": "^2.0.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@types/file-saver": "^2.0.5",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5"
+  }
+}
