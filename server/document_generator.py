@@ -224,8 +224,8 @@ def add_abstract(doc, abstract):
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Improved justification settings to prevent excessive word spacing
-        para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        # Fix justification to prevent excessive word spacing
+        para.alignment = WD_ALIGN_PARAGRAPH.LEFT
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = Pt(12)
         para.paragraph_format.widow_control = False

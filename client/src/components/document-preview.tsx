@@ -176,13 +176,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <div 
             className="mb-3"
             style={{ 
-              textAlign: "justify",
+              textAlign: "left",
               marginBottom: "12px",
               textIndent: "14.4px",
               marginLeft: "18px",
               marginRight: "18px",
               wordSpacing: "normal",
-              hyphens: "auto",
               lineHeight: "10px"
             }}
           >
@@ -223,7 +222,19 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 {section.contentBlocks.map((block) => (
                   <div key={block.id} className="mb-2">
                     {block.type === "text" && block.content && (
-                      <p className="text-justify text-xs">{block.content}</p>
+                      <div 
+                        style={{ 
+                          textAlign: "left",
+                          textIndent: "14.4px",
+                          marginLeft: "18px",
+                          marginRight: "18px",
+                          marginBottom: "12px",
+                          wordSpacing: "normal",
+                          lineHeight: "10px"
+                        }}
+                      >
+                        {block.content}
+                      </div>
                     )}
                     {block.type === "image" && block.content && (
                       <div className="text-center my-2">
@@ -265,11 +276,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     {subsection.content && (
                       <div 
                         style={{ 
-                          textAlign: "justify",
-                          textIndent: "0.2in",
-                          marginLeft: "0.2in",
-                          marginRight: "0.2in",
-                          marginBottom: "12px"
+                          textAlign: "left",
+                          textIndent: "14.4px",
+                          marginLeft: "18px",
+                          marginRight: "18px",
+                          marginBottom: "12px",
+                          wordSpacing: "normal",
+                          lineHeight: "10px"
                         }}
                       >
                         {subsection.content}
