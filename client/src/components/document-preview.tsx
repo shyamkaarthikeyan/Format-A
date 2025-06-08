@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ZoomIn, ZoomOut, Download, FileText, Code } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import IEEEDocumentPreview from "./ieee-document-preview";
+import { apiRequest } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
 
 interface DocumentPreviewProps {
@@ -154,109 +154,288 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setZoom(Math.max(50, zoom - 25));
   };
 
-  const renderContent = () => {
-    if (previewMode === "ieee") {
-      return (
-        <div 
-          style={{ 
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: "top left",
-            width: `${100 / (zoom / 100)}%`,
-            height: `${100 / (zoom / 100)}%`,
-          }}
-        >
-          <IEEEDocumentPreview document={document} />
-        </div>
-      );
-    } else {
-      return (
-        <div 
-          className="bg-white shadow-sm min-h-[500px] p-6"
-          style={{ 
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: "top left",
-            width: `${100 / (zoom / 100)}%`,
-            height: `${100 / (zoom / 100)}%`,
-          }}
-        >
-          <pre className="whitespace-pre-wrap text-sm">
-            {JSON.stringify(document, null, 2)}
-          </pre>
-        </div>
-      );
-    }
+  const renderIEEEPreview = () => {
+    return (
+      <div 
+        className="bg-white shadow-sm min-h-[500px] ieee-format"
+        style={{ 
+          transform: `scale(${zoom / 100})`,
+          transformOrigin: "top left",
+          width: `${100 / (zoom / 100)}%`,
+          height: `${100 / (zoom / 100)}%`,
+          fontFamily: "'Times New Roman', serif",
+          fontSize: "9.5px",
+          lineHeight: "10px",
+          padding: "0.75in",
+          margin: 0,
+          textAlign: "justify",
+          columnCount: 2,
+          columnGap: "0.25in"
+        }}
+      >
+        {/* Title */}
+        {document.title && (
+          <div 
+            className="text-center font-bold mb-3"
+            style={{ 
+              fontSize: "24px", 
+              lineHeight: "26px",
+              columnSpan: "all",
+              marginBottom: "12px"
+            }}
+          >
+            {document.title}
+          </div>
+        )}
+
+        {/* Authors */}
+        {document.authors && document.authors.length > 0 && (
+          <div 
+            className="text-center mb-4"
+            style={{ 
+              columnSpan: "all",
+              marginBottom: "12px"
+            }}
+          >
+            <div className="flex justify-center space-x-8">
+              {document.authors.map((author, index) => (
+                <div key={author.id} className="text-center">
+                  <div className="font-bold">{author.name}</div>
+                  {author.department && (
+                    <div className="italic text-xs">{author.department}</div>
+                  )}
+                  {author.organization && (
+                    <div className="italic text-xs">{author.organization}</div>
+                  )}
+                  {(author.city || author.state) && (
+                    <div className="italic text-xs">
+                      {author.city}{author.city && author.state && ", "}{author.state}
+                    </div>
+                  )}
+                  {author.email && (
+                    <div className="text-xs">{author.email}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Abstract Section */}
+        {document.abstract && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2 text-center">Abstract</h3>
+            <p 
+              className="text-sm text-gray-700 leading-relaxed text-justify"
+              style={{
+                marginLeft: "0.5in",
+                marginRight: "0.5in",
+                lineHeight: "1.4",
+                wordSpacing: "normal",
+                hyphens: "auto"
+              }}
+            >
+              {document.abstract}
+            </p>
+          </div>
+        )}
+
+        {/* Keywords */}
+        {document.keywords && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Keywords</h3>
+            <p className="text-sm text-gray-700 italic">
+              {document.keywords}
+            </p>
+          </div>
+        )}
+
+        {/* Sections */}
+        {document.sections && document.sections.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Content</h3>
+            <div className="space-y-3">
+              {document.sections.map((section, index) => (
+                <div key={section.id}>
+                  <h4 className="font-medium text-sm mb-1">
+                    {section.title}
+                  </h4>
+                  {/* Content Blocks */}
+                  {section.contentBlocks && section.contentBlocks.map((block) => (
+                    <div key={block.id}>
+                      {block.type === "text" && block.content && (
+                        <p className="text-xs text-gray-600 leading-relaxed text-justify mb-2">
+                          {block.content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  {/* Subsections */}
+                  {section.subsections && section.subsections.map((subsection) => (
+                    <div key={subsection.id} className="ml-2">
+                      {subsection.title && (
+                        <h5 className="font-medium text-xs mb-1">
+                          {subsection.title}
+                        </h5>
+                      )}
+                      {subsection.content && (
+                        <p className="text-xs text-gray-600 leading-relaxed text-justify">
+                          {subsection.content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* References */}
+        {document.references && document.references.length > 0 && (
+          <div className="mt-6">
+            <h3 className="font-bold text-xs mb-2">REFERENCES</h3>
+            <div className="text-xs space-y-1">
+              {document.references.map((ref, index) => (
+                <div key={ref.id}>
+                  [{index + 1}] {ref.text}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Document Preview</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Select value={previewMode} onValueChange={(value: "ieee" | "raw") => setPreviewMode(value)}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ieee">IEEE</SelectItem>
-                <SelectItem value="raw">Raw</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        {/* Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleZoomOut}
-              disabled={zoom <= 50}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-gray-600 min-w-[3rem] text-center">
-              {zoom}%
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleZoomIn}
-              disabled={zoom >= 150}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
-          
+    <div className="space-y-6">
+      {/* Preview Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Document Preview</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="flex space-x-2">
             <Button
-              variant="outline"
               size="sm"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => generateDocxMutation.mutate()}
               disabled={generateDocxMutation.isPending}
             >
-              <FileText className="h-4 w-4 mr-1" />
-              {generateDocxMutation.isPending ? "Generating..." : "Word"}
+              <FileText className="w-4 h-4 mr-2" />
+              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
             </Button>
             <Button
-              variant="outline"
               size="sm"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               onClick={() => generatePdfMutation.mutate()}
               disabled={generatePdfMutation.isPending}
             >
-              <Download className="h-4 w-4 mr-1" />
-              {generatePdfMutation.isPending ? "Generating..." : "PDF"}
+              <FileText className="w-4 h-4 mr-2" />
+              {generatePdfMutation.isPending ? "Generating..." : "Download PDF"}
             </Button>
           </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="flex-1 overflow-auto p-4">
-        <div className="min-h-full">
-          {renderContent()}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Live Preview */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Live Preview</span>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 50}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-xs text-gray-500 min-w-[40px] text-center">
+                  {zoom}%
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 150}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-gray-100 max-h-96 overflow-auto">
+            {renderIEEEPreview()}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Advanced Options */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Advanced Options</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label>Font Size</Label>
+            <Select
+              value={document.settings?.fontSize || "9.5pt"}
+              onValueChange={(value) => {
+                // In a real implementation, this would update the document settings
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="9pt">9pt</SelectItem>
+                <SelectItem value="9.5pt">9.5pt (IEEE Standard)</SelectItem>
+                <SelectItem value="10pt">10pt</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label>Column Layout</Label>
+            <Select
+              value={document.settings?.columns || "double"}
+              onValueChange={(value) => {
+                // In a real implementation, this would update the document settings
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single Column</SelectItem>
+                <SelectItem value="double">Two Column (IEEE)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="pageNumbers" 
+                checked={document.settings?.includePageNumbers !== false}
+              />
+              <Label htmlFor="pageNumbers">Include page numbers</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="copyright" 
+                checked={document.settings?.includeCopyright !== false}
+              />
+              <Label htmlFor="copyright">IEEE copyright notice</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
