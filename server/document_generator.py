@@ -234,6 +234,25 @@ def add_abstract(doc, abstract):
         para.paragraph_format.first_line_indent = Inches(0.2)
         para.paragraph_format.left_indent = Inches(0.2)
         para.paragraph_format.right_indent = Inches(0.2)
+        
+        # Apply the same justification settings as content paragraphs
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        
+        pPr = para._element.get_or_add_pPr()
+        
+        # Set proper justification - use 'distribute' for better word spacing
+        jc = pPr.find(qn('w:jc'))
+        if jc is not None:
+            pPr.remove(jc)
+        jc = OxmlElement('w:jc')
+        jc.set(qn('w:val'), 'distribute')
+        pPr.append(jc)
+        
+        # Add text justification for even distribution
+        textAlignment = OxmlElement('w:textAlignment')
+        textAlignment.set(qn('w:val'), 'auto')
+        pPr.append(textAlignment)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
