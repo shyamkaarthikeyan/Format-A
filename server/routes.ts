@@ -59,7 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate PDF directly
-      const python = spawn('python3', ['server/pdf_generator.py'], {
+      const python = spawn('python3', ['server/pdf_generator_fixed.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
