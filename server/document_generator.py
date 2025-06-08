@@ -214,34 +214,23 @@ def add_authors(doc, authors):
 def add_abstract(doc, abstract):
     """Add the abstract section with italicized 'Abstract—'."""
     if abstract:
-        # Use the same justified paragraph approach as content sections
-        para = add_justified_paragraph(
-            doc, 
-            f"Abstract—{abstract}",
-            indent_left=Inches(0.5),
-            indent_right=Inches(0.5),
-            space_before=Pt(0),
-            space_after=IEEE_CONFIG['line_spacing']
-        )
+        para = doc.add_paragraph()
+        run = para.add_run("Abstract—")
+        run.italic = True
+        run.bold = True
+        run.font.name = IEEE_CONFIG['font_name']
+        run.font.size = IEEE_CONFIG['font_size_body']
+        run = para.add_run(abstract)
+        run.font.name = IEEE_CONFIG['font_name']
+        run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Format the "Abstract—" part
-        if para.runs and len(para.runs) > 0:
-            # Find and format the "Abstract—" text
-            full_text = para.runs[0].text
-            para.runs[0].text = ""
-            
-            # Add "Abstract—" with italic formatting
-            run = para.runs[0]
-            run.text = "Abstract—"
-            run.italic = True
-            run.bold = True
-            run.font.name = IEEE_CONFIG['font_name']
-            run.font.size = IEEE_CONFIG['font_size_body']
-            
-            # Add the rest of the abstract text
-            run = para.add_run(abstract)
-            run.font.name = IEEE_CONFIG['font_name']
-            run.font.size = IEEE_CONFIG['font_size_body']
+        para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        para.paragraph_format.space_before = Pt(0)
+        para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
+        para.paragraph_format.widow_control = False
+        para.paragraph_format.keep_with_next = False
+        para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
+        para.paragraph_format.line_spacing_rule = 0
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
@@ -412,6 +401,20 @@ def generate_ieee_document(form_data):
     section.right_margin = IEEE_CONFIG['margin_right']
     section.top_margin = IEEE_CONFIG['margin_top']
     section.bottom_margin = IEEE_CONFIG['margin_bottom']
+    
+    # Ensure first section is properly single-column
+    sectPr = section._sectPr
+    cols = sectPr.xpath('./w:cols')
+    if cols:
+        cols = cols[0]
+    else:
+        cols = OxmlElement('w:cols')
+        sectPr.append(cols)
+    
+    # Set single column layout for abstract section
+    cols.set(qn('w:num'), '1')
+    cols.set(qn('w:sep'), '0')
+    cols.set(qn('w:equalWidth'), '1')
     
     add_title(doc, form_data.get('title', ''))
     add_authors(doc, form_data.get('authors', []))
