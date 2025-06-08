@@ -231,9 +231,10 @@ def add_abstract(doc, abstract):
         para.paragraph_format.keep_with_next = False
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
-        para.paragraph_format.first_line_indent = Inches(0.2)
-        para.paragraph_format.left_indent = Inches(0.2)
-        para.paragraph_format.right_indent = Inches(0.2)
+        # Reduce the margins for single-column abstract to prevent excessive stretching
+        para.paragraph_format.first_line_indent = Inches(0.15)
+        para.paragraph_format.left_indent = Inches(0.75)
+        para.paragraph_format.right_indent = Inches(0.75)
 
 def add_keywords(doc, keywords):
     """Add the keywords section."""
