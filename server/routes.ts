@@ -464,10 +464,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid email format' });
       }
 
-      // Use absolute path for Python script
-      const scriptPath = path.join(__dirname, 'pdf_generator_identical.py');
+      // Use the same diagnostic test script as the PDF download
+      const scriptPath = path.join(__dirname, 'pdf_test.py');
 
-      // Generate PDF using the same Python script
+      console.log('=== Email PDF Generation Debug Info ===');
+      console.log('Script path:', scriptPath);
+      console.log('Working directory:', __dirname);
+      console.log('Email:', email);
+
+      // Check if test script exists
+      const fs = await import('fs');
+      try {
+        await fs.promises.access(scriptPath);
+        console.log('✓ PDF test script file exists for email');
+      } catch (err) {
+        console.error('✗ PDF test script file NOT found for email:', err);
+        return res.status(500).json({ 
+          error: 'PDF test script not found for email', 
+          details: `Script path: ${scriptPath}`,
+          suggestion: 'The PDF test script file may not have been deployed correctly'
+        });
+      }
+
+      // Generate PDF using the same test script
       const python = spawn(getPythonCommand(), [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: __dirname
@@ -485,44 +504,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       python.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
+        console.log('Email PDF test stderr:', data.toString());
       });
       
       python.on('close', async (code: number) => {
+        console.log('Email PDF test script finished with code:', code);
+        console.log('Email PDF output buffer length:', outputBuffer.length);
+        console.log('Email PDF error output:', errorOutput);
+
         if (code !== 0) {
-          console.error('PDF generation error:', errorOutput);
-          console.error('Python script path:', scriptPath);
-          console.error('Working directory:', __dirname);
-          return res.status(500).json({ error: 'Failed to generate PDF document', details: errorOutput });
+          console.error('Email PDF generation error:', errorOutput);
+          return res.status(500).json({ 
+            error: 'Failed to generate PDF for email', 
+            details: errorOutput,
+            pythonExitCode: code,
+            scriptPath: scriptPath,
+            workingDirectory: __dirname,
+            suggestion: 'Check ReportLab installation and dependencies for email PDF generation'
+          });
         }
         
         // Verify it's a valid PDF
-        if (outputBuffer.length < 1000 || outputBuffer.subarray(0, 4).toString() !== '%PDF') {
-          console.error('Generated PDF is invalid or too small');
-          return res.status(500).json({ error: 'Failed to generate valid PDF document' });
-        }
-
-        try {
-          // Send email with PDF attachment
-          const filename = `ieee-paper-${Date.now()}.pdf`;
-          const result = await sendIEEEPaper(email, outputBuffer, filename);
-          
-          res.json({
-            success: true,
-            message: `IEEE paper sent successfully to ${email}`,
-            messageId: result.messageId
-          });
-        } catch (emailError) {
-          console.error('Email sending error:', emailError);
+        if (outputBuffer.length > 1000 && outputBuffer.subarray(0, 4).toString() === '%PDF') {
+          try {
+            // Send email with PDF attachment
+            const filename = `ieee-paper-test-${Date.now()}.pdf`;
+            const result = await sendIEEEPaper(email, outputBuffer, filename);
+            
+            console.log('✓ Email sent successfully to:', email);
+            res.json({
+              success: true,
+              message: `Test IEEE paper sent successfully to ${email}`,
+              messageId: result.messageId
+            });
+          } catch (emailError) {
+            console.error('Email sending error:', emailError);
+            res.status(500).json({ 
+              error: 'PDF generated successfully but failed to send email',
+              details: (emailError as Error).message
+            });
+          }
+        } else {
+          console.error('Generated email PDF is invalid or too small, length:', outputBuffer.length);
+          console.error('Email PDF buffer start:', outputBuffer.subarray(0, 10).toString());
           res.status(500).json({ 
-            error: 'PDF generated successfully but failed to send email',
-            details: (emailError as Error).message
+            error: 'Failed to generate valid PDF document for email',
+            details: `Output length: ${outputBuffer.length}, Buffer start: ${outputBuffer.subarray(0, 10).toString()}`,
+            suggestion: 'ReportLab may not be properly installed for email PDF generation'
           });
         }
       });
+
+      python.on('error', (err) => {
+        console.error('Failed to start email PDF test process:', err);
+        res.status(500).json({ 
+          error: 'Failed to start email PDF test process', 
+          details: err.message,
+          suggestion: 'Python may not be installed or the script path is incorrect for email'
+        });
+      });
       
     } catch (error) {
-      console.error('Email generation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error('Email PDF generation error:', error);
+      res.status(500).json({ error: 'Internal server error during email PDF generation' });
     }
   });
 
