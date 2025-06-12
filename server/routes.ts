@@ -23,6 +23,39 @@ const getPythonCommand = () => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Debug endpoint to check Python environment
+  app.get('/api/debug/python', async (req, res) => {
+    try {
+      const python = spawn(getPythonCommand(), ['--version'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      let output = '';
+      let errorOutput = '';
+      
+      python.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+      
+      python.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on('close', (code: number) => {
+        res.json({
+          pythonVersion: output || errorOutput,
+          pythonCommand: getPythonCommand(),
+          platform: process.platform,
+          workingDirectory: __dirname,
+          scriptPath: path.join(__dirname, 'ieee_generator_fixed.py'),
+          exitCode: code
+        });
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to check Python environment', details: (error as Error).message });
+    }
+  });
+
   // Document generation routes
   app.post('/api/generate/docx', async (req, res) => {
     try {
