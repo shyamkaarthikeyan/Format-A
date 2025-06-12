@@ -1,23 +1,60 @@
 #!/usr/bin/env python3
 """
-PDF generator that produces identical formatting to Word documents
-Uses python-docx to generate Word first, then converts to PDF
+PDF Generator - Converts the perfect Word document to PDF
+Uses the existing ieee_generator_fixed.py to create Word, then converts to PDF
 """
 
-import sys
 import json
+import sys
 import tempfile
 import subprocess
 from pathlib import Path
+from io import BytesIO
 
-# Import the existing Word document generator
-from document_generator import generate_ieee_document
+# Import the existing perfect Word document generator
+from ieee_generator_fixed import generate_ieee_document
 
-def create_identical_pdf(form_data):
-    """Generate PDF by creating Word document first, then converting to PDF"""
+def word_to_pdf_libreoffice(word_buffer):
+    """Convert Word document to PDF using LibreOffice headless"""
     try:
-        # Generate Word document using existing generator
-        word_buffer = generate_ieee_document(form_data)
+        # Create temporary files
+        with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as temp_docx:
+            temp_docx.write(word_buffer.getvalue())
+            temp_docx_path = temp_docx.name
+        
+        temp_pdf_path = temp_docx_path.replace('.docx', '.pdf')
+        
+        # Convert Word to PDF using LibreOffice headless
+        result = subprocess.run([
+            'libreoffice', '--headless', '--convert-to', 'pdf', 
+            '--outdir', str(Path(temp_pdf_path).parent),
+            temp_docx_path
+        ], check=True, capture_output=True, text=True)
+        
+        # Read the generated PDF
+        with open(temp_pdf_path, 'rb') as pdf_file:
+            pdf_data = pdf_file.read()
+        
+        # Clean up temporary files
+        try:
+            Path(temp_docx_path).unlink()
+            Path(temp_pdf_path).unlink()
+        except:
+            pass
+            
+        return pdf_data
+        
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"LibreOffice conversion failed: {e.stderr}")
+    except FileNotFoundError:
+        raise Exception("LibreOffice not found. Please install LibreOffice.")
+    except Exception as e:
+        raise Exception(f"PDF conversion failed: {str(e)}")
+
+def word_to_pdf_python_docx2pdf(word_buffer):
+    """Convert Word document to PDF using docx2pdf (if available)"""
+    try:
+        import docx2pdf
         
         # Create temporary files
         with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as temp_docx:
@@ -26,57 +63,100 @@ def create_identical_pdf(form_data):
         
         temp_pdf_path = temp_docx_path.replace('.docx', '.pdf')
         
+        # Convert using docx2pdf
+        docx2pdf.convert(temp_docx_path, temp_pdf_path)
+        
+        # Read the generated PDF
+        with open(temp_pdf_path, 'rb') as pdf_file:
+            pdf_data = pdf_file.read()
+        
+        # Clean up temporary files
         try:
-            # Convert Word to PDF using LibreOffice headless
-            subprocess.run([
-                'libreoffice', '--headless', '--convert-to', 'pdf', 
-                '--outdir', str(Path(temp_pdf_path).parent),
-                temp_docx_path
-            ], check=True, capture_output=True)
+            Path(temp_docx_path).unlink()
+            Path(temp_pdf_path).unlink()
+        except:
+            pass
             
-            # Read the generated PDF
-            with open(temp_pdf_path, 'rb') as pdf_file:
-                pdf_data = pdf_file.read()
-            
-            return pdf_data
-            
-        except subprocess.CalledProcessError:
-            # Fallback: return the Word document if conversion fails
-            return word_buffer.getvalue()
-            
-        finally:
-            # Clean up temporary files
-            try:
-                Path(temp_docx_path).unlink()
-                Path(temp_pdf_path).unlink(missing_ok=True)
-            except:
-                pass
-                
+        return pdf_data
+        
+    except ImportError:
+        raise Exception("docx2pdf not available")
     except Exception as e:
-        # If all else fails, generate a simple text-based PDF
-        return create_fallback_pdf(form_data, str(e))
+        raise Exception(f"docx2pdf conversion failed: {str(e)}")
 
-def create_fallback_pdf(form_data, error_msg):
-    """Create a simple PDF as fallback"""
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph
-    from reportlab.lib.styles import getSampleStyleSheet
-    import io
+def word_to_pdf_comtypes(word_buffer):
+    """Convert Word document to PDF using comtypes (Windows only)"""
+    try:
+        import comtypes.client
+        
+        # Create temporary files
+        with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as temp_docx:
+            temp_docx.write(word_buffer.getvalue())
+            temp_docx_path = temp_docx.name
+        
+        temp_pdf_path = temp_docx_path.replace('.docx', '.pdf')
+        
+        # Convert using Word COM automation
+        word = comtypes.client.CreateObject('Word.Application')
+        word.Visible = False
+        
+        doc = word.Documents.Open(temp_docx_path)
+        doc.SaveAs(temp_pdf_path, FileFormat=17)  # 17 = PDF format
+        doc.Close()
+        word.Quit()
+        
+        # Read the generated PDF
+        with open(temp_pdf_path, 'rb') as pdf_file:
+            pdf_data = pdf_file.read()
+        
+        # Clean up temporary files
+        try:
+            Path(temp_docx_path).unlink()
+            Path(temp_pdf_path).unlink()
+        except:
+            pass
+            
+        return pdf_data
+        
+    except ImportError:
+        raise Exception("comtypes not available")
+    except Exception as e:
+        raise Exception(f"Word COM conversion failed: {str(e)}")
+
+def generate_ieee_pdf(form_data):
+    """Generate IEEE-formatted PDF by converting the perfect Word document"""
     
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
+    # First, generate the perfect Word document using the existing generator
+    try:
+        word_bytes = generate_ieee_document(form_data)
+        print(f"Word document generated successfully, size: {len(word_bytes)} bytes", file=sys.stderr)
+    except Exception as e:
+        raise Exception(f"Failed to generate Word document: {str(e)}")
     
-    story = []
-    story.append(Paragraph(f"IEEE Document: {form_data.get('title', 'Untitled')}", styles['Title']))
-    story.append(Paragraph(f"Error during conversion: {error_msg}", styles['Normal']))
+    # Try multiple conversion methods in order of preference
+    conversion_methods = [
+        ("LibreOffice", word_to_pdf_libreoffice),
+        ("comtypes (Windows Word)", word_to_pdf_comtypes),
+        ("docx2pdf", word_to_pdf_python_docx2pdf)
+    ]
     
-    if form_data.get('abstract'):
-        story.append(Paragraph(f"Abstract: {form_data['abstract']}", styles['Normal']))
+    last_error = None
     
-    doc.build(story)
-    buffer.seek(0)
-    return buffer.getvalue()
+    for method_name, method_func in conversion_methods:
+        try:
+            print(f"Trying conversion method: {method_name}", file=sys.stderr)
+            # Create BytesIO buffer from the word bytes
+            word_buffer = BytesIO(word_bytes)
+            pdf_data = method_func(word_buffer)
+            print(f"PDF conversion successful using {method_name}, size: {len(pdf_data)} bytes", file=sys.stderr)
+            return pdf_data
+        except Exception as e:
+            last_error = e
+            print(f"{method_name} failed: {str(e)}", file=sys.stderr)
+            continue
+    
+    # If all conversion methods fail, raise the last error
+    raise Exception(f"All PDF conversion methods failed. Last error: {str(last_error)}")
 
 def main():
     """Main function for command line execution"""
@@ -85,14 +165,16 @@ def main():
         input_data = sys.stdin.read()
         form_data = json.loads(input_data)
         
-        # Generate PDF with identical formatting
-        pdf_data = create_identical_pdf(form_data)
+        # Generate IEEE PDF document by converting Word
+        pdf_data = generate_ieee_pdf(form_data)
         
         # Write binary data to stdout
         sys.stdout.buffer.write(pdf_data)
         
     except Exception as e:
+        import traceback
         sys.stderr.write(f"Error: {str(e)}\n")
+        sys.stderr.write(f"Traceback: {traceback.format_exc()}\n")
         sys.exit(1)
 
 if __name__ == "__main__":

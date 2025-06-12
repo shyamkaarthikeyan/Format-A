@@ -4,6 +4,7 @@ import { Upload, X, FileText } from "lucide-react";
 
 interface FileUploadProps {
   onFileSelect: (file: File, base64: string) => void;
+  onClear?: () => void; // Add callback for clearing files
   accept?: string;
   maxSize?: number; // in bytes
   currentFile?: {
@@ -14,6 +15,7 @@ interface FileUploadProps {
 
 export default function FileUpload({ 
   onFileSelect, 
+  onClear, // Destructure onClear prop
   accept = "*/*", 
   maxSize = 5 * 1024 * 1024,
   currentFile
@@ -79,7 +81,7 @@ export default function FileUpload({
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    // In a real implementation, you might want to call a callback to clear the file
+    onClear?.(); // Call onClear callback if provided
   };
 
   if (currentFile) {

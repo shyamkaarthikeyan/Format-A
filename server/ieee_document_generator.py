@@ -97,6 +97,51 @@ def set_document_defaults(doc):
         heading2.font.size = IEEE_CONFIG['font_size_body']
         heading2.font.bold = True
 
+def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, indent_right=None, space_before=None, space_after=None):
+    """Add a paragraph with optimized justification settings to prevent excessive word spacing - from test.py."""
+    para = doc.add_paragraph(text, style=style_name)
+    
+    # Apply justification with advanced controls
+    para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    para.paragraph_format.widow_control = False
+    para.paragraph_format.keep_with_next = False
+    para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
+    para.paragraph_format.line_spacing_rule = 0  # Exact spacing
+    
+    if indent_left is not None:
+        para.paragraph_format.left_indent = indent_left
+    if indent_right is not None:
+        para.paragraph_format.right_indent = indent_right
+    if space_before is not None:
+        para.paragraph_format.space_before = space_before
+    if space_after is not None:
+        para.paragraph_format.space_after = space_after
+    
+    if para.runs:
+        para.runs[0].font.name = IEEE_CONFIG['font_name']
+        para.runs[0].font.size = IEEE_CONFIG['font_size_body']
+    
+    # Add advanced spacing controls to prevent word stretching - CRITICAL from test.py
+    para_element = para._element
+    pPr = para_element.get_or_add_pPr()
+    
+    # Set justification method for better word spacing
+    jc = OxmlElement('w:jc')
+    jc.set(qn('w:val'), 'both')
+    pPr.append(jc)
+    
+    # Control text alignment - prevents baseline shifting
+    textAlignment = OxmlElement('w:textAlignment')
+    textAlignment.set(qn('w:val'), 'baseline')
+    pPr.append(textAlignment)
+    
+    # Prevent excessive word spacing - KEY improvement from test.py
+    adjust_right_ind = OxmlElement('w:adjustRightInd')
+    adjust_right_ind.set(qn('w:val'), '0')
+    pPr.append(adjust_right_ind)
+    
+    return para
+
 def add_title(doc, title):
     """Add the paper title."""
     para = doc.add_paragraph()
@@ -171,7 +216,7 @@ def add_authors(doc, authors):
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
 def add_abstract(doc, abstract):
-    """Add the abstract section with italicized 'Abstract—'."""
+    """Add the abstract section with italicized 'Abstract—' and advanced justification."""
     if abstract:
         para = doc.add_paragraph()
         run = para.add_run("Abstract—")
@@ -182,7 +227,7 @@ def add_abstract(doc, abstract):
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Apply advanced justification controls to abstract
+        # Apply advanced justification controls to abstract - from test.py
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -190,9 +235,28 @@ def add_abstract(doc, abstract):
         para.paragraph_format.keep_with_next = False
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
+        
+        # Add advanced spacing controls to prevent word stretching - CRITICAL
+        para_element = para._element
+        pPr = para_element.get_or_add_pPr()
+        
+        # Set justification method
+        jc = OxmlElement('w:jc')
+        jc.set(qn('w:val'), 'both')
+        pPr.append(jc)
+        
+        # Control text alignment
+        textAlignment = OxmlElement('w:textAlignment')
+        textAlignment.set(qn('w:val'), 'baseline')
+        pPr.append(textAlignment)
+        
+        # Prevent excessive word spacing
+        adjust_right_ind = OxmlElement('w:adjustRightInd')
+        adjust_right_ind.set(qn('w:val'), '0')
+        pPr.append(adjust_right_ind)
 
 def add_keywords(doc, keywords):
-    """Add the keywords section."""
+    """Add the keywords section with advanced justification."""
     if keywords:
         para = doc.add_paragraph()
         run = para.add_run("Index Terms—")
@@ -203,7 +267,7 @@ def add_keywords(doc, keywords):
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Apply advanced justification controls to keywords
+        # Apply advanced justification controls to keywords - from test.py
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -211,8 +275,35 @@ def add_keywords(doc, keywords):
         para.paragraph_format.keep_with_next = False
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
-
-
+        
+        # Add advanced spacing controls to prevent word stretching - CRITICAL
+        para_element = para._element
+        pPr = para_element.get_or_add_pPr()
+        
+        # Set justification method
+        jc = OxmlElement('w:jc')
+        jc.set(qn('w:val'), 'both')
+        pPr.append(jc)
+        
+        # Control text alignment
+        textAlignment = OxmlElement('w:textAlignment')
+        textAlignment.set(qn('w:val'), 'baseline')
+        pPr.append(textAlignment)
+        
+        # Prevent excessive word spacing
+        adjust_right_ind = OxmlElement('w:adjustRightInd')
+        adjust_right_ind.set(qn('w:val'), '0')
+        pPr.append(adjust_right_ind)
+        
+        # Minimal dummy paragraph to stabilize layout - from test.py
+        dummy_para = doc.add_paragraph("")
+        dummy_para.paragraph_format.space_before = Pt(0)
+        dummy_para.paragraph_format.space_after = Pt(0)
+        dummy_para.paragraph_format.widow_control = False
+        dummy_para.paragraph_format.keep_with_next = False
+        dummy_para.paragraph_format.line_spacing = 0
+        if dummy_para.runs:
+            dummy_para.runs[0].font.size = Pt(1)
 
 def add_section(doc, section_data, section_idx, is_first_section=False):
     """Add a section with content blocks (text and images), subsections, and figures."""
@@ -260,7 +351,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
             )
 
 def add_references(doc, references):
-    """Add references section with proper alignment (hanging indent)."""
+    """Add references section with proper alignment (hanging indent) and justification."""
     if references:
         para = doc.add_heading("REFERENCES", level=1)
         para.paragraph_format.page_break_before = False
@@ -268,16 +359,41 @@ def add_references(doc, references):
         para.paragraph_format.space_after = Pt(0)
 
         for idx, ref in enumerate(references, 1):
+            # Use add_justified_paragraph for references with hanging indent
             para = doc.add_paragraph(f"[{idx}] {ref.get('text', '')}")
-            para.paragraph_format.left_indent = Inches(0.25)
+            para.paragraph_format.left_indent = Inches(0.45)  # 0.45in from test.py
             para.paragraph_format.first_line_indent = Inches(-0.25)
+            para.paragraph_format.right_indent = IEEE_CONFIG['column_indent']
             para.paragraph_format.space_before = Pt(0)
-            para.paragraph_format.space_after = Pt(6)
+            para.paragraph_format.space_after = Pt(12)
             para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
             para.paragraph_format.line_spacing_rule = 0
+            para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            para.paragraph_format.widow_control = False
+            para.paragraph_format.keep_with_next = False
+            
             if para.runs:
                 para.runs[0].font.name = IEEE_CONFIG['font_name']
                 para.runs[0].font.size = IEEE_CONFIG['font_size_body']
+            
+            # Add advanced spacing controls to prevent word stretching - for references too
+            para_element = para._element
+            pPr = para_element.get_or_add_pPr()
+            
+            # Set justification method
+            jc = OxmlElement('w:jc')
+            jc.set(qn('w:val'), 'both')
+            pPr.append(jc)
+            
+            # Control text alignment
+            textAlignment = OxmlElement('w:textAlignment')
+            textAlignment.set(qn('w:val'), 'baseline')
+            pPr.append(textAlignment)
+            
+            # Prevent excessive word spacing
+            adjust_right_ind = OxmlElement('w:adjustRightInd')
+            adjust_right_ind.set(qn('w:val'), '0')
+            pPr.append(adjust_right_ind)
 
 def enable_auto_hyphenation(doc):
     """Enable conservative hyphenation to reduce word spacing without breaking words inappropriately."""
@@ -289,51 +405,6 @@ def set_compatibility_options(doc):
     """Set compatibility options to optimize spacing and justification."""
     # These settings help achieve Word 2002-style behavior for better justification
     # Implementation varies by python-docx version but improves text rendering
-
-def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, indent_right=None, space_before=None, space_after=None):
-    """Add a paragraph with optimized justification settings to prevent excessive word spacing."""
-    para = doc.add_paragraph(text, style=style_name)
-    
-    # Apply justification with advanced controls
-    para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    para.paragraph_format.widow_control = False
-    para.paragraph_format.keep_with_next = False
-    para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
-    para.paragraph_format.line_spacing_rule = 0  # Exact spacing
-    
-    if indent_left is not None:
-        para.paragraph_format.left_indent = indent_left
-    if indent_right is not None:
-        para.paragraph_format.right_indent = indent_right
-    if space_before is not None:
-        para.paragraph_format.space_before = space_before
-    if space_after is not None:
-        para.paragraph_format.space_after = space_after
-    
-    if para.runs:
-        para.runs[0].font.name = IEEE_CONFIG['font_name']
-        para.runs[0].font.size = IEEE_CONFIG['font_size_body']
-    
-    # Add advanced spacing controls to prevent word stretching
-    para_element = para._element
-    pPr = para_element.get_or_add_pPr()
-    
-    # Set justification method for better word spacing
-    jc = OxmlElement('w:jc')
-    jc.set(qn('w:val'), 'both')
-    pPr.append(jc)
-    
-    # Control text alignment
-    textAlignment = OxmlElement('w:textAlignment')
-    textAlignment.set(qn('w:val'), 'baseline')
-    pPr.append(textAlignment)
-    
-    # Prevent excessive word spacing
-    adjust_right_ind = OxmlElement('w:adjustRightInd')
-    adjust_right_ind.set(qn('w:val'), '0')
-    pPr.append(adjust_right_ind)
-    
-    return para
 
 def enable_two_column_layout(doc):
     """Enable two-column layout for the body content after abstract."""

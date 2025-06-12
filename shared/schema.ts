@@ -30,6 +30,8 @@ export interface ContentBlock {
   type: "text" | "image";
   content?: string;
   imageId?: string;
+  data?: string; // base64 encoded image data
+  fileName?: string; // original filename for user feedback
   caption?: string;
   size?: "very-small" | "small" | "medium" | "large";
   position?: "top" | "bottom" | "here";
@@ -108,6 +110,8 @@ export const insertDocumentSchema = z.object({
       type: z.enum(["text", "image"]),
       content: z.string().optional(),
       imageId: z.string().optional(),
+      data: z.string().optional(), // base64 encoded image data
+      fileName: z.string().optional(), // original filename for user feedback
       caption: z.string().optional(),
       size: z.enum(["very-small", "small", "medium", "large"]).optional(),
       position: z.enum(["top", "bottom", "here"]).optional(),

@@ -55,17 +55,37 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
               </label>
               <FileUpload
                 onFileSelect={(file, base64) => {
+                  // Store both imageId and data for backend compatibility
                   onUpdate({ 
                     imageId: `img_${Date.now()}`,
+                    data: base64.split(',')[1], // Remove data:image/png;base64, prefix
+                    fileName: file.name,
                     content: block.content || "",
                     caption: block.caption || ""
                   });
                 }}
+                onClear={() => {
+                  // Clear all image-related data completely
+                  onUpdate({ 
+                    imageId: undefined,
+                    data: undefined,
+                    fileName: undefined,
+                    caption: undefined,
+                    size: undefined
+                  });
+                }}
                 accept="image/*"
                 maxSize={10 * 1024 * 1024}
+                currentFile={block.imageId ? { 
+                  name: block.fileName || 'Uploaded Image',
+                  preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
+                } : undefined}
               />
               {block.imageId && (
                 <div className="mt-2">
+                  <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+                    ✅ Image uploaded: {block.fileName || 'Uploaded Image'}
+                  </div>
                   <Textarea
                     rows={2}
                     placeholder="Image caption"
@@ -91,17 +111,36 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
           <div className="space-y-2">
             <FileUpload
               onFileSelect={(file, base64) => {
-                // In a real implementation, this would upload to the server
+                // Store both imageId and data for backend compatibility
                 onUpdate({ 
+                  type: "image", // Ensure type is explicitly set
                   imageId: `img_${Date.now()}`,
-                  content: base64 
+                  data: base64.split(',')[1], // Remove data:image/png;base64, prefix
+                  fileName: file.name
+                });
+              }}
+              onClear={() => {
+                // Clear all image-related data completely
+                onUpdate({ 
+                  imageId: undefined,
+                  data: undefined,
+                  fileName: undefined,
+                  caption: undefined,
+                  size: undefined
                 });
               }}
               accept="image/*"
               maxSize={10 * 1024 * 1024} // 10MB
+              currentFile={block.imageId ? { 
+                name: block.fileName || 'Uploaded Image',
+                preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
+              } : undefined}
             />
             {block.imageId && (
               <>
+                <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+                  ✅ Image uploaded: {block.fileName || 'Uploaded Image'}
+                </div>
                 <Textarea
                   rows={2}
                   placeholder="Figure caption"

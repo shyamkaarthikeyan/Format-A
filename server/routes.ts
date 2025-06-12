@@ -3,12 +3,18 @@ import { createServer, type Server } from "http";
 import { spawn } from "child_process";
 import { storage } from "./storage";
 import { insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
+import { sendIEEEPaper } from "./emailService";
 import multer from "multer";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
+
+// Helper function to get the correct Python command for the platform
+const getPythonCommand = () => {
+  return process.platform === 'win32' ? 'python' : 'python3';
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Document generation routes
@@ -17,7 +23,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate DOCX
-      const python = spawn('python3', ['server/ieee_generator_fixed.py'], {
+      const python = spawn(getPythonCommand(), ['server/ieee_generator_fixed.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
@@ -59,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = req.body;
       
       // Call Python script to generate PDF with identical formatting to Word
-      const python = spawn('python3', ['server/pdf_generator_identical.py'], {
+      const python = spawn(getPythonCommand(), ['server/pdf_generator_identical.py'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       
@@ -246,6 +252,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to generate LaTeX" });
+    }
+  });
+
+  // Email PDF endpoint
+  app.post('/api/generate/email', async (req, res) => {
+    try {
+      const { email, documentData } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: 'Email address is required' });
+      }
+      
+      if (!documentData) {
+        return res.status(400).json({ error: 'Document data is required' });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Generate PDF using the same Python script
+      const python = spawn(getPythonCommand(), ['server/pdf_generator_identical.py'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      python.stdin.write(JSON.stringify(documentData));
+      python.stdin.end();
+      
+      let outputBuffer = Buffer.alloc(0);
+      let errorOutput = '';
+      
+      python.stdout.on('data', (data: Buffer) => {
+        outputBuffer = Buffer.concat([outputBuffer, data]);
+      });
+      
+      python.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on('close', async (code: number) => {
+        if (code !== 0) {
+          console.error('PDF generation error:', errorOutput);
+          return res.status(500).json({ error: 'Failed to generate PDF document' });
+        }
+        
+        // Verify it's a valid PDF
+        if (outputBuffer.length < 1000 || outputBuffer.subarray(0, 4).toString() !== '%PDF') {
+          console.error('Generated PDF is invalid or too small');
+          return res.status(500).json({ error: 'Failed to generate valid PDF document' });
+        }
+
+        try {
+          // Send email with PDF attachment
+          const filename = `ieee-paper-${Date.now()}.pdf`;
+          const result = await sendIEEEPaper(email, outputBuffer, filename);
+          
+          res.json({
+            success: true,
+            message: `IEEE paper sent successfully to ${email}`,
+            messageId: result.messageId
+          });
+        } catch (emailError) {
+          console.error('Email sending error:', emailError);
+          res.status(500).json({ 
+            error: 'PDF generated successfully but failed to send email',
+            details: (emailError as Error).message
+          });
+        }
+      });
+      
+    } catch (error) {
+      console.error('Email generation error:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

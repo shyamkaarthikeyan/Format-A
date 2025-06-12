@@ -1,0 +1,29 @@
+{
+  "title": "Test IEEE Paper",
+  "abstract": "This is a test abstract that should be perfectly justified with even line lengths and consistent spacing throughout.",
+  "keywords": "test, IEEE, justification, formatting",
+  "authors": [{"name": "Test Author", "department": "Computer Science", "organization": "Test University", "city": "Test City", "state": "Test State"}],
+  "sections": [
+    {
+      "title": "Introduction", 
+      "contentBlocks": [
+        {
+          "type": "text",
+          "content": "This is the introduction content that should now be perfectly justified just like the abstract. The text should have consistent line lengths without big gaps between words or lines that are too short. Every paragraph should maintain professional IEEE formatting standards with proper character spacing and justification controls."
+        }
+      ]
+    },
+    {
+      "title": "Methodology",
+      "contentBlocks": [
+        {
+          "type": "text", 
+          "content": "This methodology section contains multiple sentences to test the justification across different paragraph lengths. The formatting should be consistent throughout the document, matching the quality seen in the abstract section. All text should appear in black color with perfect line spacing."
+        }
+      ]
+    }
+  ],
+  "references": [
+    {"text": "J. Doe, 'Test Reference,' IEEE Test Journal, vol. 1, pp. 1-10, 2023."}
+  ]
+}
