@@ -207,10 +207,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentData = req.body;
       
-      // Use absolute path for Python script
-      const scriptPath = path.join(__dirname, 'pdf_generator_identical.py');
+      // Temporarily use the simple test script to diagnose PDF issues
+      const scriptPath = path.join(__dirname, 'pdf_test.py');
       
-      // Call Python script to generate PDF with identical formatting to Word
+      console.log('=== PDF Generation Debug Info ===');
+      console.log('Script path:', scriptPath);
+      console.log('Working directory:', __dirname);
+      
+      // Check if test script exists
+      const fs = await import('fs');
+      try {
+        await fs.promises.access(scriptPath);
+        console.log('✓ PDF test script file exists');
+      } catch (err) {
+        console.error('✗ PDF test script file NOT found:', err);
+        return res.status(500).json({ 
+          error: 'PDF test script not found', 
+          details: `Script path: ${scriptPath}`,
+          suggestion: 'The PDF test script file may not have been deployed correctly'
+        });
+      }
+      
+      // Call Python test script to diagnose PDF generation
       const python = spawn(getPythonCommand(), [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: __dirname
@@ -228,30 +246,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       python.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
+        console.log('PDF test stderr:', data.toString());
       });
       
       python.on('close', (code: number) => {
+        console.log('PDF test script finished with code:', code);
+        console.log('Output buffer length:', outputBuffer.length);
+        console.log('Error output:', errorOutput);
+        
         if (code !== 0) {
-          console.error('PDF generation error:', errorOutput);
-          console.error('Python script path:', scriptPath);
-          console.error('Working directory:', __dirname);
-          res.status(500).json({ error: 'Failed to generate PDF document', details: errorOutput });
-          return;
+          console.error('PDF test script error:', errorOutput);
+          return res.status(500).json({ 
+            error: 'Failed to generate test PDF', 
+            details: errorOutput,
+            pythonExitCode: code,
+            scriptPath: scriptPath,
+            workingDirectory: __dirname,
+            suggestion: 'Check ReportLab installation and dependencies'
+          });
         }
         
         // Verify it's a valid PDF
         if (outputBuffer.length > 1000 && outputBuffer.subarray(0, 4).toString() === '%PDF') {
           res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+          res.setHeader('Content-Disposition', 'attachment; filename="test_paper.pdf"');
           res.send(outputBuffer);
         } else {
-          console.error('Generated PDF is invalid or too small');
-          res.status(500).json({ error: 'Failed to generate valid PDF document' });
+          console.error('Generated PDF is invalid or too small, length:', outputBuffer.length);
+          console.error('Buffer start:', outputBuffer.subarray(0, 10).toString());
+          res.status(500).json({ 
+            error: 'Failed to generate valid PDF document',
+            details: `Output length: ${outputBuffer.length}, Buffer start: ${outputBuffer.subarray(0, 10).toString()}`,
+            suggestion: 'ReportLab may not be properly installed'
+          });
         }
       });
       
+      python.on('error', (err) => {
+        console.error('Failed to start PDF test process:', err);
+        res.status(500).json({ 
+          error: 'Failed to start PDF test process', 
+          details: err.message,
+          suggestion: 'Python may not be installed or the script path is incorrect'
+        });
+      });
+      
     } catch (error) {
-      console.error('LaTeX generation error:', error);
+      console.error('PDF test generation error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
