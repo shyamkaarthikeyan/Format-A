@@ -59,49 +59,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document generation routes
   app.post('/api/generate/docx', async (req, res) => {
     try {
+      console.log('=== DOCX Generation Debug Info ===');
+      console.log('Request body keys:', Object.keys(req.body));
+      console.log('Working directory:', __dirname);
+      console.log('Platform:', process.platform);
+      console.log('Python command:', getPythonCommand());
+      
       const documentData = req.body;
       
       // Use absolute path for Python script
       const scriptPath = path.join(__dirname, 'ieee_generator_fixed.py');
+      console.log('Script path:', scriptPath);
       
-      // Call Python script to generate DOCX
-      const python = spawn(getPythonCommand(), [scriptPath], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: __dirname
+      // Check if script file exists
+      const fs = await import('fs');
+      try {
+        await fs.promises.access(scriptPath);
+        console.log('✓ Python script file exists');
+      } catch (err) {
+        console.error('✗ Python script file NOT found:', err);
+        return res.status(500).json({ 
+          error: 'Python script not found', 
+          details: `Script path: ${scriptPath}`,
+          suggestion: 'The Python script file may not have been deployed correctly'
+        });
+      }
+      
+      // Test Python availability first
+      console.log('Testing Python availability...');
+      const testPython = spawn(getPythonCommand(), ['--version'], {
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       
-      // Send document data to Python script
-      python.stdin.write(JSON.stringify(documentData));
-      python.stdin.end();
+      let pythonTestOutput = '';
+      let pythonTestError = '';
       
-      let outputBuffer = Buffer.alloc(0);
-      let errorOutput = '';
-      
-      python.stdout.on('data', (data: Buffer) => {
-        outputBuffer = Buffer.concat([outputBuffer, data]);
+      testPython.stdout.on('data', (data: Buffer) => {
+        pythonTestOutput += data.toString();
       });
       
-      python.stderr.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
+      testPython.stderr.on('data', (data: Buffer) => {
+        pythonTestError += data.toString();
       });
       
-      python.on('close', (code: number) => {
-        if (code !== 0) {
-          console.error('Python script error:', errorOutput);
-          console.error('Python script path:', scriptPath);
-          console.error('Working directory:', __dirname);
-          res.status(500).json({ error: 'Failed to generate document', details: errorOutput });
-          return;
+      testPython.on('close', (testCode: number) => {
+        console.log('Python test result:', testCode, pythonTestOutput || pythonTestError);
+        
+        if (testCode !== 0) {
+          console.error('Python not available!');
+          return res.status(500).json({ 
+            error: 'Python not available', 
+            details: pythonTestError || 'Python command failed',
+            pythonCommand: getPythonCommand(),
+            suggestion: 'Python may not be installed or accessible on the server'
+          });
         }
         
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-        res.send(outputBuffer);
+        // Python is available, now try to run the script
+        console.log('Python is available, running document generation script...');
+        
+        const python = spawn(getPythonCommand(), [scriptPath], {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          cwd: __dirname
+        });
+        
+        // Send document data to Python script
+        python.stdin.write(JSON.stringify(documentData));
+        python.stdin.end();
+        
+        let outputBuffer = Buffer.alloc(0);
+        let errorOutput = '';
+        
+        python.stdout.on('data', (data: Buffer) => {
+          outputBuffer = Buffer.concat([outputBuffer, data]);
+        });
+        
+        python.stderr.on('data', (data: Buffer) => {
+          errorOutput += data.toString();
+          console.log('Python stderr:', data.toString());
+        });
+        
+        python.on('close', (code: number) => {
+          console.log('Python script finished with code:', code);
+          console.log('Output buffer length:', outputBuffer.length);
+          console.log('Error output:', errorOutput);
+          
+          if (code !== 0) {
+            console.error('Python script error:', errorOutput);
+            console.error('Python script path:', scriptPath);
+            console.error('Working directory:', __dirname);
+            return res.status(500).json({ 
+              error: 'Failed to generate document', 
+              details: errorOutput,
+              pythonExitCode: code,
+              scriptPath: scriptPath,
+              workingDirectory: __dirname,
+              suggestion: 'Check Python script dependencies and syntax'
+            });
+          }
+          
+          if (outputBuffer.length === 0) {
+            console.error('No output from Python script');
+            return res.status(500).json({ 
+              error: 'No output from document generator', 
+              details: 'Python script ran successfully but produced no output',
+              suggestion: 'Check if the document data is valid'
+            });
+          }
+          
+          console.log('✓ Document generated successfully');
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
+          res.send(outputBuffer);
+        });
+        
+        python.on('error', (err) => {
+          console.error('Failed to start Python process:', err);
+          res.status(500).json({ 
+            error: 'Failed to start Python process', 
+            details: err.message,
+            suggestion: 'Python may not be installed or the script path is incorrect'
+          });
+        });
+      });
+      
+      testPython.on('error', (err) => {
+        console.error('Failed to test Python:', err);
+        res.status(500).json({ 
+          error: 'Failed to test Python availability', 
+          details: err.message,
+          pythonCommand: getPythonCommand(),
+          suggestion: 'Python may not be installed on the server'
+        });
       });
       
     } catch (error) {
       console.error('Document generation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ 
+        error: 'Internal server error', 
+        details: (error as Error).message,
+        stack: (error as Error).stack
+      });
     }
   });
 
