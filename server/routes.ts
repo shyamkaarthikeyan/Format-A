@@ -5,6 +5,12 @@ import { storage } from "./storage";
 import { insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
 import { sendIEEEPaper } from "./emailService";
 import multer from "multer";
+import path from "path";
+import { fileURLToPath } from 'url';
+
+// Get current directory for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -22,9 +28,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentData = req.body;
       
+      // Use absolute path for Python script
+      const scriptPath = path.join(__dirname, 'ieee_generator_fixed.py');
+      
       // Call Python script to generate DOCX
-      const python = spawn(getPythonCommand(), ['server/ieee_generator_fixed.py'], {
-        stdio: ['pipe', 'pipe', 'pipe']
+      const python = spawn(getPythonCommand(), [scriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: __dirname
       });
       
       // Send document data to Python script
@@ -45,7 +55,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       python.on('close', (code: number) => {
         if (code !== 0) {
           console.error('Python script error:', errorOutput);
-          res.status(500).json({ error: 'Failed to generate document' });
+          console.error('Python script path:', scriptPath);
+          console.error('Working directory:', __dirname);
+          res.status(500).json({ error: 'Failed to generate document', details: errorOutput });
           return;
         }
         
@@ -64,9 +76,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentData = req.body;
       
+      // Use absolute path for Python script
+      const scriptPath = path.join(__dirname, 'pdf_generator_identical.py');
+      
       // Call Python script to generate PDF with identical formatting to Word
-      const python = spawn(getPythonCommand(), ['server/pdf_generator_identical.py'], {
-        stdio: ['pipe', 'pipe', 'pipe']
+      const python = spawn(getPythonCommand(), [scriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: __dirname
       });
       
       python.stdin.write(JSON.stringify(documentData));
@@ -86,7 +102,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       python.on('close', (code: number) => {
         if (code !== 0) {
           console.error('PDF generation error:', errorOutput);
-          res.status(500).json({ error: 'Failed to generate PDF document' });
+          console.error('Python script path:', scriptPath);
+          console.error('Working directory:', __dirname);
+          res.status(500).json({ error: 'Failed to generate PDF document', details: errorOutput });
           return;
         }
         
@@ -274,9 +292,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid email format' });
       }
 
+      // Use absolute path for Python script
+      const scriptPath = path.join(__dirname, 'pdf_generator_identical.py');
+
       // Generate PDF using the same Python script
-      const python = spawn(getPythonCommand(), ['server/pdf_generator_identical.py'], {
-        stdio: ['pipe', 'pipe', 'pipe']
+      const python = spawn(getPythonCommand(), [scriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: __dirname
       });
       
       python.stdin.write(JSON.stringify(documentData));
@@ -296,7 +318,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       python.on('close', async (code: number) => {
         if (code !== 0) {
           console.error('PDF generation error:', errorOutput);
-          return res.status(500).json({ error: 'Failed to generate PDF document' });
+          console.error('Python script path:', scriptPath);
+          console.error('Working directory:', __dirname);
+          return res.status(500).json({ error: 'Failed to generate PDF document', details: errorOutput });
         }
         
         // Verify it's a valid PDF
