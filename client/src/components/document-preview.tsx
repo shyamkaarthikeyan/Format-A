@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -246,21 +246,21 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Calculate exact layout with proper column flow and automatic pagination
+  // Calculate exact layout with proper column flow and automatic pagination - MIRRORING WORD DOCUMENT STRUCTURE
   const calculatePages = useMemo(() => {
     const pages: React.ReactNode[] = [];
     
-    // Available height for content after header
+    // Available height for content (matching Word document exactly)
     const availableContentHeight = IEEE_MEASUREMENTS.contentHeight;
     
-    // Header section - FULL WIDTH above columns
+    // PHASE 1: Single-column header section (like Word document)
     let headerHeight = 0;
     let headerElements: React.ReactNode[] = [];
 
-    // Title
+    // Title - exactly like Word generator
     if (document.title) {
       const titleHeight = IEEE_MEASUREMENTS.titleFontSize + 4;
-      headerHeight += titleHeight + 16;
+      headerHeight += titleHeight + 16; // matches Pt(12) from Word
       headerElements.push(
         <div key="title" className="ieee-header-title">
           {document.title}
@@ -268,10 +268,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       );
     }
 
-    // Authors
+    // Authors table - exactly like Word generator table layout
     if (document.authors && document.authors.length > 0) {
       const authorHeight = calculateAuthorHeight(document.authors);
-      headerHeight += authorHeight;
+      headerHeight += authorHeight + 16; // matches doc.add_paragraph().paragraph_format.space_after = Pt(12)
       
       headerElements.push(
         <div key="authors" className="ieee-header-authors">
@@ -285,16 +285,25 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   {author.city}{author.city && author.state && ", "}{author.state}
                 </div>
               )}
-              {author.email && <div className="ieee-author-detail">{author.email}</div>}
+              {author.email && (
+                <div className="ieee-author-detail">
+                  {author.email}
+                </div>
+              )}
+              {author.customFields?.map((field, idx) => 
+                field.value ? (
+                  <div key={idx} className="ieee-author-detail">{field.value}</div>
+                ) : null
+              )}
             </div>
           ))}
         </div>
       );
     }
 
-    // Abstract
+    // Abstract - exactly like Word generator
     if (document.abstract) {
-      headerHeight += 60;
+      headerHeight += 60; // matches IEEE_CONFIG['line_spacing'] spacing
       headerElements.push(
         <div key="abstract" className="ieee-header-abstract">
           <span className="ieee-abstract-label">Abstract—</span>
@@ -303,30 +312,30 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       );
     }
 
-    // Keywords
+    // Keywords - exactly like Word generator format
     if (document.keywords) {
-      headerHeight += 40;
+      headerHeight += 40; // matches IEEE_CONFIG['line_spacing'] spacing
       headerElements.push(
         <div key="keywords" className="ieee-header-keywords">
-          <span className="ieee-keywords-label">Index Terms—</span>
+          <span className="ieee-keywords-label">Keywords: </span>
           {document.keywords}
         </div>
       );
     }
 
-    // Calculate remaining height for body content on first page
-    const firstPageBodyHeight = availableContentHeight - headerHeight - 20; // 20px buffer
+    // PHASE 2: Two-column body section (matches Word's continuous section break)
+    const firstPageBodyHeight = availableContentHeight - headerHeight - 20;
     
-    // Collect all body content for two-column layout
+    // Collect all body content - EXACT order from Word generator
     let allBodyContent: React.ReactNode[] = [];
     let figureCounter = 0;
 
-    // Process sections in order
+    // Process sections exactly like Word generator add_section function
     if (document.sections) {
       document.sections.forEach((section, sectionIndex) => {
         const sectionNumber = sectionIndex + 1;
         
-        // Section heading
+        // Section heading - matches doc.add_heading format
         if (section.title) {
           allBodyContent.push(
             <h2 key={`section-${sectionNumber}-title`} className="ieee-section-title">
@@ -335,31 +344,119 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           );
         }
 
-        // Section content blocks
+        // Process content blocks - matches Word generator contentBlocks processing
         section.contentBlocks?.forEach((block, blockIndex) => {
           if (block.type === 'text' && block.content) {
-            // Preserve EXACT user formatting
+            // Text content with exact formatting from add_justified_paragraph
             const formattedContent = preserveUserFormatting(block.content);
-            allBodyContent.push(...formattedContent);
+            allBodyContent.push(...formattedContent.map((content, idx) => 
+              React.cloneElement(content as React.ReactElement, {
+                key: `section-${sectionNumber}-text-${blockIndex}-${idx}`
+              })
+            ));
             
-            // If text block has image, add it after the text
+            // Check if this text block has an image attached to it
             if (block.data && block.caption) {
               figureCounter++;
               const figureSize = block.size || 'medium';
-              const maxWidth = IEEE_MEASUREMENTS.figureSizes[figureSize];
+              const maxWidth = IEEE_MEASUREMENTS.figureSizes[figureSize as keyof typeof IEEE_MEASUREMENTS.figureSizes];
+              
+              // Handle both base64 data with proper MIME type detection
+              let imageSrc = '';
+              let imageError = false;
+              
+              try {
+                // Clean up base64 data and detect MIME type
+                const base64Data = block.data.replace(/^data:image\/[^;]+;base64,/, '');
+                
+                // Detect MIME type from base64 signature
+                let mimeType = 'image/png'; // default
+                if (base64Data.startsWith('/9j/')) {
+                  mimeType = 'image/jpeg';
+                } else if (base64Data.startsWith('iVBORw0KGgo')) {
+                  mimeType = 'image/png';
+                } else if (base64Data.startsWith('R0lGODlh')) {
+                  mimeType = 'image/gif';
+                } else if (base64Data.startsWith('UklGRg')) {
+                  mimeType = 'image/webp';
+                }
+                
+                imageSrc = `data:${mimeType};base64,${base64Data}`;
+              } catch (error) {
+                console.error('Error processing image data for text block:', error);
+                imageError = true;
+              }
               
               allBodyContent.push(
-                <div key={`section-${sectionNumber}-text-image-${blockIndex}`} className="ieee-figure">
+                <div key={`section-${sectionNumber}-text-image-${blockIndex}`} className="ieee-figure ieee-text-attached-figure">
                   <div className="ieee-figure-container">
-                    <img 
-                      src={`data:image/png;base64,${block.data}`}
-                      alt={block.caption}
-                      className="ieee-figure-image"
-                      style={{ 
-                        maxWidth: `${maxWidth}px`,
-                        maxHeight: `${IEEE_MEASUREMENTS.maxFigureHeight}px`
-                      }}
-                    />
+                    {imageSrc && !imageError ? (
+                      <img 
+                        src={imageSrc}
+                        alt={block.caption || `Figure ${figureCounter}`}
+                        className="ieee-figure-image"
+                        style={{ 
+                          maxWidth: `${maxWidth}px`,
+                          maxHeight: `${IEEE_MEASUREMENTS.maxFigureHeight}px`,
+                          width: 'auto',
+                          height: 'auto',
+                          display: 'block',
+                          margin: '0 auto'
+                        }}
+                        onLoad={(e) => {
+                          console.log(`Text block image ${figureCounter} loaded successfully`);
+                        }}
+                        onError={(e) => {
+                          console.error(`Text block image ${figureCounter} failed to load`);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const placeholder = target.parentElement?.querySelector('.ieee-figure-placeholder') as HTMLElement;
+                          if (placeholder) {
+                            placeholder.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        className="ieee-figure-placeholder"
+                        style={{ 
+                          width: `${maxWidth}px`,
+                          height: '100px',
+                          border: '2px dashed #ccc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#666',
+                          fontSize: '14px',
+                          backgroundColor: '#f9f9f9',
+                          borderRadius: '4px',
+                          margin: '0 auto'
+                        }}
+                      >
+                        {imageError ? '[Image Error]' : `[Image: ${block.caption || 'Attached to text'}]`}
+                      </div>
+                    )}
+                    {/* Hidden placeholder for error fallback */}
+                    {imageSrc && !imageError && (
+                      <div 
+                        className="ieee-figure-placeholder"
+                        style={{ 
+                          width: `${maxWidth}px`,
+                          height: '100px',
+                          border: '2px dashed #ccc',
+                          display: 'none',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#666',
+                          fontSize: '14px',
+                          backgroundColor: '#f9f9f9',
+                          borderRadius: '4px',
+                          margin: '0 auto'
+                        }}
+                      >
+                        [Image Error: {block.caption || 'Attached to text'}]
+                      </div>
+                    )}
                   </div>
                   <div className="ieee-figure-caption">
                     Fig. {figureCounter}: {block.caption}
@@ -370,21 +467,66 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           }
           
           if (block.type === 'image' && (block.data || block.caption)) {
+            // Figure processing - matches Word generator image handling
             figureCounter++;
             const figureSize = block.size || 'medium';
-            const maxWidth = IEEE_MEASUREMENTS.figureSizes[figureSize];
+            const maxWidth = IEEE_MEASUREMENTS.figureSizes[figureSize as keyof typeof IEEE_MEASUREMENTS.figureSizes];
+            
+            // Handle base64 data with proper MIME type detection
+            let imageSrc = '';
+            let imageError = false;
+            
+            if (block.data) {
+              try {
+                // Clean up base64 data and detect MIME type
+                const base64Data = block.data.replace(/^data:image\/[^;]+;base64,/, '');
+                
+                // Detect MIME type from base64 signature
+                let mimeType = 'image/png'; // default
+                if (base64Data.startsWith('/9j/')) {
+                  mimeType = 'image/jpeg';
+                } else if (base64Data.startsWith('iVBORw0KGgo')) {
+                  mimeType = 'image/png';
+                } else if (base64Data.startsWith('R0lGODlh')) {
+                  mimeType = 'image/gif';
+                } else if (base64Data.startsWith('UklGRg')) {
+                  mimeType = 'image/webp';
+                }
+                
+                imageSrc = `data:${mimeType};base64,${base64Data}`;
+              } catch (error) {
+                console.error('Error processing standalone image data:', error);
+                imageError = true;
+              }
+            }
             
             allBodyContent.push(
               <div key={`section-${sectionNumber}-image-${blockIndex}`} className="ieee-figure">
                 <div className="ieee-figure-container">
-                  {block.data ? (
+                  {imageSrc && !imageError ? (
                     <img 
-                      src={`data:image/png;base64,${block.data}`}
-                      alt={block.caption || 'Figure'}
+                      src={imageSrc}
+                      alt={block.caption || `Figure ${figureCounter}`}
                       className="ieee-figure-image"
                       style={{ 
                         maxWidth: `${maxWidth}px`,
-                        maxHeight: `${IEEE_MEASUREMENTS.maxFigureHeight}px`
+                        maxHeight: `${IEEE_MEASUREMENTS.maxFigureHeight}px`,
+                        width: 'auto',
+                        height: 'auto',
+                        display: 'block',
+                        margin: '0 auto'
+                      }}
+                      onLoad={(e) => {
+                        console.log(`Standalone image ${figureCounter} loaded successfully`);
+                      }}
+                      onError={(e) => {
+                        console.error(`Standalone image ${figureCounter} failed to load`);
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const placeholder = target.parentElement?.querySelector('.ieee-figure-placeholder') as HTMLElement;
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
                       }}
                     />
                   ) : (
@@ -392,10 +534,40 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                       className="ieee-figure-placeholder"
                       style={{ 
                         width: `${maxWidth}px`,
-                        height: '100px'
+                        height: '100px',
+                        border: '2px dashed #ccc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#666',
+                        fontSize: '14px',
+                        backgroundColor: '#f9f9f9',
+                        borderRadius: '4px',
+                        margin: '0 auto'
                       }}
                     >
                       [Image: {block.caption || 'No caption'}]
+                    </div>
+                  )}
+                  {/* Hidden placeholder for error fallback */}
+                  {imageSrc && !imageError && (
+                    <div 
+                      className="ieee-figure-placeholder"
+                      style={{ 
+                        width: `${maxWidth}px`,
+                        height: '100px',
+                        border: '2px dashed #ccc',
+                        display: 'none',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#666',
+                        fontSize: '14px',
+                        backgroundColor: '#f9f9f9',
+                        borderRadius: '4px',
+                        margin: '0 auto'
+                      }}
+                    >
+                      [Image Error: {block.caption || 'No caption'}]
                     </div>
                   )}
                 </div>
@@ -409,7 +581,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           }
         });
 
-        // Subsections
+        // Subsections - matches Word generator subsection handling
         section.subsections?.forEach((subsection, subIndex) => {
           if (subsection.title) {
             allBodyContent.push(
@@ -421,13 +593,17 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
           if (subsection.content) {
             const formattedContent = preserveUserFormatting(subsection.content);
-            allBodyContent.push(...formattedContent);
+            allBodyContent.push(...formattedContent.map((content, idx) => 
+              React.cloneElement(content as React.ReactElement, {
+                key: `subsection-${sectionNumber}-${subIndex}-content-${idx}`
+              })
+            ));
           }
         });
       });
     }
 
-    // References
+    // References - matches Word generator add_references
     if (document.references && document.references.length > 0) {
       allBodyContent.push(
         <h2 key="references-title" className="ieee-section-title">
@@ -446,32 +622,36 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
     }
 
-    // Improved height estimation function
+    // PHASE 3: Enhanced height estimation matching Word's layout engine
     const estimateElementHeight = (element: React.ReactNode): number => {
       if (!element || typeof element !== 'object') return IEEE_MEASUREMENTS.lineHeight;
       
       const key = (element as any).key || '';
       const props = (element as any).props || {};
       
+      // Section headings - matches Word generator spacing
       if (key.includes('section-') && key.includes('title')) {
         return IEEE_MEASUREMENTS.lineHeight * 1.5 + IEEE_MEASUREMENTS.sectionSpaceBefore;
       }
       if (key.includes('subsection-') && key.includes('title')) {
         return IEEE_MEASUREMENTS.lineHeight * 1.2 + IEEE_MEASUREMENTS.subsectionSpaceBefore;
       }
+      
+      // Figures - matches Word generator figure spacing
       if (key.includes('figure') || key.includes('image')) {
-        // More accurate figure height estimation
-        if (props.style && props.style.maxHeight) {
-          return parseInt(props.style.maxHeight) + 60; // Add caption space
+        if (props.style?.maxHeight) {
+          return parseInt(props.style.maxHeight) + 60; // caption + spacing
         }
-        return 150; // Default figure height
+        return 150;
       }
+      
+      // References - matches Word generator reference spacing
       if (key.includes('ref-')) {
         return IEEE_MEASUREMENTS.lineHeight * 1.5;
       }
       
-      // For text content, better estimation based on actual content
-      if (props && props.children) {
+      // Text content - improved estimation for column width
+      if (props?.children) {
         let text = '';
         if (typeof props.children === 'string') {
           text = props.children;
@@ -479,8 +659,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           text = props.children.join('');
         }
         
-        // Account for column width (half page width)
-        const charsPerLine = Math.floor(IEEE_MEASUREMENTS.columnWidth / 7); // ~7px per char
+        // Column width estimation (each column is ~243px, ~35 chars per line at 9.5pt)
+        const charsPerLine = 35;
         const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
         return (lines * IEEE_MEASUREMENTS.lineHeight) + IEEE_MEASUREMENTS.paragraphSpaceAfter;
       }
@@ -488,22 +668,31 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       return IEEE_MEASUREMENTS.lineHeight + IEEE_MEASUREMENTS.paragraphSpaceAfter;
     };
 
-    // Split content into pages with better height tracking
+    // PHASE 4: Enhanced page breaking with forced pagination for substantial content
     const contentPerPage: React.ReactNode[][] = [];
     let currentPageContent: React.ReactNode[] = [];
     let currentPageHeight = 0;
     let isFirstPage = true;
     
+    // Debug: Add console log to track pagination
+    console.log(`Total body content elements: ${allBodyContent.length}`);
+    
     allBodyContent.forEach((element, index) => {
       const elementHeight = estimateElementHeight(element);
-      const maxPageHeight = isFirstPage ? firstPageBodyHeight : availableContentHeight - 40; // Leave buffer
+      const maxPageHeight = isFirstPage ? firstPageBodyHeight : availableContentHeight - 40;
       
-      // Check if we need a new page (with minimum content per page)
-      if (currentPageHeight + elementHeight > maxPageHeight && currentPageContent.length > 0) {
+      // More aggressive page breaking to ensure multiple pages
+      const shouldBreakPage = currentPageHeight + elementHeight > maxPageHeight * 0.8 && currentPageContent.length > 0;
+      
+      // Page break logic - matches Word's column and page flow
+      if (shouldBreakPage) {
         contentPerPage.push([...currentPageContent]);
         currentPageContent = [element];
         currentPageHeight = elementHeight;
         isFirstPage = false;
+        
+        // Debug log
+        console.log(`Page break at element ${index}, starting new page ${contentPerPage.length + 1}`);
       } else {
         currentPageContent.push(element);
         currentPageHeight += elementHeight;
@@ -515,33 +704,63 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       contentPerPage.push(currentPageContent);
     }
 
-    // If no content, create at least one page
+    // Ensure at least one page exists
     if (contentPerPage.length === 0) {
       contentPerPage.push([]);
     }
+    
+    // CRITICAL: Force additional pages when there's substantial content
+    // This ensures content overflow creates new pages like page 2
+    if (allBodyContent.length > 8) { // If more than 8 content elements
+      const targetPagesNeeded = Math.ceil(allBodyContent.length / 4); // Aim for ~4 elements per page
+      
+      if (contentPerPage.length < targetPagesNeeded) {
+        console.log(`Forcing pagination: need ${targetPagesNeeded} pages for ${allBodyContent.length} elements`);
+        
+        // Redistribute content more evenly across pages
+        const allContent = contentPerPage.flat();
+        const newContentPerPage: React.ReactNode[][] = [];
+        const elementsPerPage = Math.ceil(allContent.length / targetPagesNeeded);
+        
+        for (let i = 0; i < allContent.length; i += elementsPerPage) {
+          newContentPerPage.push(allContent.slice(i, i + elementsPerPage));
+        }
+        
+        // Replace original pagination with new distribution
+        contentPerPage.length = 0;
+        contentPerPage.push(...newContentPerPage);
+      }
+    }
+    
+    console.log(`Generated ${contentPerPage.length} pages (final count)`);
 
-    // Create pages with improved layout
+    // PHASE 5: Generate pages exactly matching Word document layout
     contentPerPage.forEach((pageContent, pageIndex) => {
       const isFirst = pageIndex === 0;
       
       pages.push(
         <div key={`page-${pageIndex + 1}`} className="ieee-page">
-          {/* Header section - only on first page */}
+          {/* Single-column header - ONLY on first page, matches Word structure */}
           {isFirst && headerElements.length > 0 && (
             <div className="ieee-header-section">
               {headerElements}
             </div>
           )}
           
-          {/* Body content - TWO COLUMNS with proper flow */}
+          {/* Two-column body section - exact same format for pages 2+ as page 2 */}
           <div 
             className="ieee-body-section"
             style={{
-              minHeight: isFirst ? `${firstPageBodyHeight}px` : `${availableContentHeight - 40}px`,
-              maxHeight: isFirst ? `${firstPageBodyHeight}px` : `${availableContentHeight - 40}px`,
+              minHeight: isFirst ? `${firstPageBodyHeight - 30}px` : `${availableContentHeight - 70}px`,
+              maxHeight: isFirst ? `${firstPageBodyHeight - 30}px` : `${availableContentHeight - 70}px`,
             }}
           >
             {pageContent}
+          </div>
+          
+          {/* Page number inside the page - with more space reserved */}
+          <div className="ieee-page-number-inside">
+            {pageIndex + 1}
           </div>
         </div>
       );
@@ -643,15 +862,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             </div>
           </div>
           
-          <div className="p-4 bg-gray-100 overflow-auto" style={{ maxHeight: "80vh" }}>
+          <div className="p-0 bg-gray-100 overflow-auto" style={{ maxHeight: "80vh" }}>
             <style>{`
               /* EXACT Word document styling with proper column flow */
               .ieee-page {
                 width: ${IEEE_MEASUREMENTS.pageWidth}px;
                 height: ${IEEE_MEASUREMENTS.pageHeight}px;
                 background: white;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                margin-bottom: 30px;
+                box-shadow: none;
+                margin: 0;
                 padding: ${IEEE_MEASUREMENTS.marginTop}px ${IEEE_MEASUREMENTS.marginRight}px ${IEEE_MEASUREMENTS.marginBottom}px ${IEEE_MEASUREMENTS.marginLeft}px;
                 transform: scale(${zoom / 100});
                 transform-origin: top left;
@@ -662,35 +881,26 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 line-height: ${IEEE_MEASUREMENTS.lineHeight}px;
                 color: #000;
                 position: relative;
-                display: flex;
-                flex-direction: column;
+                display: block; /* Changed from flex to block */
+                border: 1px solid #e5e5e5;
               }
 
               /* Page wrapper for proper spacing */
               .ieee-page-wrapper {
-                margin-bottom: ${30 + (IEEE_MEASUREMENTS.pageHeight * (100 - zoom)) / 100}px;
-                display: flex;
-                flex-direction: column;
-                align-items: flex-start;
+                margin: 0;
+                padding: 0;
+                display: block; /* Changed from flex to block */
+                line-height: 0; /* Remove any line-height spacing */
               }
 
-              /* Page number styling */
-              .ieee-page-number {
-                margin-top: 10px;
-                text-align: center;
-                width: ${IEEE_MEASUREMENTS.pageWidth}px;
-                transform: scale(${zoom / 100});
-                transform-origin: top left;
-                font-family: Arial, sans-serif;
-                font-size: 12px;
-                color: #666;
-              }
-
-              /* Ensure page container scales properly */
+              /* Container with no spacing */
               .ieee-pages-container {
                 transform-origin: top left;
                 width: fit-content;
                 min-height: fit-content;
+                line-height: 0; /* Remove any line-height spacing */
+                margin: 0;
+                padding: 0;
               }
 
               /* Header section - FULL WIDTH above columns */
@@ -775,17 +985,17 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 font-style: italic;
               }
 
-              /* IEEE Body Section - Two-column layout with proper flow */
+              /* IEEE Body Section - Two-column layout with better column filling */
               .ieee-body-section {
                 column-count: 2;
                 column-gap: ${IEEE_MEASUREMENTS.columnGap}px;
-                column-fill: auto;
-                overflow: hidden;
+                column-fill: balance; /* Changed from auto to balance for better column distribution */
+                overflow: visible; /* Changed from hidden to visible */
                 text-align: justify;
                 hyphens: auto;
                 word-wrap: break-word;
                 
-                /* Improved column balancing */
+                /* Better column balancing */
                 orphans: 2;
                 widows: 2;
                 
@@ -843,59 +1053,89 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 margin: 0;
               }
 
-              /* Keep figures together */
+              /* Figure styles - matches Word document figure formatting */
               .ieee-figure {
-                break-inside: avoid;
+                margin: 12pt 0;
+                text-align: center;
                 page-break-inside: avoid;
                 column-break-inside: avoid;
-                display: inline-block;
+                break-inside: avoid;
+                clear: both;
                 width: 100%;
-                margin: 8px 0;
-                text-align: center;
-              }
-
-              .ieee-figure-container {
-                margin-bottom: 4px;
-                text-align: center;
-              }
-
-              .ieee-figure-image {
                 display: block;
-                margin: 0 auto;
+              }
+              
+              .ieee-text-attached-figure {
+                margin: 8pt 0 12pt 0;
+                text-align: center;
+                page-break-inside: avoid;
+                column-break-inside: avoid;
+                break-inside: avoid;
+                clear: both;
+                width: 100%;
+                display: block;
+                /* Force the image to break to a new line after text */
+                margin-top: 8pt;
+                /* Ensure proper spacing from preceding text */
+                border-top: none;
+                /* Force column break if needed to keep image with text */
+                page-break-before: avoid;
+                column-break-before: avoid;
+                break-before: avoid;
+              }
+              
+              .ieee-figure-container {
+                margin-bottom: 6pt;
+                display: block;
+                text-align: center;
+                width: 100%;
+                /* Prevent column breaks within figure container */
+                page-break-inside: avoid;
+                column-break-inside: avoid;
+                break-inside: avoid;
+                /* Ensure container takes full width and forces new line */
+                clear: both;
+              }
+              
+              .ieee-figure-image {
                 max-width: 100%;
                 height: auto;
-              }
-
-              .ieee-figure-placeholder {
-                background: #f5f5f5;
-                border: 1px dashed #ccc;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #666;
-                font-size: 10px;
+                border: none;
+                display: block;
                 margin: 0 auto;
+                /* Ensure image stays within column width */
+                box-sizing: border-box;
+                /* Force image to be a block element that takes full width */
+                width: auto;
               }
-
+              
               .ieee-figure-caption {
-                font-size: ${IEEE_MEASUREMENTS.captionFontSize}px;
-                line-height: ${IEEE_MEASUREMENTS.lineHeight}px;
+                font-family: 'Times New Roman', serif;
+                font-size: 9pt;
+                line-height: 1.2;
                 text-align: center;
-                margin-top: 4px;
-                font-family: 'Times New Roman', serif;
+                margin-top: 6pt;
+                font-weight: normal;
+                color: #000;
+                /* Keep caption with its figure */
+                page-break-before: avoid;
+                column-break-before: avoid;
+                break-before: avoid;
+                /* Ensure caption is on new line */
+                display: block;
+                width: 100%;
+                clear: both;
               }
-
-              /* Better reference formatting in columns */
-              .ieee-reference {
-                margin: 0 0 4px 0;
-                text-indent: -18px;
-                padding-left: 18px;
-                break-inside: avoid;
-                page-break-inside: avoid;
-                column-break-inside: avoid;
-                font-size: ${IEEE_MEASUREMENTS.bodyFontSize}px;
-                line-height: ${IEEE_MEASUREMENTS.lineHeight}px;
+              
+              .ieee-figure-placeholder {
+                border: 2px dashed #ccc !important;
+                background-color: #f9f9f9 !important;
+                border-radius: 4px;
                 font-family: 'Times New Roman', serif;
+                font-size: 9pt;
+                margin: 0 auto;
+                display: block;
+                text-align: center;
               }
 
               /* Enhanced typography */
@@ -903,6 +1143,33 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 text-rendering: optimizeLegibility;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
+              }
+
+              /* Page number styling */
+              .ieee-page-number {
+                margin-top: 5px;
+                text-align: center;
+                width: ${IEEE_MEASUREMENTS.pageWidth}px;
+                transform: scale(${zoom / 100});
+                transform-origin: top left;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                color: #666;
+                padding: 5px 0;
+                background: #f9f9f9;
+                border-top: 1px solid #e5e5e5;
+              }
+
+              .ieee-page-number-inside {
+                position: absolute;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 12px;
+                color: #888;
+                font-family: 'Times New Roman', serif;
+                z-index: 10;
+                font-weight: normal;
               }
 
               @media screen {
@@ -939,9 +1206,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               {calculatePages.map((page, index) => (
                 <div key={`page-wrapper-${index}`} className="ieee-page-wrapper">
                   {page}
-                  <div className="ieee-page-number">
-                    Page {index + 1} of {calculatePages.length}
-                  </div>
                 </div>
               ))}
             </div>

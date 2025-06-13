@@ -267,11 +267,11 @@ export default function HomeClient() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Left Column - Forms */}
-            <div className={`space-y-6 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+          <div className="flex gap-8 min-h-screen">
+            {/* Left Column - Forms (scrollable) */}
+            <div className="flex-1 space-y-6 overflow-y-auto pr-4 border-2 border-purple-400 rounded-lg p-6 bg-white/50 backdrop-blur-sm shadow-xl" style={{ maxHeight: "calc(100vh - 200px)" }}>
               {/* Document Info */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all duration-500 relative overflow-hidden">
+              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-violet-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
@@ -287,25 +287,8 @@ export default function HomeClient() {
                 </CardContent>
               </Card>
 
-              {/* Sections */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all duration-500 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
-                    <BookOpen className="w-5 h-5 text-violet-600" />
-                    Sections
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <SectionForm 
-                    sections={documentToDisplay.sections} 
-                    onUpdate={(sections) => handleUpdateDocument({ sections })} 
-                  />
-                </CardContent>
-              </Card>
-
               {/* Authors */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all duration-500 relative overflow-hidden">
+              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
@@ -321,8 +304,25 @@ export default function HomeClient() {
                 </CardContent>
               </Card>
 
+              {/* Sections */}
+              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
+                    <BookOpen className="w-5 h-5 text-violet-600" />
+                    Sections
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SectionForm 
+                    sections={documentToDisplay.sections} 
+                    onUpdate={(sections) => handleUpdateDocument({ sections })} 
+                  />
+                </CardContent>
+              </Card>
+
               {/* References */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all duration-500 relative overflow-hidden">
+              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
@@ -337,38 +337,23 @@ export default function HomeClient() {
                   />
                 </CardContent>
               </Card>
-
-              {/* Figures */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all duration-500 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-violet-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
-                    <Image className="w-5 h-5 text-purple-600" />
-                    Figures
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <FigureForm 
-                    figures={documentToDisplay.figures} 
-                    onUpdate={(figures) => handleUpdateDocument({ figures })} 
-                  />
-                </CardContent>
-              </Card>
             </div>
 
-            {/* Right Column - Preview */}
-            <div className={`transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
-              <Card className="h-[calc(100vh-180px)] bg-white/90 backdrop-blur-sm border-purple-200 shadow-xl sticky top-6">
-                <CardHeader className="pb-4 border-b border-purple-100">
-                  <CardTitle className="flex items-center gap-2 text-gray-900">
-                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    Live Preview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="h-[calc(100%-80px)] overflow-hidden p-0">
-                  <DocumentPreview document={documentToDisplay} />
-                </CardContent>
-              </Card>
+            {/* Right Column - Preview (fixed/sticky) */}
+            <div className="w-1/2 sticky top-6 h-fit">
+              <div className={`transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+                <Card className="h-[calc(100vh-180px)] bg-white/90 backdrop-blur-sm border-4 border-purple-500 shadow-2xl rounded-lg">
+                  <CardHeader className="pb-4 border-b-2 border-purple-200">
+                    <CardTitle className="flex items-center gap-2 text-gray-900">
+                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                      Live Preview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[calc(100%-80px)] overflow-hidden p-0">
+                    <DocumentPreview document={documentToDisplay} documentId={currentDocument?.id || null} />
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </div>

@@ -350,6 +350,42 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
                 space_before=space_before,
                 space_after=Pt(12)
             )
+            
+            # Check if this text block also has an image attached (React frontend pattern)
+            if block.get('data') and block.get('caption'):
+                # Handle image attached to text block
+                size = block.get('size', 'medium')
+                width = IEEE_CONFIG['figure_sizes'].get(size, IEEE_CONFIG['figure_sizes']['medium'])
+                
+                # Decode base64 image data
+                try:
+                    image_data = base64.b64decode(block['data'])
+                    image_stream = BytesIO(image_data)
+                    
+                    para = doc.add_paragraph()
+                    run = para.add_run()
+                    picture = run.add_picture(image_stream, width=width)
+                    if picture.height > IEEE_CONFIG['max_figure_height']:
+                        scale_factor = IEEE_CONFIG['max_figure_height'] / picture.height
+                        run.clear()
+                        run.add_picture(image_stream, width=width * scale_factor, height=IEEE_CONFIG['max_figure_height'])
+                    
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    para.paragraph_format.space_before = Pt(6)
+                    para.paragraph_format.space_after = Pt(6)
+                    
+                    # Generate figure number based on section and image position
+                    img_count = sum(1 for b in section_data.get('contentBlocks', [])[:block_idx+1] if b.get('type') == 'image' or (b.get('type') == 'text' and b.get('data')))
+                    caption = doc.add_paragraph(f"Fig. {section_idx}.{img_count}: {block['caption']}")
+                    caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    caption.paragraph_format.space_before = Pt(0)
+                    caption.paragraph_format.space_after = Pt(12)
+                    if caption.runs:
+                        caption.runs[0].font.name = IEEE_CONFIG['font_name']
+                        caption.runs[0].font.size = IEEE_CONFIG['font_size_caption']
+                except Exception as e:
+                    print(f"Error processing image in text block: {e}", file=sys.stderr)
+                    
         elif block.get('type') == 'image' and block.get('data') and block.get('caption'):
             size = block.get('size', 'medium')
             width = IEEE_CONFIG['figure_sizes'].get(size, IEEE_CONFIG['figure_sizes']['medium'])
