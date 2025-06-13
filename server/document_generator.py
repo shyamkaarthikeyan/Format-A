@@ -271,23 +271,61 @@ def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, in
     para = doc.add_paragraph(text, style=style_name)
     para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     
-    if indent_left:
-        para.paragraph_format.left_indent = indent_left
-    if indent_right:
-        para.paragraph_format.right_indent = indent_right
-    if space_before:
-        para.paragraph_format.space_before = space_before
-    if space_after:
-        para.paragraph_format.space_after = space_after
-    
+    # Set paragraph formatting with exact spacing controls
+    para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
+    para.paragraph_format.line_spacing_rule = 0  # Exact spacing
     para.paragraph_format.widow_control = False
     para.paragraph_format.keep_with_next = False
-    para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
-    para.paragraph_format.line_spacing_rule = 0
+    para.paragraph_format.keep_together = False
     
+    # Set spacing
+    if space_before is not None:
+        para.paragraph_format.space_before = space_before
+    if space_after is not None:
+        para.paragraph_format.space_after = space_after
+    
+    # Set indentation
+    if indent_left is not None:
+        para.paragraph_format.left_indent = indent_left
+    if indent_right is not None:
+        para.paragraph_format.right_indent = indent_right
+    
+    # Font formatting with controlled spacing
     if para.runs:
-        para.runs[0].font.name = IEEE_CONFIG['font_name']
-        para.runs[0].font.size = IEEE_CONFIG['font_size_body']
+        run = para.runs[0]
+        run.font.name = IEEE_CONFIG['font_name']
+        run.font.size = IEEE_CONFIG['font_size_body']
+        
+        # Moderate character spacing controls to reduce word gaps without breaking words
+        run_element = run._element
+        rPr = run_element.get_or_add_rPr()
+        
+        # Set moderate character spacing to reduce word gaps
+        spacing_element = OxmlElement('w:spacing')
+        spacing_element.set(qn('w:val'), '-5')  # Slight compression to reduce gaps
+        rPr.append(spacing_element)
+        
+        # Prevent automatic text expansion but allow normal word flow
+        run_element.set(qn('w:fitText'), '0')
+    
+    # Paragraph-level justification controls - MODERATE approach
+    para_element = para._element
+    pPr = para_element.get_or_add_pPr()
+    
+    # Use standard justification (not distribute) to keep words intact
+    jc = OxmlElement('w:jc')
+    jc.set(qn('w:val'), 'both')  # Standard justify - keeps words together
+    pPr.append(jc)
+    
+    # Control text alignment
+    textAlignment = OxmlElement('w:textAlignment')
+    textAlignment.set(qn('w:val'), 'baseline')
+    pPr.append(textAlignment)
+    
+    # Moderate spacing control - prevent excessive gaps but allow normal flow
+    adjust_right_ind = OxmlElement('w:adjustRightInd')
+    adjust_right_ind.set(qn('w:val'), '0')
+    pPr.append(adjust_right_ind)
     
     return para
 
@@ -397,6 +435,31 @@ def enable_auto_hyphenation(doc):
     auto_hyphenation.set(qn('w:val'), '1')
     sectPr.append(auto_hyphenation)
 
+    # Do NOT hyphenate capitalized words (proper nouns, abbreviations)
+    do_not_hyphenate_caps = OxmlElement('w:doNotHyphenateCaps')
+    do_not_hyphenate_caps.set(qn('w:val'), '1')
+    sectPr.append(do_not_hyphenate_caps)
+
+    # Set a LARGER hyphenation zone (less aggressive hyphenation, only when really needed)
+    hyphenation_zone = OxmlElement('w:hyphenationZone')
+    hyphenation_zone.set(qn('w:val'), '720')  # Increased to 720 (half inch)
+    sectPr.append(hyphenation_zone)
+
+    # Limit consecutive hyphens to prevent excessive word breaking
+    consecutive_hyphen_limit = OxmlElement('w:consecutiveHyphenLimit')
+    consecutive_hyphen_limit.set(qn('w:val'), '2')  # Max 2 consecutive lines with hyphens
+    sectPr.append(consecutive_hyphen_limit)
+
+    # Ensure hyphenation is controlled, not suppressed
+    compat = doc.settings.element.find(qn('w:compat'))
+    if compat is None:
+        doc.settings.element.append(OxmlElement('w:compat'))
+        compat = doc.settings.element.find(qn('w:compat'))
+
+    option = OxmlElement('w:suppressAutoHyphens')
+    option.set(qn('w:val'), '0')
+    compat.append(option)
+
 def set_compatibility_options(doc):
     """Set compatibility options to optimize spacing and justification."""
     compat = doc.settings.element.find(qn('w:compat'))
@@ -405,9 +468,56 @@ def set_compatibility_options(doc):
         compat = doc.settings.element.find(qn('w:compat'))
 
     # Critical options to eliminate word spacing issues
+    
+    # Force Word to use exact character spacing instead of word spacing
     option1 = OxmlElement('w:useWord2002TableStyleRules')
     option1.set(qn('w:val'), '1')
     compat.append(option1)
+    
+    # Prevent Word from expanding spaces for justification
+    option2 = OxmlElement('w:doNotExpandShiftReturn')
+    option2.set(qn('w:val'), '1')
+    compat.append(option2)
+    
+    # Use consistent character spacing
+    option3 = OxmlElement('w:useSingleBorderforContiguousCells')
+    option3.set(qn('w:val'), '1')
+    compat.append(option3)
+    
+    # Force exact spacing calculations
+    option4 = OxmlElement('w:spacingInWholePoints')
+    option4.set(qn('w:val'), '1')
+    compat.append(option4)
+    
+    # Prevent auto spacing adjustments
+    option5 = OxmlElement('w:doNotUseHTMLParagraphAutoSpacing')
+    option5.set(qn('w:val'), '1')
+    compat.append(option5)
+    
+    # Use legacy justification method (more precise)
+    option6 = OxmlElement('w:useWord97LineBreakRules')
+    option6.set(qn('w:val'), '1')
+    compat.append(option6)
+    
+    # Disable automatic kerning adjustments
+    option7 = OxmlElement('w:doNotAutoCompressPictures')
+    option7.set(qn('w:val'), '1')
+    compat.append(option7)
+    
+    # Force consistent text metrics
+    option8 = OxmlElement('w:useNormalStyleForList')
+    option8.set(qn('w:val'), '1')
+    compat.append(option8)
+    
+    # Prevent text compression/expansion
+    option9 = OxmlElement('w:doNotPromoteQF')
+    option9.set(qn('w:val'), '1')
+    compat.append(option9)
+    
+    # Use exact font metrics
+    option10 = OxmlElement('w:useAltKinsokuLineBreakRules')
+    option10.set(qn('w:val'), '0')
+    compat.append(option10)
 
 def generate_ieee_document(form_data):
     """Generate an IEEE-formatted Word document."""
