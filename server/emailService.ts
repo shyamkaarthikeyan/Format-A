@@ -2,11 +2,11 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 
-// Gmail SMTP configuration - more explicit and reliable
+// Gmail SMTP configuration - using port 465 with SSL for better reliability
 const EMAIL_CONFIG = {
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
+  port: 465,
+  secure: true, // true for 465, false for other ports
   auth: {
     user: 'shyamkaarthikeyan@gmail.com',
     pass: 'orcdrigozkfbraah' // Remove spaces from app password
