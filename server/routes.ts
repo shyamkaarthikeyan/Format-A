@@ -20,7 +20,23 @@ const upload = multer({
 
 // Utility function to get Python command
 function getPythonCommand(): string {
-  // Use the full Python path for Windows
+  // For hosted environments, try multiple Python commands
+  if (process.env.NODE_ENV === 'production') {
+    // Common Python paths for hosted environments
+    const pythonPaths = [
+      'python3',
+      'python',
+      '/usr/bin/python3',
+      '/usr/bin/python',
+      '/opt/render/project/.render/python/bin/python', // Render-specific
+      process.env.PYTHON_PATH // Allow environment override
+    ].filter(Boolean);
+    
+    console.log('Production environment - trying Python paths:', pythonPaths);
+    return pythonPaths[0] as string; // Return the first available
+  }
+  
+  // Use the full Python path for Windows development
   return 'C:/Users/shyam/AppData/Local/Programs/Python/Python39/python.exe';
 }
 

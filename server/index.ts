@@ -55,8 +55,19 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    // Register API routes FIRST - this is critical for hosted environments
     const server = await registerRoutes(app);
+    
+    // Add API route debugging middleware for production
+    if (process.env.NODE_ENV === 'production') {
+      app.use('/api/*', (req, res, next) => {
+        console.log(`API route accessed: ${req.method} ${req.path}`);
+        console.log('Request headers:', req.headers);
+        next();
+      });
+    }
 
+    // Global error handler - moved after route registration
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
@@ -71,19 +82,43 @@ app.use((req, res, next) => {
     if (process.env.NODE_ENV === "development") {
       await setupVite(app, server);
     } else {
-      serveStatic(app);
-    }
-
-    // Serve static files from the client dist directory in production
-    if (process.env.NODE_ENV === 'production') {
-      app.use(express.static('dist/client'));
+      // Production static file serving
+      const clientDistPath = path.join(process.cwd(), 'dist/client');
+      console.log('Serving static files from:', clientDistPath);
       
-      // Handle React Router routes - serve index.html for all non-API routes
+      // Serve static files
+      app.use(express.static(clientDistPath, {
+        maxAge: '1d',
+        setHeaders: (res, filePath) => {
+          // Cache JavaScript and CSS files longer
+          if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
+          }
+        }
+      }));
+      
+      // Handle React Router routes - IMPORTANT: Only for non-API routes
       app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api')) {
+        // Skip API routes - let them be handled by the API handlers
+        if (req.path.startsWith('/api/') || req.path === '/api') {
+          console.log('API route detected, passing to next handler:', req.path);
           return next();
         }
-        res.sendFile(path.join(process.cwd(), 'dist/client/index.html'));
+        
+        // Skip health check route
+        if (req.path === '/health') {
+          return next();
+        }
+        
+        // For all other routes, serve the React app
+        console.log('Frontend route, serving index.html for:', req.path);
+        const indexPath = path.join(clientDistPath, 'index.html');
+        res.sendFile(indexPath, (err) => {
+          if (err) {
+            console.error('Error serving index.html:', err);
+            res.status(500).send('Error serving application');
+          }
+        });
       });
     }
 
