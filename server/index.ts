@@ -83,7 +83,7 @@ app.use((req, res, next) => {
       await setupVite(app, server);
     } else {
       // Production static file serving
-      const clientDistPath = path.join(process.cwd(), 'dist/client');
+      const clientDistPath = path.join(process.cwd(), 'dist');
       console.log('Serving static files from:', clientDistPath);
       
       // Serve static files
