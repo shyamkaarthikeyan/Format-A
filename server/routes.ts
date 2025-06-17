@@ -426,6 +426,27 @@ function generalImprovement(sections: any[], feedback?: string, specificRequests
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint - CRITICAL for Render deployment
+  app.get('/health', (req, res) => {
+    res.status(200).json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.version,
+      platform: process.platform,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  app.get('/', (req, res) => {
+    res.status(200).json({ 
+      message: 'StreamlitToReact IEEE Paper Generator API',
+      status: 'running',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Debug endpoint to check Python environment
   app.get('/api/debug/python', async (req, res) => {
     try {
