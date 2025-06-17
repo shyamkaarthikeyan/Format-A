@@ -7,9 +7,6 @@
   "functions": {
     "api/**/*.ts": {
       "runtime": "nodejs18.x"
-    },
-    "api/**/*.py": {
-      "runtime": "python3.9"
     }
   },
   "rewrites": [
@@ -36,8 +33,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }

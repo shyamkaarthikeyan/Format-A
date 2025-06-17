@@ -12,35 +12,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Document title is required' });
     }
 
-    // First generate DOCX
-    const docxResponse = await fetch(`${process.env.VERCEL_URL}/api/generate-docx-py`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(documentData)
+    // For now, return a simple response indicating the feature is being migrated
+    res.status(503).json({ 
+      error: 'PDF generation is being migrated to Vercel serverless functions',
+      message: 'This feature will be available shortly. Please use the original Render deployment for now.',
+      suggestion: 'We are working on migrating the Python PDF generation to Vercel serverless functions.'
     });
-
-    if (!docxResponse.ok) {
-      throw new Error('Failed to generate DOCX for PDF conversion');
-    }
-
-    const docxBuffer = await docxResponse.arrayBuffer();
-    
-    // Convert DOCX to PDF using Python function
-    const pdfResponse = await fetch(`${process.env.VERCEL_URL}/api/convert-docx-to-pdf`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: docxBuffer
-    });
-
-    if (!pdfResponse.ok) {
-      throw new Error('Failed to convert DOCX to PDF');
-    }
-
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
-    res.send(Buffer.from(pdfBuffer));
 
   } catch (error) {
     console.error('PDF generation error:', error);

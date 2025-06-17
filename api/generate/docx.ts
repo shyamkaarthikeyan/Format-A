@@ -1,7 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -15,23 +12,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Document title is required' });
     }
 
-    // For Vercel, we'll use the Python function approach
-    const response = await fetch(`${process.env.VERCEL_URL}/api/generate-docx-py`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(documentData)
+    // For now, return a simple response indicating the feature is being migrated
+    res.status(503).json({ 
+      error: 'Document generation is being migrated to Vercel serverless functions',
+      message: 'This feature will be available shortly. Please use the original Render deployment for now.',
+      suggestion: 'We are working on migrating the Python document generation to Vercel serverless functions.'
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to generate document: ${response.statusText} - ${errorText}`);
-    }
-
-    const buffer = await response.arrayBuffer();
-    
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-    res.send(Buffer.from(buffer));
 
   } catch (error) {
     console.error('Document generation error:', error);
