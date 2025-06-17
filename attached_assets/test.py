@@ -694,7 +694,7 @@ def validate_reference(ref_text):
     return bool(re.match(pattern, ref_text))
 
 def main():
-    st.set_page_config(page_title="IEEE Paper Generator", layout="wide")
+    st.set_page_config(page_title="Academic IEEE Document Engine", layout="wide")
     st.title("IEEE Research Paper Generator")
     st.markdown("Create an IEEE-formatted research paper with dynamic sections, figures, and tables. "
                 "Download as a Word document or LaTeX file.")

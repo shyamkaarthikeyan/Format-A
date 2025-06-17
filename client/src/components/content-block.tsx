@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { X, Type, Image as ImageIcon, Plus } from "lucide-react";
 import FileUpload from "./file-upload";
+import RichTextEditor from "./rich-text-editor";
 import type { ContentBlock as ContentBlockType } from "@shared/schema";
 import { useState } from "react";
 
@@ -45,11 +46,11 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
         
         {block.type === "text" ? (
           <div className="space-y-3">
-            <Textarea
+            <RichTextEditor
               rows={4}
               placeholder="Enter text content"
               value={block.content || ""}
-              onChange={(e) => onUpdate({ content: e.target.value })}
+              onChange={(content) => onUpdate({ content })}
             />
             
             {showImageSection ? (

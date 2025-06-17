@@ -13,6 +13,7 @@ import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
 
 import { clientStorage } from "@/lib/localStorage";
+import { generateSimpleDocx, generateSimplePdf } from "@/lib/simpleGenerator";
 import type { Document, InsertDocument, UpdateDocument } from "../../../shared/schema-client.js";
 
 // Floating particles component
@@ -50,6 +51,16 @@ export default function HomeClient() {
   }, []);
 
   const handleCreateDocument = () => {
+    // Check if we already have 2 documents (maximum allowed)
+    if (documents.length >= 2) {
+      toast({
+        title: "Document Limit Reached",
+        description: "Maximum of 2 documents allowed. Please delete a document before creating a new one.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const newDocumentData: InsertDocument = {
       title: "",
       abstract: null,
@@ -196,7 +207,7 @@ export default function HomeClient() {
       <div className="absolute bottom-20 left-20 w-72 h-72 bg-fuchsia-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
 
       <div className="relative z-10 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-8xl mx-auto">
           {/* Header Section */}
           <div className={`mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <div className="flex items-center gap-4 mb-6">
@@ -210,13 +221,12 @@ export default function HomeClient() {
               </Button>
               
               <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 text-sm text-purple-600 animate-pulse">
-                <Sparkles className="w-4 h-4" />
-                <span className="font-semibold">AI-Powered IEEE Generator</span>
+                <span className="font-semibold">Format A</span>
               </div>
             </div>
 
             <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600 font-serif mb-3">
-              IEEE Paper Generator
+              Academic IEEE Document Engine
             </h1>
             <p className="text-lg text-gray-700 max-w-2xl">
               Create professional IEEE-formatted research papers with intelligent formatting and real-time preview
@@ -267,19 +277,19 @@ export default function HomeClient() {
             </Card>
           </div>
 
-          <div className="flex gap-8 min-h-screen">
+          <div className="flex gap-6 min-h-screen">
             {/* Left Column - Forms (scrollable) */}
-            <div className="flex-1 space-y-6 overflow-y-auto pr-4 border-2 border-purple-400 rounded-lg p-6 bg-white/50 backdrop-blur-sm shadow-xl" style={{ maxHeight: "calc(100vh - 200px)" }}>
+            <div className="w-[55%] space-y-6 overflow-y-auto pr-6 border-2 border-purple-400 rounded-lg p-8 bg-white/50 backdrop-blur-sm shadow-xl" style={{ maxHeight: "calc(100vh - 200px)" }}>
               {/* Document Info */}
               <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-violet-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
-                    <FileText className="w-5 h-5 text-purple-600" />
+                <CardHeader className="pb-6 pt-8 px-8">
+                  <CardTitle className="flex items-center gap-3 text-gray-900 group-hover:text-purple-800 transition-colors duration-300 text-xl">
+                    <FileText className="w-6 h-6 text-purple-600" />
                     Document Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-8 pb-8">
                   <DocumentForm 
                     document={documentToDisplay} 
                     onUpdate={handleUpdateDocument} 
@@ -340,7 +350,7 @@ export default function HomeClient() {
             </div>
 
             {/* Right Column - Preview (fixed/sticky) */}
-            <div className="w-1/2 sticky top-6 h-fit">
+            <div className="w-[45%] sticky top-6 h-fit">
               <div className={`transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
                 <Card className="h-[calc(100vh-180px)] bg-white/90 backdrop-blur-sm border-4 border-purple-500 shadow-2xl rounded-lg">
                   <CardHeader className="pb-4 border-b-2 border-purple-200">

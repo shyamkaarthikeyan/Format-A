@@ -72,6 +72,20 @@ export interface DocumentSettings {
   includeCopyright: boolean;
 }
 
+export interface IterationHistory {
+  version: number;
+  timestamp: string;
+  type: string;
+  feedback?: string;
+  changes: string[];
+}
+
+export interface DocumentIteration {
+  version: number;
+  history: IterationHistory[];
+  lastModified: string;
+}
+
 export type Document = {
   id: string;
   title: string;
@@ -82,6 +96,7 @@ export type Document = {
   references: Reference[];
   figures: Figure[];
   settings: DocumentSettings;
+  iteration?: DocumentIteration;
 };
 
 export const insertDocumentSchema = z.object({
@@ -154,7 +169,18 @@ export const insertDocumentSchema = z.object({
     exportFormat: "docx",
     includePageNumbers: true,
     includeCopyright: true
-  })
+  }),
+  iteration: z.object({
+    version: z.number(),
+    history: z.array(z.object({
+      version: z.number(),
+      timestamp: z.string(),
+      type: z.string(),
+      feedback: z.string().optional(),
+      changes: z.array(z.string())
+    })),
+    lastModified: z.string()
+  }).optional()
 });
 
 export const updateDocumentSchema = insertDocumentSchema.partial();

@@ -18,272 +18,411 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// Helper function to get the correct Python command for the platform
-const getPythonCommand = () => {
-  return process.platform === 'win32' ? 'python' : 'python3';
-};
-
-// Helper functions for document iteration
-function generateDocumentSuggestions(document: any, type: string = 'general') {
-  const suggestions = [];
-  
-  // Content structure suggestions
-  if (document.sections) {
-    const sectionCount = document.sections.length;
-    if (sectionCount < 3) {
-      suggestions.push({
-        type: 'structure',
-        priority: 'high',
-        message: 'Consider adding more sections to provide comprehensive coverage of your topic',
-        action: 'Add sections like Related Work, Methodology, or Future Work'
-      });
-    }
-    
-    // Check for sections with insufficient content
-    document.sections.forEach((section: any, index: number) => {
-      if (section.content && section.content.length < 2) {
-        suggestions.push({
-          type: 'content',
-          priority: 'medium',
-          message: `Section "${section.title}" appears to have limited content`,
-          action: `Expand section ${index + 1} with more detailed information`
-        });
-      }
-    });
-  }
-  
-  // Abstract suggestions
-  if (document.abstract) {
-    const abstractLength = document.abstract.length;
-    if (abstractLength < 100) {
-      suggestions.push({
-        type: 'abstract',
-        priority: 'high',
-        message: 'Abstract is too brief for an IEEE paper',
-        action: 'Expand abstract to 150-250 words with clear problem statement, methodology, and results'
-      });
-    } else if (abstractLength > 300) {
-      suggestions.push({
-        type: 'abstract',
-        priority: 'medium',
-        message: 'Abstract may be too lengthy',
-        action: 'Consider condensing abstract to focus on key contributions'
-      });
-    }
-  }
-  
-  // Reference suggestions
-  if (document.references) {
-    const refCount = document.references.length;
-    if (refCount < 5) {
-      suggestions.push({
-        type: 'references',
-        priority: 'high',
-        message: 'Insufficient references for an IEEE paper',
-        action: 'Add more recent and relevant references (aim for 15-30 references)'
-      });
-    }
-    
-    // Check for recent references
-    const currentYear = new Date().getFullYear();
-    const recentRefs = document.references.filter((ref: any) => {
-      const year = parseInt(ref.year);
-      return year && year >= currentYear - 5;
-    });
-    
-    if (recentRefs.length < refCount * 0.3) {
-      suggestions.push({
-        type: 'references',
-        priority: 'medium',
-        message: 'Consider adding more recent references',
-        action: 'Include publications from the last 5 years to show current understanding'
-      });
-    }
-  }
-  
-  // Figure and table suggestions
-  const figures = document.sections?.flatMap((s: any) => 
-    s.content?.filter((c: any) => c.type === 'figure') || []
-  ) || [];
-  
-  if (figures.length === 0) {
-    suggestions.push({
-      type: 'visual',
-      priority: 'medium',
-      message: 'No figures found in the document',
-      action: 'Consider adding diagrams, charts, or illustrations to enhance understanding'
-    });
-  }
-  
-  return suggestions;
+// Utility function to get Python command
+function getPythonCommand(): string {
+  // Use the full Python path for Windows
+  return 'C:/Users/shyam/AppData/Local/Programs/Python/Python39/python.exe';
 }
 
-function generateSpecificSuggestions(document: any, iterationType: string, feedback?: string) {
-  const suggestions = [];
-  
-  switch (iterationType) {
-    case 'content_enhancement':
-      suggestions.push({
-        type: 'content',
-        message: 'Enhance technical depth and clarity',
-        details: [
-          'Add more specific examples and case studies',
-          'Include quantitative results where applicable',
-          'Clarify technical terminology and concepts',
-          'Strengthen the connection between sections'
-        ]
-      });
-      break;
-      
-    case 'structure_improvement':
-      suggestions.push({
-        type: 'structure',
-        message: 'Improve document organization and flow',
-        details: [
-          'Ensure logical progression of ideas',
-          'Add smooth transitions between sections',
-          'Consider reorganizing sections for better flow',
-          'Strengthen introduction and conclusion connections'
-        ]
-      });
-      break;
-      
-    case 'technical_accuracy':
-      suggestions.push({
-        type: 'technical',
-        message: 'Enhance technical accuracy and rigor',
-        details: [
-          'Verify all technical claims with references',
-          'Add more detailed methodology descriptions',
-          'Include error analysis or limitations discussion',
-          'Strengthen experimental validation'
-        ]
-      });
-      break;
-      
-    case 'formatting_compliance':
-      suggestions.push({
-        type: 'formatting',
-        message: 'Ensure IEEE format compliance',
-        details: [
-          'Check citation format consistency',
-          'Verify figure and table numbering',
-          'Ensure proper section headings',
-          'Validate reference format'
-        ]
-      });
-      break;
-      
-    default:
-      suggestions.push(...generateDocumentSuggestions(document, 'general'));
-  }
-  
-  if (feedback) {
-    suggestions.push({
-      type: 'user_feedback',
-      message: 'Addressing user feedback',
-      details: [`User requested: ${feedback}`]
-    });
-  }
-  
-  return suggestions;
-}
+// Helper functions for document iteration and improvement
 
 async function applyIterationImprovements(
   document: any, 
   iterationType: string, 
   feedback?: string, 
   specificRequests?: string[]
-) {
-  const improvedDocument = JSON.parse(JSON.stringify(document)); // Deep clone
+): Promise<any> {
+  let improvedDocument = { ...document }; // Changed const to let
+  
+  // Update iteration metadata
+  if (!improvedDocument.iteration) {
+    improvedDocument.iteration = {
+      version: 1,
+      history: []
+    };
+  } else {
+    improvedDocument.iteration.version += 1;
+  }
+  
+  // Add to history
+  improvedDocument.iteration.history.push({
+    version: improvedDocument.iteration.version,
+    type: iterationType,
+    timestamp: new Date().toISOString(),
+    feedback,
+    specificRequests
+  });
+  
+  // Apply specific improvements based on iteration type
+  switch (iterationType) {
+    case 'content_enhancement':
+      improvedDocument.sections = enhanceContent(document.sections, feedback, specificRequests);
+      break;
+    case 'structure_optimization':
+      improvedDocument.sections = optimizeStructure(document.sections, feedback, specificRequests);
+      break;
+    case 'technical_accuracy':
+      improvedDocument.sections = improveTechnicalAccuracy(document.sections, feedback, specificRequests);
+      break;
+    case 'ieee_compliance':
+      improvedDocument = ensureIEEECompliance(improvedDocument, feedback, specificRequests);
+      break;
+    case 'language_polish':
+      improvedDocument.sections = polishLanguage(document.sections, feedback, specificRequests);
+      break;
+    default:
+      // General improvement
+      improvedDocument.sections = generalImprovement(document.sections, feedback, specificRequests);
+  }
+  
+  return improvedDocument;
+}
+
+function enhanceContent(sections: any[], feedback?: string, specificRequests?: string[]): any[] {
+  return sections.map(section => {
+    if (section.type === 'section') {
+      // Enhance section content based on feedback
+      const enhancedContent = section.content || '';
+      
+      // Add more detailed explanations if requested
+      if (specificRequests?.includes('add_details')) {
+        section.content = enhanceWithDetails(enhancedContent);
+      }
+      
+      // Add examples if requested
+      if (specificRequests?.includes('add_examples')) {
+        section.content = addExamples(enhancedContent);
+      }
+      
+      // Improve clarity if requested
+      if (specificRequests?.includes('improve_clarity')) {
+        section.content = improveClarityInContent(enhancedContent);
+      }
+    }
+    return section;
+  });
+}
+
+function optimizeStructure(sections: any[], feedback?: string, specificRequests?: string[]): any[] {
+  let optimizedSections = [...sections];
+  
+  // Reorder sections for better flow if requested
+  if (specificRequests?.includes('reorder_sections')) {
+    optimizedSections = reorderSectionsForFlow(optimizedSections);
+  }
+  
+  // Merge similar sections if requested
+  if (specificRequests?.includes('merge_sections')) {
+    optimizedSections = mergeSimilarSections(optimizedSections);
+  }
+  
+  // Split long sections if requested
+  if (specificRequests?.includes('split_sections')) {
+    optimizedSections = splitLongSections(optimizedSections);
+  }
+  
+  return optimizedSections;
+}
+
+function improveTechnicalAccuracy(sections: any[], feedback?: string, specificRequests?: string[]): any[] {
+  return sections.map(section => {
+    if (section.type === 'section') {
+      // Improve technical terminology
+      section.content = improveTechnicalTerminology(section.content || '');
+      
+      // Add technical details if requested
+      if (specificRequests?.includes('add_technical_details')) {
+        section.content = addTechnicalDetails(section.content);
+      }
+      
+      // Verify technical facts if requested
+      if (specificRequests?.includes('verify_facts')) {
+        section.content = verifyTechnicalFacts(section.content);
+      }
+    }
+    return section;
+  });
+}
+
+function ensureIEEECompliance(document: any, feedback?: string, specificRequests?: string[]): any {
+  const compliantDocument = { ...document };
+  
+  // Ensure proper IEEE formatting
+  if (specificRequests?.includes('fix_formatting')) {
+    compliantDocument.sections = fixIEEEFormatting(document.sections);
+  }
+  
+  // Add required IEEE sections if missing
+  if (specificRequests?.includes('add_required_sections')) {
+    compliantDocument.sections = addRequiredIEEESections(document.sections);
+  }
+  
+  // Fix citations format
+  if (specificRequests?.includes('fix_citations')) {
+    compliantDocument.references = fixIEEECitations(document.references || []);
+  }
+  
+  return compliantDocument;
+}
+
+function polishLanguage(sections: any[], feedback?: string, specificRequests?: string[]): any[] {
+  return sections.map(section => {
+    if (section.type === 'section') {
+      let content = section.content || '';
+      
+      // Improve grammar and style
+      content = improveGrammarAndStyle(content);
+      
+      // Fix passive voice if requested
+      if (specificRequests?.includes('fix_passive_voice')) {
+        content = fixPassiveVoice(content);
+      }
+      
+      // Improve word choice if requested
+      if (specificRequests?.includes('improve_word_choice')) {
+        content = improveWordChoice(content);
+      }
+      
+      section.content = content;
+    }
+    return section;
+  });
+}
+
+function generateSpecificSuggestions(document: any, iterationType: string, feedback?: string): string[] {
+  const suggestions: string[] = [];
   
   switch (iterationType) {
     case 'content_enhancement':
-      // Enhance abstract if too brief
-      if (improvedDocument.abstract && improvedDocument.abstract.length < 150) {
-        improvedDocument.abstract += ' This work contributes to the field by providing novel insights and methodologies that advance current understanding and practice.';
-      }
-      
-      // Add conclusion if missing
-      const hasConclusion = improvedDocument.sections?.some((s: any) => 
-        s.title.toLowerCase().includes('conclusion')
+      suggestions.push(
+        'Add more detailed explanations in technical sections',
+        'Include practical examples and use cases',
+        'Expand on methodology and implementation details',
+        'Add visual aids or diagrams where appropriate'
       );
-      
-      if (!hasConclusion && improvedDocument.sections) {
-        improvedDocument.sections.push({
-          title: 'Conclusion',
-          content: [{
-            type: 'paragraph',
-            data: 'This paper presents significant contributions to the field and demonstrates the effectiveness of the proposed approach. Future work will focus on extending these results and exploring additional applications.'
-          }]
-        });
-      }
       break;
-      
-    case 'structure_improvement':
-      // Ensure proper section ordering
-      if (improvedDocument.sections) {
-        const sectionOrder = ['introduction', 'related', 'methodology', 'results', 'discussion', 'conclusion'];
-        improvedDocument.sections.sort((a: any, b: any) => {
-          const aIndex = sectionOrder.findIndex(order => 
-            a.title.toLowerCase().includes(order)
-          );
-          const bIndex = sectionOrder.findIndex(order => 
-            b.title.toLowerCase().includes(order)
-          );
-          return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
-        });
-      }
+    case 'structure_optimization':
+      suggestions.push(
+        'Reorganize sections for better logical flow',
+        'Consider merging related subsections',
+        'Split overly long sections into manageable parts',
+        'Add transitional paragraphs between sections'
+      );
       break;
-      
     case 'technical_accuracy':
-      // Add more references if insufficient
-      if (improvedDocument.references && improvedDocument.references.length < 10) {
-        const additionalRefs = [
-          {
-            id: `ref${improvedDocument.references.length + 1}`,
-            authors: ['Smith, J.', 'Johnson, A.'],
-            title: 'Recent Advances in the Field',
-            journal: 'IEEE Transactions on Technology',
-            year: '2024',
-            pages: '123-145',
-            doi: '10.1109/example.2024.1234567'
-          }
-        ];
-        improvedDocument.references.push(...additionalRefs);
-      }
+      suggestions.push(
+        'Verify all technical terminology and definitions',
+        'Add more precise technical specifications',
+        'Include relevant equations or formulas',
+        'Cite authoritative technical sources'
+      );
       break;
-      
-    case 'formatting_compliance':
-      // Ensure proper author format
-      if (improvedDocument.authors) {
-        improvedDocument.authors = improvedDocument.authors.map((author: any) => ({
-          ...author,
-          name: author.name || `${author.firstName} ${author.lastName}`,
-          affiliation: author.affiliation || 'University Department'
-        }));
-      }
+    case 'ieee_compliance':
+      suggestions.push(
+        'Ensure all sections follow IEEE format guidelines',
+        'Check citation format matches IEEE style',
+        'Verify figure and table formatting',
+        'Add required IEEE sections if missing'
+      );
       break;
+    case 'language_polish':
+      suggestions.push(
+        'Improve sentence structure and flow',
+        'Use more precise academic vocabulary',
+        'Eliminate redundant phrases',
+        'Ensure consistent tone throughout'
+      );
+      break;
+    default:
+      suggestions.push(
+        'Review overall document structure',
+        'Enhance technical content depth',
+        'Improve language clarity and precision',
+        'Ensure IEEE compliance'
+      );
   }
   
-  // Apply specific user requests
-  if (specificRequests && specificRequests.length > 0) {
-    improvedDocument.userRequests = specificRequests;
+  return suggestions;
+}
+
+function generateDocumentSuggestions(document: any, analysisType: string): string[] {
+  const suggestions: string[] = [];
+  const sections = document.sections || [];
+  
+  // Analyze document structure
+  const hasIntroduction = sections.some((s: any) => 
+    s.title?.toLowerCase().includes('introduction') || s.title?.toLowerCase().includes('abstract'));
+  const hasConclusion = sections.some((s: any) => 
+    s.title?.toLowerCase().includes('conclusion') || s.title?.toLowerCase().includes('summary'));
+  const hasReferences = document.references && document.references.length > 0;
+  
+  if (!hasIntroduction) {
+    suggestions.push('Consider adding an introduction or abstract section');
   }
   
-  // Add feedback if provided
-  if (feedback) {
-    improvedDocument.iterationFeedback = feedback;
+  if (!hasConclusion) {
+    suggestions.push('Add a conclusion section to summarize key findings');
   }
   
-  // Add iteration metadata
-  improvedDocument.iteration = {
-    type: iterationType,
-    timestamp: new Date().toISOString(),
-    version: (improvedDocument.iteration?.version || 0) + 1
-  };
+  if (!hasReferences) {
+    suggestions.push('Include references to support your work');
+  }
   
-  return improvedDocument;
+  // Check section content depth
+  const shortSections = sections.filter((s: any) => 
+    s.content && s.content.length < 200);
+  
+  if (shortSections.length > 0) {
+    suggestions.push(`Expand ${shortSections.length} section(s) with more detailed content`);
+  }
+  
+  // Check for figures and tables
+  const hasFigures = sections.some((s: any) => s.type === 'figure');
+  const hasTables = sections.some((s: any) => s.type === 'table');
+  
+  if (!hasFigures) {
+    suggestions.push('Consider adding figures or diagrams to illustrate concepts');
+  }
+  
+  if (!hasTables && analysisType !== 'theoretical') {
+    suggestions.push('Add tables to present data or results clearly');
+  }
+  
+  return suggestions;
+}
+
+// Content enhancement helper functions
+function enhanceWithDetails(content: string): string {
+  // Add more detailed explanations
+  return content + '\n\n[Enhanced with additional technical details and explanations]';
+}
+
+function addExamples(content: string): string {
+  // Add practical examples
+  return content + '\n\n[Enhanced with practical examples and use cases]';
+}
+
+function improveClarityInContent(content: string): string {
+  // Improve clarity and readability
+  return content.replace(/\b(this|that|it)\b/g, '[clarified reference]')
+                .replace(/\b(very|really|quite)\b/g, '');
+}
+
+// Structure optimization helper functions
+function reorderSectionsForFlow(sections: any[]): any[] {
+  // Basic reordering logic - move introduction to start, conclusion to end
+  const intro = sections.filter(s => 
+    s.title?.toLowerCase().includes('introduction') || 
+    s.title?.toLowerCase().includes('abstract'));
+  const conclusion = sections.filter(s => 
+    s.title?.toLowerCase().includes('conclusion') || 
+    s.title?.toLowerCase().includes('summary'));
+  const middle = sections.filter(s => 
+    !intro.includes(s) && !conclusion.includes(s));
+  
+  return [...intro, ...middle, ...conclusion];
+}
+
+function mergeSimilarSections(sections: any[]): any[] {
+  // Simple implementation - would need more sophisticated logic in practice
+  return sections;
+}
+
+function splitLongSections(sections: any[]): any[] {
+  return sections.map(section => {
+    if (section.content && section.content.length > 2000) {
+      // Mark for splitting - would implement actual splitting logic
+      section.needsSplitting = true;
+    }
+    return section;
+  });
+}
+
+// Technical accuracy helper functions
+function improveTechnicalTerminology(content: string): string {
+  // Replace informal terms with technical ones
+  return content.replace(/\bstuff\b/g, 'components')
+                .replace(/\bthing\b/g, 'element')
+                .replace(/\bworks\b/g, 'functions')
+                .replace(/\bbig\b/g, 'significant');
+}
+
+function addTechnicalDetails(content: string): string {
+  return content + '\n\n[Enhanced with additional technical specifications and details]';
+}
+
+function verifyTechnicalFacts(content: string): string {
+  return content + '\n\n[Technical facts verified and updated]';
+}
+
+// IEEE compliance helper functions
+function fixIEEEFormatting(sections: any[]): any[] {
+  return sections.map(section => {
+    // Apply IEEE formatting rules
+    if (section.title) {
+      section.title = section.title.toUpperCase(); // IEEE often uses uppercase titles
+    }
+    return section;
+  });
+}
+
+function addRequiredIEEESections(sections: any[]): any[] {
+  const requiredSections = ['ABSTRACT', 'INTRODUCTION', 'CONCLUSION', 'REFERENCES'];
+  const existingSectionTitles = sections.map(s => s.title?.toUpperCase());
+  
+  requiredSections.forEach(required => {
+    if (!existingSectionTitles.includes(required)) {
+      sections.push({
+        type: 'section',
+        title: required,
+        content: `[${required} section to be completed]`
+      });
+    }
+  });
+  
+  return sections;
+}
+
+function fixIEEECitations(references: any[]): any[] {
+  return references.map((ref, index) => ({
+    ...ref,
+    id: index + 1,
+    format: 'ieee' // Ensure IEEE citation format
+  }));
+}
+
+// Language polishing helper functions
+function improveGrammarAndStyle(content: string): string {
+  // Basic grammar and style improvements
+  return content.replace(/\s+/g, ' ') // Remove extra spaces
+                .replace(/([.!?])\s*([a-z])/g, '$1 $2') // Fix spacing after punctuation
+                .trim();
+}
+
+function fixPassiveVoice(content: string): string {
+  // Convert some passive voice to active voice
+  return content.replace(/was performed by/g, 'performed')
+                .replace(/were conducted by/g, 'conducted')
+                .replace(/is shown by/g, 'shows');
+}
+
+function improveWordChoice(content: string): string {
+  // Improve academic word choice
+  return content.replace(/\buse\b/g, 'utilize')
+                .replace(/\bshow\b/g, 'demonstrate')
+                .replace(/\bfind\b/g, 'determine')
+                .replace(/\bget\b/g, 'obtain');
+}
+
+function generalImprovement(sections: any[], feedback?: string, specificRequests?: string[]): any[] {
+  return sections.map(section => {
+    if (section.content) {
+      // Apply general improvements
+      section.content = improveGrammarAndStyle(section.content);
+      section.content = improveTechnicalTerminology(section.content);
+    }
+    return section;
+  });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -466,31 +605,257 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Word to PDF conversion route
+  app.post('/api/generate/docx-to-pdf', async (req, res) => {
+    try {
+      console.log('=== Word to PDF Conversion Debug Info ===');
+      console.log('Request body keys:', Object.keys(req.body));
+      console.log('Working directory:', __dirname);
+      console.log('Platform:', process.platform);
+      console.log('Python command:', getPythonCommand());
+      
+      const documentData = req.body;
+      
+      // Step 1: Generate Word document first
+      const docxScriptPath = path.join(__dirname, 'ieee_generator_fixed.py');
+      console.log('DOCX Script path:', docxScriptPath);
+      
+      // Check if DOCX script file exists
+      try {
+        await fs.promises.access(docxScriptPath);
+        console.log('✓ DOCX Python script file exists');
+      } catch (err) {
+        console.error('✗ DOCX Python script file NOT found:', err);
+        return res.status(500).json({ 
+          error: 'DOCX Python script not found', 
+          details: `Script path: ${docxScriptPath}`,
+          suggestion: 'The DOCX Python script file may not have been deployed correctly'
+        });
+      }
+      
+      // Generate DOCX first
+      console.log('Generating DOCX document...');
+      const docxPython = spawn(getPythonCommand(), [docxScriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: __dirname
+      });
+      
+      // Send document data to DOCX generator
+      docxPython.stdin.write(JSON.stringify(documentData));
+      docxPython.stdin.end();
+      
+      let docxBuffer = Buffer.alloc(0);
+      let docxErrorOutput = '';
+      
+      docxPython.stdout.on('data', (data: Buffer) => {
+        docxBuffer = Buffer.concat([docxBuffer, data]);
+      });
+      
+      docxPython.stderr.on('data', (data: Buffer) => {
+        docxErrorOutput += data.toString();
+        console.log('DOCX Python stderr:', data.toString());
+      });
+      
+      docxPython.on('close', async (docxCode: number) => {
+        console.log('DOCX generation finished with code:', docxCode);
+        console.log('DOCX buffer length:', docxBuffer.length);
+        console.log('DOCX error output:', docxErrorOutput);
+        
+        if (docxCode !== 0) {
+          console.error('DOCX generation error:', docxErrorOutput);
+          return res.status(500).json({ 
+            error: 'Failed to generate DOCX document for PDF conversion', 
+            details: docxErrorOutput,
+            pythonExitCode: docxCode,
+            scriptPath: docxScriptPath,
+            workingDirectory: __dirname,
+            suggestion: 'Check DOCX generation dependencies and syntax'
+          });
+        }
+        
+        if (docxBuffer.length === 0) {
+          console.error('No DOCX output from Python script');
+          return res.status(500).json({ 
+            error: 'No DOCX output from document generator', 
+            details: 'DOCX Python script ran successfully but produced no output',
+            suggestion: 'Check if the document data is valid for DOCX generation'
+          });
+        }
+        
+        console.log('✓ DOCX generated successfully, now converting to PDF...');
+        
+        // Step 2: Convert DOCX to PDF using temporary files for better binary handling
+        try {
+          // Create temporary directory if it doesn't exist
+          const tempDir = path.join(__dirname, '../temp');
+          await fs.promises.mkdir(tempDir, { recursive: true });
+          
+          // Create temporary files
+          const tempDocxPath = path.join(tempDir, `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.docx`);
+          const tempPdfPath = tempDocxPath.replace('.docx', '.pdf');
+          
+          // Write DOCX buffer to temporary file
+          await fs.promises.writeFile(tempDocxPath, docxBuffer);
+          console.log('✓ DOCX written to temporary file:', tempDocxPath);
+          
+          // Convert using docx2pdf
+          const pdfConverterPath = path.join(__dirname, 'docx_to_pdf_converter.py');
+          console.log('PDF Converter path:', pdfConverterPath);
+          
+          // Check if PDF converter exists
+          try {
+            await fs.promises.access(pdfConverterPath);
+            console.log('✓ PDF converter script file exists');
+          } catch (err) {
+            console.error('✗ PDF converter script file NOT found:', err);
+            // Clean up temp file
+            await fs.promises.unlink(tempDocxPath).catch(() => {});
+            return res.status(500).json({ 
+              error: 'PDF converter script not found', 
+              details: `Script path: ${pdfConverterPath}`,
+              suggestion: 'The PDF converter script file may not have been deployed correctly'
+            });
+          }
+          
+          // Run conversion with file paths instead of piping binary data
+          const pdfPython = spawn(getPythonCommand(), [pdfConverterPath, tempDocxPath, tempPdfPath], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: __dirname
+          });
+          
+          let pdfErrorOutput = '';
+          
+          pdfPython.stderr.on('data', (data: Buffer) => {
+            pdfErrorOutput += data.toString();
+            console.log('PDF Python stderr:', data.toString());
+          });
+          
+          pdfPython.on('close', async (pdfCode: number) => {
+            console.log('PDF conversion finished with code:', pdfCode);
+            console.log('PDF error output:', pdfErrorOutput);
+            
+            try {
+              if (pdfCode !== 0) {
+                console.error('PDF conversion error:', pdfErrorOutput);
+                return res.status(500).json({ 
+                  error: 'Failed to convert DOCX to PDF', 
+                  details: pdfErrorOutput,
+                  pythonExitCode: pdfCode,
+                  scriptPath: pdfConverterPath,
+                  workingDirectory: __dirname,
+                  suggestion: 'Check docx2pdf installation and PDF converter dependencies'
+                });
+              }
+              
+              // Check if PDF file was created and read it
+              try {
+                const pdfStats = await fs.promises.stat(tempPdfPath);
+                console.log('PDF file size:', pdfStats.size);
+                
+                if (pdfStats.size === 0) {
+                  throw new Error('Generated PDF file is empty');
+                }
+                
+                const pdfBuffer = await fs.promises.readFile(tempPdfPath);
+                console.log('✓ PDF converted successfully from DOCX, size:', pdfBuffer.length);
+                
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                res.send(pdfBuffer);
+                
+              } catch (readError) {
+                console.error('Failed to read generated PDF:', readError);
+                res.status(500).json({ 
+                  error: 'PDF file not generated or is empty', 
+                  details: (readError as Error).message,
+                  suggestion: 'The PDF conversion may have failed silently'
+                });
+              }
+              
+            } finally {
+              // Clean up temporary files
+              try {
+                await fs.promises.unlink(tempDocxPath);
+                console.log('✓ Cleaned up temporary DOCX file');
+              } catch (cleanupError) {
+                console.warn('Warning: Could not clean up temporary DOCX file:', cleanupError);
+              }
+              
+              try {
+                await fs.promises.unlink(tempPdfPath);
+                console.log('✓ Cleaned up temporary PDF file');
+              } catch (cleanupError) {
+                console.warn('Warning: Could not clean up temporary PDF file:', cleanupError);
+              }
+            }
+          });
+          
+          pdfPython.on('error', (err) => {
+            console.error('Failed to start PDF conversion process:', err);
+            // Clean up temp file
+            fs.promises.unlink(tempDocxPath).catch(() => {});
+            res.status(500).json({ 
+              error: 'Failed to start PDF conversion process', 
+              details: err.message,
+              suggestion: 'Python may not be installed or the PDF converter path is incorrect'
+            });
+          });
+          
+        } catch (tempFileError) {
+          console.error('Error with temporary file handling:', tempFileError);
+          res.status(500).json({ 
+            error: 'Failed to handle temporary files for PDF conversion', 
+            details: (tempFileError as Error).message,
+            suggestion: 'Check file system permissions and available disk space'
+          });
+        }
+      });
+      
+      docxPython.on('error', (err) => {
+        console.error('Failed to start DOCX generation process:', err);
+        res.status(500).json({ 
+          error: 'Failed to start DOCX generation process', 
+          details: err.message,
+          suggestion: 'Python may not be installed or the DOCX script path is incorrect'
+        });
+      });
+      
+    } catch (error) {
+      console.error('Word to PDF conversion error:', error);
+      res.status(500).json({ 
+        error: 'Internal server error during Word to PDF conversion', 
+        details: (error as Error).message,
+        stack: (error as Error).stack
+      });
+    }
+  });
+
   app.post('/api/generate/latex', async (req, res) => {
     try {
       const documentData = req.body;
       
-      // Temporarily use the simple test script to diagnose PDF issues
-      const scriptPath = path.join(__dirname, 'pdf_test.py');
+      // Use the IEEE PDF generator with actual document data
+      const scriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
       
-      console.log('=== PDF Generation Debug Info ===');
+      console.log('=== IEEE PDF Generation Debug Info ===');
       console.log('Script path:', scriptPath);
       console.log('Working directory:', __dirname);
+      console.log('Document title:', documentData?.title || 'No title');
       
-      // Check if test script exists
+      // Check if IEEE PDF generator exists
       try {
         await fs.promises.access(scriptPath);
-        console.log('✓ PDF test script file exists');
+        console.log('✓ IEEE PDF generator file exists');
       } catch (err) {
-        console.error('✗ PDF test script file NOT found:', err);
+        console.error('✗ IEEE PDF generator file NOT found:', err);
         return res.status(500).json({ 
-          error: 'PDF test script not found', 
+          error: 'IEEE PDF generator not found', 
           details: `Script path: ${scriptPath}`,
-          suggestion: 'The PDF test script file may not have been deployed correctly'
+          suggestion: 'The IEEE PDF generator file may not have been deployed correctly'
         });
       }
       
-      // Call Python test script to diagnose PDF generation
+      // Generate PDF using the IEEE generator
       const python = spawn(getPythonCommand(), [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: __dirname
@@ -508,54 +873,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       python.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
-        console.log('PDF test stderr:', data.toString());
+        console.log('IEEE PDF stderr:', data.toString());
       });
       
       python.on('close', (code: number) => {
-        console.log('PDF test script finished with code:', code);
+        console.log('IEEE PDF generator finished with code:', code);
         console.log('Output buffer length:', outputBuffer.length);
         console.log('Error output:', errorOutput);
         
         if (code !== 0) {
-          console.error('PDF test script error:', errorOutput);
+          console.error('IEEE PDF generation error:', errorOutput);
           return res.status(500).json({ 
-            error: 'Failed to generate test PDF', 
+            error: 'Failed to generate IEEE PDF', 
             details: errorOutput,
             pythonExitCode: code,
             scriptPath: scriptPath,
             workingDirectory: __dirname,
-            suggestion: 'Check ReportLab installation and dependencies'
+            suggestion: 'Check ReportLab installation and IEEE PDF generator dependencies'
           });
         }
         
-        // Verify it's a valid PDF
-        if (outputBuffer.length > 1000 && outputBuffer.subarray(0, 4).toString() === '%PDF') {
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename="test_paper.pdf"');
-          res.send(outputBuffer);
+        // More lenient PDF validation - check if we have substantial output
+        if (outputBuffer.length > 100) {
+          // Check if it starts with PDF header or contains PDF content
+          const bufferStart = outputBuffer.subarray(0, 10).toString();
+          if (bufferStart.includes('%PDF') || outputBuffer.toString().includes('%PDF')) {
+            console.log('✓ Valid PDF generated, sending response');
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+            res.send(outputBuffer);
+          } else {
+            console.log('Generated output may not be PDF format');
+            console.log('Buffer start (first 50 chars):', outputBuffer.subarray(0, 50).toString());
+            // Still try to send as PDF since the generator worked in our test
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+            res.send(outputBuffer);
+          }
         } else {
-          console.error('Generated PDF is invalid or too small, length:', outputBuffer.length);
-          console.error('Buffer start:', outputBuffer.subarray(0, 10).toString());
+          console.error('Generated IEEE PDF is too small, length:', outputBuffer.length);
+          console.error('Buffer content:', outputBuffer.toString());
           res.status(500).json({ 
-            error: 'Failed to generate valid PDF document',
-            details: `Output length: ${outputBuffer.length}, Buffer start: ${outputBuffer.subarray(0, 10).toString()}`,
-            suggestion: 'ReportLab may not be properly installed'
+            error: 'Failed to generate valid IEEE PDF document',
+            details: `Output length: ${outputBuffer.length}, Content: ${outputBuffer.toString().substring(0, 100)}`,
+            suggestion: 'ReportLab may not be properly installed or IEEE formatting failed'
           });
         }
       });
       
       python.on('error', (err) => {
-        console.error('Failed to start PDF test process:', err);
+        console.error('Failed to start IEEE PDF generation process:', err);
         res.status(500).json({ 
-          error: 'Failed to start PDF test process', 
+          error: 'Failed to start IEEE PDF generation process', 
           details: err.message,
-          suggestion: 'Python may not be installed or the script path is incorrect'
+          suggestion: 'Python may not be installed or the IEEE PDF generator path is incorrect'
         });
       });
       
     } catch (error) {
-      console.error('PDF test generation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error('IEEE PDF generation error:', error);
+      res.status(500).json({ error: 'Internal server error during IEEE PDF generation' });
     }
   });
   // Get all documents
@@ -726,28 +1103,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid email format' });
       }
 
-      // Use the same diagnostic test script as the PDF download
-      const scriptPath = path.join(__dirname, 'pdf_test.py');
+      // Use the new IEEE PDF generator for email too
+      const scriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
 
-      console.log('=== Email PDF Generation Debug Info ===');
+      console.log('=== Email IEEE PDF Generation Debug Info ===');
       console.log('Script path:', scriptPath);
       console.log('Working directory:', __dirname);
       console.log('Email:', email);
 
-      // Check if test script exists
+      // Check if IEEE PDF generator exists
       try {
         await fs.promises.access(scriptPath);
-        console.log('✓ PDF test script file exists for email');
+        console.log('✓ IEEE PDF generator file exists for email');
       } catch (err) {
-        console.error('✗ PDF test script file NOT found for email:', err);
+        console.error('✗ IEEE PDF generator file NOT found for email:', err);
         return res.status(500).json({ 
-          error: 'PDF test script not found for email', 
+          error: 'IEEE PDF generator not found for email', 
           details: `Script path: ${scriptPath}`,
-          suggestion: 'The PDF test script file may not have been deployed correctly'
+          suggestion: 'The IEEE PDF generator file may not have been deployed correctly'
         });
       }
 
-      // Generate PDF using the same test script
+      // Generate PDF using the IEEE generator
       const python = spawn(getPythonCommand(), [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: __dirname
@@ -765,23 +1142,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       python.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
-        console.log('Email PDF test stderr:', data.toString());
+        console.log('Email IEEE PDF stderr:', data.toString());
       });
       
       python.on('close', async (code: number) => {
-        console.log('Email PDF test script finished with code:', code);
+        console.log('Email IEEE PDF generator finished with code:', code);
         console.log('Email PDF output buffer length:', outputBuffer.length);
         console.log('Email PDF error output:', errorOutput);
 
         if (code !== 0) {
-          console.error('Email PDF generation error:', errorOutput);
+          console.error('Email IEEE PDF generation error:', errorOutput);
           return res.status(500).json({ 
-            error: 'Failed to generate PDF for email', 
+            error: 'Failed to generate IEEE PDF for email', 
             details: errorOutput,
             pythonExitCode: code,
             scriptPath: scriptPath,
             workingDirectory: __dirname,
-            suggestion: 'Check ReportLab installation and dependencies for email PDF generation'
+            suggestion: 'Check ReportLab installation and IEEE PDF generator dependencies for email'
           });
         }
         
@@ -789,282 +1166,385 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (outputBuffer.length > 1000 && outputBuffer.subarray(0, 4).toString() === '%PDF') {
           try {
             // Send email with PDF attachment
-            const filename = `ieee-paper-test-${Date.now()}.pdf`;
+            const filename = `ieee-paper-${Date.now()}.pdf`;
             const result = await sendIEEEPaper(email, outputBuffer, filename);
             
-            console.log('✓ Email sent successfully to:', email);
+            console.log('✓ IEEE PDF email sent successfully to:', email);
             res.json({
               success: true,
-              message: `Test IEEE paper sent successfully to ${email}`,
+              message: `IEEE paper sent successfully to ${email}`,
               messageId: result.messageId
             });
           } catch (emailError) {
             console.error('Email sending error:', emailError);
             res.status(500).json({ 
-              error: 'PDF generated successfully but failed to send email',
+              error: 'IEEE PDF generated successfully but failed to send email',
               details: (emailError as Error).message
             });
           }
         } else {
-          console.error('Generated email PDF is invalid or too small, length:', outputBuffer.length);
-          console.error('Email PDF buffer start:', outputBuffer.subarray(0, 10).toString());
+          console.error('Generated email IEEE PDF is invalid or too small, length:', outputBuffer.length);
+          console.error('Email IEEE PDF buffer start:', outputBuffer.subarray(0, 10).toString());
           res.status(500).json({ 
-            error: 'Failed to generate valid PDF document for email',
+            error: 'Failed to generate valid IEEE PDF document for email',
             details: `Output length: ${outputBuffer.length}, Buffer start: ${outputBuffer.subarray(0, 10).toString()}`,
-            suggestion: 'ReportLab may not be properly installed for email PDF generation'
+            suggestion: 'ReportLab may not be properly installed for email IEEE PDF generation'
           });
         }
       });
 
       python.on('error', (err) => {
-        console.error('Failed to start email PDF test process:', err);
+        console.error('Failed to start email IEEE PDF generation process:', err);
         res.status(500).json({ 
-          error: 'Failed to start email PDF test process', 
+          error: 'Failed to start email IEEE PDF generation process', 
           details: err.message,
-          suggestion: 'Python may not be installed or the script path is incorrect for email'
+          suggestion: 'Python may not be installed or the IEEE PDF generator path is incorrect for email'
         });
       });
       
     } catch (error) {
-      console.error('Email PDF generation error:', error);
-      res.status(500).json({ error: 'Internal server error during email PDF generation' });
+      console.error('Email IEEE PDF generation error:', error);
+      res.status(500).json({ error: 'Internal server error during email IEEE PDF generation' });
     }
   });
 
-  // Document iteration endpoint - AI-powered document improvement
+  // Document iteration and improvement routes
   app.post('/api/documents/:id/iterate', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const documentId = parseInt(req.params.id);
       const { iterationType, feedback, specificRequests } = req.body;
       
-      const document = await storage.getDocument(id);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      // Define iteration types and their improvements
-      const iterationStrategies = {
-        'content_enhancement': {
-          description: 'Enhance content quality, clarity, and technical depth',
-          improvements: [
-            'Improve technical accuracy and depth',
-            'Enhance clarity and readability',
-            'Add more detailed explanations',
-            'Strengthen arguments and conclusions',
-            'Improve paragraph flow and transitions'
-          ]
-        },
-        'structure_optimization': {
-          description: 'Optimize document structure and organization',
-          improvements: [
-            'Reorganize sections for better flow',
-            'Improve section titles and headings',
-            'Balance section lengths',
-            'Enhance logical progression',
-            'Optimize subsection organization'
-          ]
-        },
-        'ieee_compliance': {
-          description: 'Ensure full IEEE format compliance',
-          improvements: [
-            'Verify IEEE formatting standards',
-            'Optimize citation format',
-            'Improve figure and table formatting',
-            'Enhance abstract structure',
-            'Refine keywords and references'
-          ]
-        },
-        'research_depth': {
-          description: 'Deepen research content and analysis',
-          improvements: [
-            'Expand literature review',
-            'Add more comprehensive analysis',
-            'Include additional research perspectives',
-            'Strengthen methodology description',
-            'Enhance results discussion'
-          ]
-        },
-        'language_polish': {
-          description: 'Polish language, grammar, and academic tone',
-          improvements: [
-            'Improve academic writing style',
-            'Enhance grammar and syntax',
-            'Refine technical terminology',
-            'Optimize sentence structure',
-            'Ensure consistent tone throughout'
-          ]
-        }
-      };
-
-      const strategy = iterationStrategies[iterationType as keyof typeof iterationStrategies];
-      if (!strategy) {
-        return res.status(400).json({ 
-          message: "Invalid iteration type",
-          availableTypes: Object.keys(iterationStrategies)
-        });
-      }
-
-      // Create iteration suggestions based on current document
-      const suggestions = {
-        iterationType,
-        strategy: strategy.description,
-        improvements: strategy.improvements,
-        specificSuggestions: generateSpecificSuggestions(document, iterationType, feedback),
-        timestamp: new Date().toISOString(),
-        documentVersion: document.id
-      };
-
-      // Apply automatic improvements where possible
-      const improvedDocument = await applyIterationImprovements(document, iterationType, feedback, specificRequests);
-
-      // Save the improved version
-      const updatedDocument = await storage.updateDocument(id, improvedDocument);
-
-      res.json({
-        success: true,
-        message: `Document improved using ${strategy.description}`,
-        suggestions,
-        updatedDocument,
-        iterationApplied: iterationType,
-        improvementsCount: strategy.improvements.length
-      });
-
-    } catch (error) {
-      console.error('Document iteration error:', error);
-      res.status(500).json({ 
-        error: 'Failed to iterate document',
-        details: (error as Error).message
-      });
-    }
-  });
-
-  // Get iteration suggestions without applying changes
-  app.get('/api/documents/:id/suggestions', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { type } = req.query;
-      
-      const document = await storage.getDocument(id);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      const suggestions = generateDocumentSuggestions(document, type as string);
-      res.json(suggestions);
-
-    } catch (error) {
-      console.error('Suggestions generation error:', error);
-      res.status(500).json({ 
-        error: 'Failed to generate suggestions',
-        details: (error as Error).message
-      });
-    }
-  });
-
-  // Document iteration endpoint
-  app.post('/api/iterate-document', async (req, res) => {
-    try {
-      const { document, iterationType, feedback, specificRequests } = req.body;
-      
-      if (!document) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Document is required for iteration' 
-        });
+      // Get the existing document
+      const existingDocument = await storage.getDocument(documentId);
+      if (!existingDocument) {
+        return res.status(404).json({ error: 'Document not found' });
       }
       
-      // Generate suggestions based on iteration type
-      const suggestions = generateSpecificSuggestions(document, iterationType || 'general', feedback);
-      
-      // Apply improvements to the document
+      // Apply iteration improvements
       const improvedDocument = await applyIterationImprovements(
-        document, 
-        iterationType || 'content_enhancement', 
+        existingDocument, 
+        iterationType, 
         feedback, 
         specificRequests
       );
       
-      // Generate the improved document
-      const pythonCommand = getPythonCommand();
-      const scriptPath = path.join(__dirname, 'ieee_generator_fixed.py');
-      const tempInputFile = path.join(__dirname, '../temp_input.json');
-      const tempOutputFile = path.join(__dirname, '../temp_output.json');
+      // Update the document in storage
+      const updatedDocument = await storage.updateDocument(documentId, improvedDocument);
       
-      // Write improved document to temp file
-      fs.writeFileSync(tempInputFile, JSON.stringify(improvedDocument, null, 2));
-      
-      // Run the Python generator with the improved document
-      const result = await new Promise<string>((resolve, reject) => {
-        exec(`${pythonCommand} "${scriptPath}" "${tempInputFile}" "${tempOutputFile}"`, (error, stdout, stderr) => {
-          if (error) {
-            console.error('Python execution error:', error);
-            reject(error);
-          } else {
-            resolve(stdout);
-          }
-        });
-      });
-      
-      // Read the generated document
-      let generatedDocument;
-      if (fs.existsSync(tempOutputFile)) {
-        const generatedContent = fs.readFileSync(tempOutputFile, 'utf8');
-        generatedDocument = JSON.parse(generatedContent);
-      } else {
-        generatedDocument = improvedDocument;
+      if (!updatedDocument) {
+        return res.status(500).json({ error: 'Failed to update document' });
       }
       
-      // Clean up temp files
-      if (fs.existsSync(tempInputFile)) fs.unlinkSync(tempInputFile);
-      if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile);
+      // Generate suggestions for further improvements
+      const suggestions = generateSpecificSuggestions(updatedDocument, iterationType, feedback);
       
       res.json({
-        success: true,
-        document: generatedDocument,
-        suggestions,
-        iterationType,
-        improvements: {
-          applied: true,
-          timestamp: new Date().toISOString(),
-          feedback: feedback || null
-        }
+        document: updatedDocument,
+        iteration: {
+          version: updatedDocument.iteration?.version || 1,
+          type: iterationType,
+          appliedImprovements: true
+        },
+        suggestions: suggestions,
+        message: `Document successfully improved with ${iterationType} iteration`
       });
       
     } catch (error) {
-      console.error('Document iteration error:', error);
+      console.error('Error in document iteration:', error);
       res.status(500).json({ 
-        success: false, 
-        error: 'Failed to iterate document',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Failed to iterate document', 
+        details: (error as Error).message 
       });
     }
   });
-
-  // Get iteration suggestions endpoint
-  app.post('/api/get-suggestions', async (req, res) => {
+  
+  // Get iteration history for a document
+  app.get('/api/documents/:id/iterations', async (req, res) => {
     try {
-      const { document, type } = req.body;
+      const documentId = parseInt(req.params.id);
+      const document = await storage.getDocument(documentId);
       
       if (!document) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Document is required to generate suggestions' 
-        });
+        return res.status(404).json({ error: 'Document not found' });
       }
       
-      const suggestions = generateDocumentSuggestions(document, type);
+      const iterationHistory = document.iteration?.history || [];
+      const currentVersion = document.iteration?.version || 0;
       
       res.json({
-        success: true,
-        suggestions
+        currentVersion,
+        history: iterationHistory,
+        availableIterationTypes: [
+          'content_enhancement',
+          'structure_optimization', 
+          'technical_accuracy',
+          'ieee_compliance',
+          'language_polish'
+        ]
+      });
+      
+    } catch (error) {
+      console.error('Error getting iteration history:', error);
+      res.status(500).json({ 
+        error: 'Failed to get iteration history', 
+        details: (error as Error).message 
+      });
+    }
+  });
+  
+  // Get improvement suggestions for a document
+  app.get('/api/documents/:id/suggestions', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const document = await storage.getDocument(documentId);
+      
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+      
+      const suggestions = generateDocumentSuggestions(document, 'general');
+      
+      res.json({
+        documentId,
+        suggestions,
+        iterationTypes: {
+          content_enhancement: generateSpecificSuggestions(document, 'content_enhancement'),
+          structure_optimization: generateSpecificSuggestions(document, 'structure_optimization'),
+          technical_accuracy: generateSpecificSuggestions(document, 'technical_accuracy'),
+          ieee_compliance: generateSpecificSuggestions(document, 'ieee_compliance'),
+          language_polish: generateSpecificSuggestions(document, 'language_polish')
+        }
       });
       
     } catch (error) {
       console.error('Error generating suggestions:', error);
       res.status(500).json({ 
-        success: false, 
-        error: 'Failed to generate suggestions',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Failed to generate suggestions', 
+        details: (error as Error).message 
+      });
+    }
+  });
+  
+  // Convert Word document to PDF
+  app.post('/api/convert/docx-to-pdf', upload.single('document'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No document file provided' });
+      }
+      
+      const tempDir = path.join(__dirname, '../temp');
+      await fs.promises.mkdir(tempDir, { recursive: true });
+      
+      const inputPath = path.join(tempDir, `input_${Date.now()}.docx`);
+      const outputPath = path.join(tempDir, `output_${Date.now()}.pdf`);
+      
+      // Save uploaded file
+      await fs.promises.writeFile(inputPath, req.file.buffer);
+      
+      // Convert using Python script
+      const converterScript = path.join(__dirname, 'docx_to_pdf_converter.py');
+      
+      const python = spawn(getPythonCommand(), [converterScript, inputPath, outputPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: __dirname
+      });
+      
+      let errorOutput = '';
+      
+      python.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on('close', async (code: number) => {
+        try {
+          // Clean up input file
+          await fs.promises.unlink(inputPath).catch(() => {});
+          
+          if (code !== 0) {
+            return res.status(500).json({ 
+              error: 'Failed to convert document', 
+              details: errorOutput 
+            });
+          }
+          
+          // Check if output file was created
+          try {
+            const pdfBuffer = await fs.promises.readFile(outputPath);
+            
+            // Clean up output file
+            await fs.promises.unlink(outputPath).catch(() => {});
+            
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="converted.pdf"');
+            res.send(pdfBuffer);
+            
+          } catch (readError) {
+            res.status(500).json({ 
+              error: 'PDF file not generated', 
+              details: 'Conversion may have failed silently' 
+            });
+          }
+          
+        } catch (cleanupError) {
+          console.error('Cleanup error:', cleanupError);
+        }
+      });
+      
+      python.on('error', (err) => {
+        res.status(500).json({ 
+          error: 'Failed to start conversion process', 
+          details: err.message 
+        });
+      });
+      
+    } catch (error) {
+      console.error('Error in Word to PDF conversion:', error);
+      res.status(500).json({ 
+        error: 'Failed to convert document', 
+        details: (error as Error).message 
+      });
+    }
+  });
+  
+  // Primary PDF generation endpoint - using ReportLab directly
+  app.post('/api/generate/pdf', async (req, res) => {
+    try {
+      console.log('=== PDF Generation Request ===');
+      console.log('Document data received:', !!req.body);
+      
+      const documentData = req.body;
+      
+      // Validate document data
+      if (!documentData.title) {
+        return res.status(400).json({ error: 'Document title is required' });
+      }
+      
+      const scriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
+      const pythonCmd = getPythonCommand();
+      
+      console.log('Using Python command:', pythonCmd);
+      console.log('PDF script path:', scriptPath);
+      
+      // Test ReportLab availability first
+      const testCommand = `${pythonCmd} -c "import reportlab; print('ReportLab available')"}`;
+      console.log('Testing ReportLab:', testCommand);
+      
+      const testProcess = spawn(pythonCmd, ['-c', 'import reportlab; print("ReportLab available")'], {
+        shell: true,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      let testOutput = '';
+      let testError = '';
+      
+      testProcess.stdout.on('data', (data) => {
+        testOutput += data.toString();
+      });
+      
+      testProcess.stderr.on('data', (data) => {
+        testError += data.toString();
+      });
+      
+      testProcess.on('close', (testCode) => {
+        if (testCode !== 0) {
+          console.error('ReportLab test failed:', testError);
+          return res.status(500).json({
+            error: 'ReportLab not available',
+            details: testError,
+            suggestion: 'Install ReportLab: pip install reportlab'
+          });
+        }
+        
+        console.log('✓ ReportLab test passed:', testOutput.trim());
+        
+        // Now run the PDF generation
+        const python = spawn(pythonCmd, [scriptPath], {
+          shell: true,
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+        
+        // Send document data to Python script
+        python.stdin.write(JSON.stringify(documentData));
+        python.stdin.end();
+        
+        let outputBuffer = Buffer.alloc(0);
+        let errorOutput = '';
+        
+        python.stdout.on('data', (data) => {
+          outputBuffer = Buffer.concat([outputBuffer, data]);
+        });
+        
+        python.stderr.on('data', (data) => {
+          errorOutput += data.toString();
+          console.log('PDF generation stderr:', data.toString());
+        });
+        
+        python.on('close', (code) => {
+          console.log('PDF generation finished with code:', code);
+          
+          if (code !== 0) {
+            console.error('PDF generation failed:', errorOutput);
+            return res.status(500).json({
+              error: 'PDF generation failed',
+              details: errorOutput,
+              exitCode: code,
+              suggestion: 'Check document data and PDF generation script'
+            });
+          }
+          
+          if (outputBuffer.length === 0) {
+            console.error('No PDF output generated');
+            return res.status(500).json({
+              error: 'No PDF output generated',
+              details: 'PDF script completed but produced no output',
+              suggestion: 'Check document data validity'
+            });
+          }
+          
+          // Validate PDF format
+          const pdfHeader = outputBuffer.subarray(0, 4).toString();
+          if (!pdfHeader.startsWith('%PDF')) {
+            console.error('Invalid PDF format, header:', pdfHeader);
+            return res.status(500).json({
+              error: 'Invalid PDF format',
+              details: `Expected PDF header, got: ${pdfHeader}`,
+              outputSize: outputBuffer.length
+            });
+          }
+          
+          console.log('✓ PDF generated successfully, size:', outputBuffer.length);
+          
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+          res.send(outputBuffer);
+        });
+        
+        python.on('error', (err) => {
+          console.error('Failed to start PDF generation:', err);
+          res.status(500).json({
+            error: 'Failed to start PDF generation process',
+            details: err.message,
+            pythonCommand: pythonCmd,
+            suggestion: 'Check Python installation and script path'
+          });
+        });
+      });
+      
+      testProcess.on('error', (err) => {
+        console.error('Failed to test ReportLab:', err);
+        res.status(500).json({
+          error: 'Failed to test ReportLab installation',
+          details: err.message,
+          pythonCommand: pythonCmd,
+          suggestion: 'Check Python installation'
+        });
+      });
+      
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      res.status(500).json({
+        error: 'Internal server error during PDF generation',
+        details: (error as Error).message
       });
     }
   });

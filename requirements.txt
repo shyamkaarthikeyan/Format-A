@@ -1,3 +1,7 @@
+reportlab==4.2.5
 python-docx==1.1.2
-Pillow==10.4.0
-reportlab==4.2.2
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+Pillow==10.1.0
+# Removed docx2pdf as it causes platform-specific issues

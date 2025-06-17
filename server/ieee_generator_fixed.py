@@ -12,6 +12,8 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from io import BytesIO
+import re
+from html.parser import HTMLParser
 
 # IEEE formatting configuration - EXACT same as test.py
 IEEE_CONFIG = {
@@ -318,7 +320,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
     for block_idx, block in enumerate(content_blocks):
         if block.get('type') == 'text' and block.get('content'):
             space_before = IEEE_CONFIG['line_spacing'] if is_first_section and block_idx == 0 else Pt(3)
-            add_justified_paragraph(
+            add_formatted_paragraph(
                 doc, 
                 block['content'],
                 indent_left=IEEE_CONFIG['column_indent'],
@@ -473,6 +475,116 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
                 space_before=Pt(1),
                 space_after=Pt(12)
             )
+
+class HTMLToWordParser(HTMLParser):
+    """Parse HTML content and apply formatting to Word document."""
+    
+    def __init__(self, paragraph):
+        super().__init__()
+        self.paragraph = paragraph
+        self.format_stack = []
+        self.text_buffer = ""
+    
+    def handle_starttag(self, tag, attrs):
+        # Flush any buffered text before starting new formatting
+        self._flush_text()
+        
+        if tag.lower() in ['b', 'strong']:
+            self.format_stack.append('bold')
+        elif tag.lower() in ['i', 'em']:
+            self.format_stack.append('italic')
+        elif tag.lower() == 'u':
+            self.format_stack.append('underline')
+    
+    def handle_endtag(self, tag):
+        # Flush any buffered text before ending formatting
+        self._flush_text()
+        
+        if tag.lower() in ['b', 'strong'] and 'bold' in self.format_stack:
+            self.format_stack.remove('bold')
+        elif tag.lower() in ['i', 'em'] and 'italic' in self.format_stack:
+            self.format_stack.remove('italic')
+        elif tag.lower() == 'u' and 'underline' in self.format_stack:
+            self.format_stack.remove('underline')
+    
+    def handle_data(self, data):
+        # Buffer the text data
+        self.text_buffer += data
+    
+    def _flush_text(self):
+        """Create a run with accumulated text and current formatting."""
+        if self.text_buffer:
+            run = self.paragraph.add_run(self.text_buffer)
+            run.font.name = IEEE_CONFIG['font_name']
+            run.font.size = IEEE_CONFIG['font_size_body']
+            
+            # Apply current formatting
+            if 'bold' in self.format_stack:
+                run.bold = True
+            if 'italic' in self.format_stack:
+                run.italic = True
+            if 'underline' in self.format_stack:
+                run.underline = True
+            
+            self.text_buffer = ""
+    
+    def close(self):
+        """Ensure any remaining text is flushed when parsing is complete."""
+        self._flush_text()
+        super().close()
+
+def add_formatted_paragraph(doc, html_content, style_name='Normal', indent_left=None, indent_right=None, space_before=None, space_after=None):
+    """Add a paragraph with HTML formatting support."""
+    para = doc.add_paragraph(style=style_name)
+    
+    # Apply justification with advanced controls
+    para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    para.paragraph_format.widow_control = False
+    para.paragraph_format.keep_with_next = False
+    para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
+    para.paragraph_format.line_spacing_rule = 0  # Exact spacing
+    
+    if indent_left is not None:
+        para.paragraph_format.left_indent = indent_left
+    if indent_right is not None:
+        para.paragraph_format.right_indent = indent_right
+    if space_before is not None:
+        para.paragraph_format.space_before = space_before
+    if space_after is not None:
+        para.paragraph_format.space_after = space_after
+    
+    # Parse HTML and apply formatting
+    if html_content and '<' in html_content and '>' in html_content:
+        # Content contains HTML tags - use parser
+        parser = HTMLToWordParser(para)
+        parser.feed(html_content)
+        parser.close()  # Important: flush any remaining text
+    else:
+        # Plain text content
+        run = para.add_run(html_content or "")
+        run.font.name = IEEE_CONFIG['font_name']
+        run.font.size = IEEE_CONFIG['font_size_body']
+    
+    # Add advanced spacing controls to prevent word stretching
+    para_element = para._element
+    pPr = para_element.get_or_add_pPr()
+    
+    # Set justification method for better word spacing
+    jc = OxmlElement('w:jc')
+    jc.set(qn('w:val'), 'both')
+    pPr.append(jc)
+    
+    # Control text alignment - prevents baseline shifting
+    textAlignment = OxmlElement('w:textAlignment')
+    textAlignment.set(qn('w:val'), 'baseline')
+    pPr.append(textAlignment)
+    
+    # Prevent excessive word spacing
+    adjust_right_ind = OxmlElement('w:adjustRightInd')
+    adjust_right_ind.set(qn('w:val'), '0')
+    pPr.append(adjust_right_ind)
+    
+    return para
 
 def add_references(doc, references):
     """Add references section with proper alignment (hanging indent)."""
