@@ -133,12 +133,31 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to send email: ${response.statusText}`);
+        // Check if response is JSON or HTML
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to send email: ${response.statusText}`);
+          } catch (jsonError) {
+            throw new Error(`Failed to send email: ${response.statusText}`);
+          }
+        } else {
+          // If it's not JSON (likely HTML error page), get text content
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          throw new Error(`Server error: ${response.statusText}`);
+        }
       }
 
-      const result = await response.json();
-      return result;
+      // Parse successful response
+      try {
+        const result = await response.json();
+        return result;
+      } catch (parseError) {
+        console.error('Failed to parse success response:', parseError);
+        throw new Error('Email may have been sent but response parsing failed');
+      }
     },
     onSuccess: () => {
       toast({
@@ -188,7 +207,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             <img
               src={`data:${mimeType};base64,${base64Data}`}
               alt={caption || `Figure ${figureNumber}`}
-              className={`word-figure-image size-${size || 'medium'}`}
+              className={`word-figure-image size-small`} // Always use small size in preview
             />
           </div>
           {caption && (
@@ -740,7 +759,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             </div>
           </div>
 
-          <div className="p-6 bg-gray-100 overflow-auto" style={{ maxHeight: "80vh" }}>
+          <div className="p-6 bg-gray-100 overflow-auto" style={{ minHeight: "80vh", maxHeight: "90vh" }}>
             <div
               style={{
                 transform: `scale(${zoom / 100})`,
@@ -750,12 +769,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 flexDirection: 'column',
                 gap: '20px',
                 alignItems: 'center',
+                minHeight: 'fit-content',
+                paddingBottom: '40px'
               }}
             >
               <style>{`
                 .word-page {
                   width: 8.27in;
-                  height: 11.69in;
+                  min-height: 11.69in;
+                  height: auto;
                   margin: 0 auto;
                   padding: 0.75in;
                   background: white;
@@ -767,8 +789,18 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   box-sizing: border-box;
                   display: flex;
                   flex-direction: column;
-                  overflow: hidden;
+                  overflow: visible;
                   page-break-after: always;
+                  position: relative;
+                }
+
+                @media (max-width: 768px) {
+                  .word-page {
+                    width: 95vw;
+                    max-width: 8.27in;
+                    min-height: auto;
+                    height: auto;
+                  }
                 }
 
                 .word-header {
@@ -783,6 +815,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   font-size: 24pt;
                   line-height: 1.2;
                   margin-bottom: 12pt;
+                  word-wrap: break-word;
                 }
 
                 .word-authors {
@@ -803,6 +836,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   font-weight: bold;
                   font-size: 9.5pt;
                   margin-bottom: 2pt;
+                  word-wrap: break-word;
                 }
 
                 .word-author-detail {
@@ -810,6 +844,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   font-style: italic;
                   margin-bottom: 2pt;
                   line-height: 1.1;
+                  word-wrap: break-word;
                 }
 
                 .word-abstract {
@@ -818,6 +853,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   line-height: 10pt;
                   margin-bottom: 12pt;
                   hyphens: auto;
+                  word-wrap: break-word;
                 }
 
                 .word-abstract-label {
@@ -830,6 +866,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   line-height: 10pt;
                   margin-bottom: 12pt;
                   hyphens: auto;
+                  word-wrap: break-word;
                 }
 
                 .word-keywords-label {
@@ -840,13 +877,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   display: flex;
                   gap: 0.25in;
                   flex: 1;
-                  overflow: hidden;
+                  overflow: visible;
+                  min-height: 0;
+                }
+
+                @media (max-width: 768px) {
+                  .word-columns {
+                    flex-direction: column;
+                    gap: 12pt;
+                  }
                 }
 
                 .word-column {
                   flex: 1;
                   width: 3.375in;
-                  overflow: hidden;
+                  overflow: visible;
+                  min-height: 0;
+                }
+
+                @media (max-width: 768px) {
+                  .word-column {
+                    width: 100%;
+                  }
                 }
 
                 .word-column-left {
@@ -857,12 +909,20 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   padding-left: 0.125in;
                 }
 
+                @media (max-width: 768px) {
+                  .word-column-left,
+                  .word-column-right {
+                    padding: 0;
+                  }
+                }
+
                 .word-section-title {
                   font-size: 9.5pt;
                   font-weight: bold;
                   text-transform: uppercase;
                   margin: 10pt 0 0 0;
                   line-height: 10pt;
+                  word-wrap: break-word;
                 }
 
                 .word-subsection-title {
@@ -870,6 +930,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   font-weight: bold;
                   margin: 6pt 0 0 0;
                   line-height: 10pt;
+                  word-wrap: break-word;
                 }
 
                 .word-paragraph {
@@ -879,15 +940,19 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   margin-bottom: 12pt;
                   text-indent: 0;
                   hyphens: auto;
+                  word-wrap: break-word;
+                  overflow-wrap: break-word;
                 }
 
                 .word-figure {
                   text-align: center;
                   margin: 6pt 0;
+                  overflow: visible;
                 }
 
                 .word-figure-container {
                   margin-bottom: 2pt;
+                  overflow: visible;
                 }
 
                 .word-figure-image {
@@ -902,6 +967,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 .word-figure-image.size-small { max-width: 1.8in; }
                 .word-figure-image.size-medium { max-width: 2.5in; }
                 .word-figure-image.size-large { max-width: 3.2in; }
+
+                @media (max-width: 768px) {
+                  .word-figure-image.size-very-small { max-width: 80px; }
+                  .word-figure-image.size-small { max-width: 120px; }
+                  .word-figure-image.size-medium { max-width: 160px; }
+                  .word-figure-image.size-large { max-width: 200px; }
+                }
 
                 .word-figure-placeholder {
                   width: 1.5in;
@@ -921,6 +993,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   text-align: center;
                   margin-top: 2pt;
                   line-height: 1.1;
+                  word-wrap: break-word;
                 }
 
                 .word-reference {
@@ -931,10 +1004,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   text-indent: -0.25in;
                   padding-left: 0.45in;
                   hyphens: auto;
+                  word-wrap: break-word;
+                  overflow-wrap: break-word;
                 }
 
                 .preview-limitation-notice {
                   width: 8.27in;
+                  max-width: 95vw;
                   margin: 20px auto 0;
                   padding: 16px;
                   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
@@ -959,12 +1035,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   font-weight: 600;
                 }
 
+                /* Hosting-specific fixes */
+                * {
+                  box-sizing: border-box;
+                }
+
                 @media print {
                   .word-page {
                     margin: 0;
                     box-shadow: none;
                     page-break-after: always;
+                    width: 8.27in !important;
+                    height: 11.69in !important;
                   }
+                }
+
+                /* Force proper rendering on hosted environments */
+                .word-page,
+                .word-columns,
+                .word-column {
+                  transform: translateZ(0);
+                  -webkit-transform: translateZ(0);
                 }
               `}</style>
               {renderWordPreview}

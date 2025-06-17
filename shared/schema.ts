@@ -128,7 +128,7 @@ export const insertDocumentSchema = z.object({
       data: z.string().optional(), // base64 encoded image data
       fileName: z.string().optional(), // original filename for user feedback
       caption: z.string().optional(),
-      size: z.enum(["very-small", "small", "medium", "large"]).optional(),
+      size: z.enum(["small", "medium"]).optional(),
       position: z.enum(["top", "bottom", "here"]).optional(),
       order: z.number()
     })),

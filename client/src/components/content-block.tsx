@@ -88,7 +88,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                       fileName: file.name,
                       content: block.content || "",
                       caption: block.caption || "",
-                      size: "very-small" // Set default size to very-small
+                      size: "small" // Set default size to small
                     });
                   }}
                   onClear={() => {
@@ -140,13 +140,11 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                     />
                     <select
                       className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                      value={block.size || "very-small"}
+                      value={block.size || "small"}
                       onChange={(e) => onUpdate({ size: e.target.value as any })}
                     >
-                      <option value="very-small">Very Small (1.2")</option>
                       <option value="small">Small (1.8")</option>
                       <option value="medium">Medium (2.5")</option>
-                      <option value="large">Large (3.2")</option>
                     </select>
                   </div>
                 )}
@@ -207,13 +205,11 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 />
                 <select
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                  value={block.size || "very-small"}
+                  value={block.size || "small"}
                   onChange={(e) => onUpdate({ size: e.target.value as any })}
                 >
-                  <option value="very-small">Very Small (1.2")</option>
                   <option value="small">Small (1.8")</option>
                   <option value="medium">Medium (2.5")</option>
-                  <option value="large">Large (3.2")</option>
                 </select>
               </>
             )}

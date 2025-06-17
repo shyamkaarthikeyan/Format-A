@@ -74,7 +74,7 @@ export default function FigureForm({ figures, documentId, sections, onUpdate }: 
       fileName: "",
       originalName: "",
       caption: "",
-      size: "medium",
+      size: "small", // Changed default from "medium" to "small"
       position: "here",
       order: figures.length,
       mimeType: "",
@@ -181,10 +181,8 @@ export default function FigureForm({ figures, documentId, sections, onUpdate }: 
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="very-small">Very Small (1.2")</SelectItem>
                           <SelectItem value="small">Small (1.8")</SelectItem>
                           <SelectItem value="medium">Medium (2.5")</SelectItem>
-                          <SelectItem value="large">Large (3.2")</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

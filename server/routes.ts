@@ -1125,108 +1125,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid email format' });
       }
 
-      // Use the new IEEE PDF generator for email too
-      const scriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
-
-      console.log('=== Email IEEE PDF Generation Debug Info ===');
-      console.log('Script path:', scriptPath);
-      console.log('Working directory:', __dirname);
+      console.log('=== Email PDF Generation (using same method as download) ===');
       console.log('Email:', email);
+      console.log('Document title:', documentData?.title || 'No title');
 
-      // Check if IEEE PDF generator exists
+      // STEP 1: Generate DOCX first (same as download)
+      const docxScriptPath = path.join(__dirname, 'ieee_generator_fixed.py');
+      
       try {
-        await fs.promises.access(scriptPath);
-        console.log('✓ IEEE PDF generator file exists for email');
+        await fs.promises.access(docxScriptPath);
+        console.log('✓ DOCX generator file exists for email');
       } catch (err) {
-        console.error('✗ IEEE PDF generator file NOT found for email:', err);
+        console.error('✗ DOCX generator file NOT found for email:', err);
         return res.status(500).json({ 
-          error: 'IEEE PDF generator not found for email', 
-          details: `Script path: ${scriptPath}`,
-          suggestion: 'The IEEE PDF generator file may not have been deployed correctly'
+          error: 'DOCX generator not found for email', 
+          details: `Script path: ${docxScriptPath}`,
+          suggestion: 'The DOCX generator file may not have been deployed correctly'
         });
       }
 
-      // Generate PDF using the IEEE generator
-      const python = spawn(getPythonCommand(), [scriptPath], {
+      // Generate DOCX
+      console.log('Generating DOCX for email...');
+      const docxPython = spawn(getPythonCommand(), [docxScriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: __dirname
       });
       
-      python.stdin.write(JSON.stringify(documentData));
-      python.stdin.end();
+      docxPython.stdin.write(JSON.stringify(documentData));
+      docxPython.stdin.end();
       
-      let outputBuffer = Buffer.alloc(0);
-      let errorOutput = '';
+      let docxBuffer = Buffer.alloc(0);
+      let docxErrorOutput = '';
       
-      python.stdout.on('data', (data: Buffer) => {
-        outputBuffer = Buffer.concat([outputBuffer, data]);
+      docxPython.stdout.on('data', (data: Buffer) => {
+        docxBuffer = Buffer.concat([docxBuffer, data]);
       });
       
-      python.stderr.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-        console.log('Email IEEE PDF stderr:', data.toString());
+      docxPython.stderr.on('data', (data: Buffer) => {
+        docxErrorOutput += data.toString();
+        console.log('Email DOCX stderr:', data.toString());
       });
       
-      python.on('close', async (code: number) => {
-        console.log('Email IEEE PDF generator finished with code:', code);
-        console.log('Email PDF output buffer length:', outputBuffer.length);
-        console.log('Email PDF error output:', errorOutput);
-
-        if (code !== 0) {
-          console.error('Email IEEE PDF generation error:', errorOutput);
+      docxPython.on('close', async (docxCode: number) => {
+        console.log('Email DOCX generation finished with code:', docxCode);
+        
+        if (docxCode !== 0) {
+          console.error('Email DOCX generation error:', docxErrorOutput);
           return res.status(500).json({ 
-            error: 'Failed to generate IEEE PDF for email', 
-            details: errorOutput,
-            pythonExitCode: code,
-            scriptPath: scriptPath,
-            workingDirectory: __dirname,
-            suggestion: 'Check ReportLab installation and IEEE PDF generator dependencies for email'
+            error: 'Failed to generate DOCX for email', 
+            details: docxErrorOutput,
+            pythonExitCode: docxCode
           });
         }
         
-        // Verify it's a valid PDF
-        if (outputBuffer.length > 1000 && outputBuffer.subarray(0, 4).toString() === '%PDF') {
+        if (docxBuffer.length === 0) {
+          console.error('No DOCX output for email');
+          return res.status(500).json({ 
+            error: 'No DOCX output generated for email'
+          });
+        }
+        
+        console.log('✓ DOCX generated for email, now converting to PDF...');
+        
+        // STEP 2: Convert DOCX to PDF (same as download)
+        try {
+          const tempDir = path.join(__dirname, '../temp');
+          await fs.promises.mkdir(tempDir, { recursive: true });
+          
+          const tempDocxPath = path.join(tempDir, `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.docx`);
+          const tempPdfPath = tempDocxPath.replace('.docx', '.pdf');
+          
+          // Write DOCX to temp file
+          await fs.promises.writeFile(tempDocxPath, docxBuffer);
+          console.log('✓ Email DOCX written to temp file');
+          
+          // Convert to PDF using same converter as download
+          const pdfConverterPath = path.join(__dirname, 'docx_to_pdf_converter.py');
+          
           try {
-            // Send email with PDF attachment
-            const filename = `ieee-paper-${Date.now()}.pdf`;
-            const result = await sendIEEEPaper(email, outputBuffer, filename);
-            
-            console.log('✓ IEEE PDF email sent successfully to:', email);
-            res.json({
-              success: true,
-              message: `IEEE paper sent successfully to ${email}`,
-              messageId: result.messageId
-            });
-          } catch (emailError) {
-            console.error('Email sending error:', emailError);
-            res.status(500).json({ 
-              error: 'IEEE PDF generated successfully but failed to send email',
-              details: (emailError as Error).message
+            await fs.promises.access(pdfConverterPath);
+            console.log('✓ PDF converter exists for email');
+          } catch (err) {
+            await fs.promises.unlink(tempDocxPath).catch(() => {});
+            return res.status(500).json({ 
+              error: 'PDF converter not found for email', 
+              details: `Script path: ${pdfConverterPath}`
             });
           }
-        } else {
-          console.error('Generated email IEEE PDF is invalid or too small, length:', outputBuffer.length);
-          console.error('Email IEEE PDF buffer start:', outputBuffer.subarray(0, 10).toString());
+          
+          const pdfPython = spawn(getPythonCommand(), [pdfConverterPath, tempDocxPath, tempPdfPath], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: __dirname
+          });
+          
+          let pdfErrorOutput = '';
+          
+          pdfPython.stderr.on('data', (data: Buffer) => {
+            pdfErrorOutput += data.toString();
+            console.log('Email PDF conversion stderr:', data.toString());
+          });
+          
+          pdfPython.on('close', async (pdfCode: number) => {
+            console.log('Email PDF conversion finished with code:', pdfCode);
+            
+            try {
+              if (pdfCode !== 0) {
+                console.error('Email PDF conversion error:', pdfErrorOutput);
+                return res.status(500).json({ 
+                  error: 'Failed to convert DOCX to PDF for email', 
+                  details: pdfErrorOutput
+                });
+              }
+              
+              // Read the generated PDF
+              try {
+                const pdfStats = await fs.promises.stat(tempPdfPath);
+                console.log('Email PDF file size:', pdfStats.size);
+                
+                if (pdfStats.size === 0) {
+                  throw new Error('Generated email PDF file is empty');
+                }
+                
+                const pdfBuffer = await fs.promises.readFile(tempPdfPath);
+                console.log('✓ Email PDF generated successfully, size:', pdfBuffer.length);
+                
+                // Send email with the same PDF as download
+                const filename = `ieee-paper-${Date.now()}.pdf`;
+                const result = await sendIEEEPaper(email, pdfBuffer, filename);
+                
+                console.log('✓ Email sent successfully to:', email);
+                res.json({
+                  success: true,
+                  message: `IEEE paper sent successfully to ${email}`,
+                  messageId: result.messageId
+                });
+                
+              } catch (readError) {
+                console.error('Failed to read generated email PDF:', readError);
+                res.status(500).json({ 
+                  error: 'Email PDF file not generated or is empty', 
+                  details: (readError as Error).message
+                });
+              }
+              
+            } finally {
+              // Clean up temp files
+              try {
+                await fs.promises.unlink(tempDocxPath);
+                await fs.promises.unlink(tempPdfPath);
+                console.log('✓ Cleaned up email temp files');
+              } catch (cleanupError) {
+                console.warn('Warning: Could not clean up email temp files:', cleanupError);
+              }
+            }
+          });
+          
+          pdfPython.on('error', (err) => {
+            console.error('Failed to start email PDF conversion:', err);
+            fs.promises.unlink(tempDocxPath).catch(() => {});
+            res.status(500).json({ 
+              error: 'Failed to start email PDF conversion process', 
+              details: err.message
+            });
+          });
+          
+        } catch (tempFileError) {
+          console.error('Error with email temp file handling:', tempFileError);
           res.status(500).json({ 
-            error: 'Failed to generate valid IEEE PDF document for email',
-            details: `Output length: ${outputBuffer.length}, Buffer start: ${outputBuffer.subarray(0, 10).toString()}`,
-            suggestion: 'ReportLab may not be properly installed for email IEEE PDF generation'
+            error: 'Failed to handle temporary files for email PDF', 
+            details: (tempFileError as Error).message
           });
         }
       });
-
-      python.on('error', (err) => {
-        console.error('Failed to start email IEEE PDF generation process:', err);
+      
+      docxPython.on('error', (err) => {
+        console.error('Failed to start email DOCX generation:', err);
         res.status(500).json({ 
-          error: 'Failed to start email IEEE PDF generation process', 
-          details: err.message,
-          suggestion: 'Python may not be installed or the IEEE PDF generator path is incorrect for email'
+          error: 'Failed to start email DOCX generation process', 
+          details: err.message
         });
       });
       
     } catch (error) {
-      console.error('Email IEEE PDF generation error:', error);
-      res.status(500).json({ error: 'Internal server error during email IEEE PDF generation' });
+      console.error('Email PDF generation error:', error);
+      res.status(500).json({ 
+        error: 'Internal server error during email PDF generation', 
+        details: (error as Error).message 
+      });
     }
   });
 

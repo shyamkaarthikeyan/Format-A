@@ -46,31 +46,53 @@ interface TestimonialProps {
 }
 
 const FeatureCard = ({ icon, title, description, gradient }: FeatureCardProps) => (
-  <div className="group relative h-80 overflow-hidden rounded-3xl transition-all duration-700 hover:scale-105">
-    {/* Animated background gradient */}
-    <div className={`absolute inset-0 ${gradient} opacity-90 group-hover:opacity-100 transition-opacity duration-700`}></div>
+  <div className="group relative h-96 overflow-hidden rounded-3xl transition-all duration-700 hover:scale-[1.02] cursor-pointer">
+    {/* Modern glassmorphism background */}
+    <div className="absolute inset-0 bg-white/70 backdrop-blur-xl border border-white/20 shadow-2xl group-hover:shadow-3xl transition-all duration-700"></div>
     
-    {/* Animated overlay pattern */}
-    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+    {/* Gradient overlay that appears on hover */}
+    <div className={`absolute inset-0 ${gradient} opacity-0 group-hover:opacity-10 transition-all duration-700`}></div>
     
-    {/* Floating geometric shapes */}
-    <div className="absolute top-4 right-4 w-20 h-20 bg-white/20 rounded-2xl rotate-12 group-hover:rotate-45 transition-transform duration-700"></div>
-    <div className="absolute bottom-8 left-6 w-12 h-12 bg-white/15 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+    {/* Modern mesh gradient background */}
+    <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 via-white/80 to-purple-50/30 group-hover:from-purple-50/50 group-hover:via-violet-50/50 group-hover:to-indigo-50/30 transition-all duration-700"></div>
     
-    {/* Content */}
-    <div className="relative z-10 p-8 h-full flex flex-col justify-between text-white">
-      <div className="w-16 h-16 text-white/90 group-hover:text-white group-hover:scale-110 transition-all duration-500">
-        {icon}
+    {/* Animated floating elements */}
+    <div className="absolute top-6 right-6 w-24 h-24 bg-gradient-to-br from-purple-100/40 to-violet-100/40 rounded-2xl rotate-12 group-hover:rotate-45 group-hover:scale-110 transition-all duration-700 blur-sm"></div>
+    <div className="absolute bottom-8 left-6 w-16 h-16 bg-gradient-to-br from-violet-100/30 to-indigo-100/30 rounded-full group-hover:scale-125 transition-all duration-700 blur-sm"></div>
+    
+    {/* Content with modern spacing and typography */}
+    <div className="relative z-10 p-8 h-full flex flex-col">
+      {/* Icon container with modern styling */}
+      <div className="mb-8 relative">
+        <div className="w-20 h-20 bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-xl group-hover:shadow-2xl group-hover:shadow-purple-500/25 transition-all duration-700 transform group-hover:scale-110 group-hover:-rotate-3">
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 rounded-2xl"></div>
+          <div className="w-10 h-10 relative z-10">
+            {icon}
+          </div>
+        </div>
+        
+        {/* Floating accent dot */}
+        <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-purple-400 to-violet-400 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 animate-pulse"></div>
       </div>
       
-      <div>
-        <h3 className="font-bold text-2xl mb-4 leading-tight">{title}</h3>
-        <p className="text-white/90 leading-relaxed text-lg">{description}</p>
+      {/* Content area */}
+      <div className="flex-1 flex flex-col justify-between">
+        <div>
+          <h3 className="font-bold text-2xl mb-4 text-gray-900 leading-tight group-hover:text-purple-800 transition-colors duration-500">
+            {title}
+          </h3>
+          <p className="text-gray-600 leading-relaxed text-lg group-hover:text-gray-700 transition-colors duration-500">
+            {description}
+          </p>
+        </div>
       </div>
     </div>
     
-    {/* Hover glow effect */}
-    <div className="absolute -inset-1 bg-gradient-to-r from-white/20 to-white/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 -z-10 blur-xl"></div>
+    {/* Modern border highlight */}
+    <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500/20 via-violet-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+      <div className="absolute inset-[1px] rounded-3xl bg-white/90"></div>
+    </div>
   </div>
 );
 
@@ -308,7 +330,7 @@ export default function Homepage() {
             </p>
             
             {/* Enhanced CTA buttons */}
-            <div className={`flex flex-col sm:flex-row gap-6 justify-center items-center transition-all duration-1500 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+            <div className={`flex flex-col sm:flex-row gap-6 justify-center items-center transition-all duration-1500 delay-700 mb-20 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
               <Button 
                 onClick={handleStartGenerating}
                 size="lg" 
@@ -330,19 +352,26 @@ export default function Homepage() {
                 View Demo
               </Button>
             </div>
+            
+            {/* Enhanced Scroll Indicator - Properly positioned below buttons */}
+            <div className="flex justify-center animate-bounce-sync">
+              <div className="w-10 h-16 border-2 border-purple-500 rounded-full flex justify-center relative overflow-hidden bg-white/50 backdrop-blur-sm">
+                <div className="w-2 h-4 bg-gradient-to-b from-purple-500 to-violet-500 rounded-full mt-3 animate-pulse"></div>
+              </div>
+            </div>
           </div>
         </div>
         
         {/* Enhanced Scroll Indicator */}
-        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 animate-bounce-sync">
+        {/* <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 animate-bounce-sync">
           <div className="w-10 h-16 border-2 border-purple-500 rounded-full flex justify-center relative overflow-hidden bg-white/50 backdrop-blur-sm">
             <div className="w-2 h-4 bg-gradient-to-b from-purple-500 to-violet-500 rounded-full mt-3 animate-pulse"></div>
           </div>
-        </div>
+        </div> */}
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-32 bg-white relative overflow-hidden">
+      <section id="features" className="py-20 bg-white relative overflow-hidden">
         {/* Section background elements */}
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500"></div>
         <div className="absolute top-20 right-0 w-64 h-64 bg-gradient-to-br from-purple-100 to-violet-100 rounded-full blur-3xl opacity-50"></div>
@@ -393,7 +422,7 @@ export default function Homepage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-32 bg-gradient-to-br from-gray-50 to-purple-50 relative overflow-hidden">
+      <section id="how-it-works" className="py-20 bg-gradient-to-br from-gray-50 to-purple-50 relative overflow-hidden">
         {/* Background decorations */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-purple-200/30 to-violet-200/30 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-violet-200/30 to-indigo-200/30 rounded-full blur-3xl"></div>
@@ -462,7 +491,7 @@ export default function Homepage() {
       </section>
 
       {/* Enhanced Call to Action Section */}
-      <section className="py-32 bg-gradient-to-br from-white via-purple-50/30 to-indigo-50/30 relative overflow-hidden">
+      <section className="py-20 bg-gradient-to-br from-white via-purple-50/30 to-indigo-50/30 relative overflow-hidden">
         {/* Advanced background elements */}
         <div className="absolute inset-0 bg-gradient-to-br from-purple-100/20 via-violet-100/20 to-indigo-100/20"></div>
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
@@ -519,7 +548,7 @@ export default function Homepage() {
       </section>
 
       {/* Enhanced Footer */}
-      <footer className="bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 text-white py-12 relative overflow-hidden">
+      <footer className="bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 text-white py-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-800/20 to-indigo-800/20"></div>
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-400"></div>
         
