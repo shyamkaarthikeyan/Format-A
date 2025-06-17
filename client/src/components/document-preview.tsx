@@ -747,14 +747,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             </div>
           </div>
 
-          {/* Caution message */}
-          <div className="px-4 py-3 bg-amber-50 border-b border-amber-200">
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 text-amber-600 mt-0.5">
+          {/* Compact Caution message */}
+          <div className="px-3 py-2 bg-amber-50 border-b border-amber-200">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 text-amber-600 flex-shrink-0">
                 ⚠️
               </div>
-              <div className="text-sm text-amber-800">
-                <strong>Caution:</strong> This live preview is for reference only. The generated Word document follows the official IEEE format.
+              <div className="text-xs text-amber-800 leading-tight">
+                <span className="font-medium">Caution:</span> This live preview is for reference only. The generated Word document follows the official IEEE format.
               </div>
             </div>
           </div>
