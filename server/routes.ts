@@ -439,7 +439,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get('/', (req, res) => {
+  // API status endpoint (moved from root to /api)
+  app.get('/api', (req, res) => {
     res.status(200).json({ 
       message: 'StreamlitToReact IEEE Paper Generator API',
       status: 'running',

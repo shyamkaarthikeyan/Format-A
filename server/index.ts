@@ -1,8 +1,25 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
+import dotenv from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
+
+dotenv.config();
 
 const app = express();
+const port = process.env.PORT || 5000;
+
+// Configure CORS for production deployment
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? true  // Allow all origins in production (since frontend and backend are served together)
+    : ['http://localhost:5173', 'http://localhost:3000'], // Development origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
@@ -51,18 +68,29 @@ app.use((req, res, next) => {
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
-    if (app.get("env") === "development") {
+    if (process.env.NODE_ENV === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
 
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
+    // Serve static files from the client dist directory in production
+    if (process.env.NODE_ENV === 'production') {
+      app.use(express.static('dist/client'));
+      
+      // Handle React Router routes - serve index.html for all non-API routes
+      app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api')) {
+          return next();
+        }
+        res.sendFile(path.join(process.cwd(), 'dist/client/index.html'));
+      });
+    }
+
+    // Use PORT from environment (Render sets this automatically)
     const port = process.env.PORT || 5000;
     server.listen({
-      port,
+      port: Number(port),
       host: "0.0.0.0",
       reusePort: true,
     }, () => {
