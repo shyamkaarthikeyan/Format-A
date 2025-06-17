@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
 import { jsPDF } from 'jspdf';
 
@@ -147,7 +147,16 @@ function generateIEEEPDF(data: DocumentData): Buffer {
   return Buffer.from(pdf.output('arraybuffer'));
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -225,7 +234,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const result = await transporter.sendMail(mailOptions);
     
-    res.json({
+    return res.json({
       success: true,
       message: `IEEE paper sent successfully to ${email}`,
       messageId: result.messageId
@@ -233,7 +242,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error) {
     console.error('Email sending error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Failed to send email', 
       details: (error as Error).message 
     });

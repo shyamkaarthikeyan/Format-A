@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import { jsPDF } from 'jspdf';
 
 interface DocumentData {
@@ -235,7 +235,16 @@ function generateIEEEPDF(data: DocumentData): Buffer {
   return Buffer.from(pdf.output('arraybuffer'));
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -260,11 +269,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Content-Length', pdfBuffer.length.toString());
     
     // Send the file
-    res.send(pdfBuffer);
+    return res.send(pdfBuffer);
 
   } catch (error) {
     console.error('PDF generation error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Internal server error', 
       details: (error as Error).message
     });

@@ -1,5 +1,5 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, ImageRun, SectionType } from 'docx';
-import { NextApiRequest, NextApiResponse } from 'next';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, SectionType } from 'docx';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 
 interface Author {
   id?: string;
@@ -353,7 +353,16 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '');
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -381,11 +390,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Content-Length', buffer.length.toString());
     
     // Send the file
-    res.send(buffer);
+    return res.send(buffer);
 
   } catch (error) {
     console.error('Document generation error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Internal server error', 
       details: (error as Error).message
     });
