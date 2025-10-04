@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ZoomIn, ZoomOut, Download, FileText, Mail } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Document } from "@shared/schema";
 
@@ -15,6 +15,9 @@ interface DocumentPreviewProps {
 export default function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
   const [zoom, setZoom] = useState(75);
   const [email, setEmail] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Debugging to verify document data
@@ -187,477 +190,82 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Create figure element matching IEEE Word document
-  const createFigure = (imageData: string, caption?: string, size?: string, figureNumber?: number) => {
-    if (!imageData) return null;
+  // Generate PDF preview
+  const generatePdfPreview = async () => {
+    if (!document.title || !document.authors?.some(author => author.name)) {
+      setPreviewError("Please add a title and at least one author to generate preview");
+      return;
+    }
+
+    setIsGeneratingPreview(true);
+    setPreviewError(null);
 
     try {
-      const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
-      if (!base64Data || base64Data.length < 10) return null;
+      const response = await fetch('/api/generate/docx-to-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(document),
+      });
 
-      let mimeType = 'image/png';
-      if (base64Data.startsWith('/9j/')) mimeType = 'image/jpeg';
-      else if (base64Data.startsWith('iVBORw0KGgo')) mimeType = 'image/png';
-      else if (base64Data.startsWith('R0lGODlh')) mimeType = 'image/gif';
-      else if (base64Data.startsWith('UklGRg')) mimeType = 'image/webp';
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF preview: ${response.statusText}`);
+      }
 
-      return (
-        <div key={`figure-${figureNumber}`} className="word-figure">
-          <div className="word-figure-container">
-            <img
-              src={`data:${mimeType};base64,${base64Data}`}
-              alt={caption || `Figure ${figureNumber}`}
-              className={`word-figure-image size-small`} // Always use small size in preview
-            />
-          </div>
-          {caption && (
-            <div className="word-figure-caption">
-              Fig. {figureNumber}: {caption}
-            </div>
-          )}
-        </div>
-      );
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error('Generated PDF is empty');
+
+      // Clean up previous URL
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+
+      // Create new blob URL for preview
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
     } catch (error) {
-      return (
-        <div key={`figure-${figureNumber}`} className="word-figure">
-          <div className="word-figure-placeholder">
-            [Image: {caption || 'No caption'}]
-          </div>
-          {caption && (
-            <div className="word-figure-caption">
-              Fig. {figureNumber}: {caption}
-            </div>
-          )}
-        </div>
-      );
+      console.error('PDF preview generation failed:', error);
+      setPreviewError(error instanceof Error ? error.message : 'Failed to generate PDF preview');
+    } finally {
+      setIsGeneratingPreview(false);
     }
   };
 
-  // Render accurate IEEE Word preview
-  const renderWordPreview = useMemo(() => {
-    let figureCounter = 0;
+  // Auto-generate preview when document changes (debounced)
+  useEffect(() => {
+    console.log('Document changed, checking for preview generation:', {
+      hasTitle: !!document.title,
+      hasAuthors: document.authors?.some(author => author.name),
+      title: document.title,
+      authors: document.authors
+    });
 
-    // IEEE configuration matching python-docx settings
-    const IEEE_CONFIG = {
-      margin: '0.75in',
-      fontName: 'Times New Roman',
-      fontSizeTitle: '24pt',
-      fontSizeBody: '9.5pt',
-      fontSizeCaption: '9pt',
-      lineSpacing: '10pt',
-      columnWidth: '3.375in',
-      columnSpacing: '0.25in',
-      figureSizes: {
-        'very-small': '1.2in',
-        small: '1.8in',
-        medium: '2.5in',
-        large: '3.2in',
-      },
-      maxFigureHeight: '4.0in',
-    };
-
-    // Header content (single-column, only on first page)
-    const headerContent: React.ReactNode[] = [];
-
-    if (document.title) {
-      headerContent.push(
-        <div key="title" className="word-title">
-          {document.title}
-        </div>
-      );
-    }
-
-    if (document.authors && document.authors.length > 0) {
-      headerContent.push(
-        <div key="authors" className="word-authors">
-          {document.authors.map((author, idx) => (
-            <div key={author.id || idx} className="word-author">
-              {author.name && <div className="word-author-name">{author.name}</div>}
-              {author.department && <div className="word-author-detail">{author.department}</div>}
-              {author.organization && <div className="word-author-detail">{author.organization}</div>}
-              {(author.city || author.state) && (
-                <div className="word-author-detail">
-                  {[author.city, author.state].filter(Boolean).join(', ')}
-                </div>
-              )}
-              {author.customFields?.map((field, fIdx) =>
-                field.value ? (
-                  <div key={fIdx} className="word-author-detail">{field.value}</div>
-                ) : null
-              )}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (document.abstract) {
-      headerContent.push(
-        <div key="abstract" className="word-abstract">
-          <span className="word-abstract-label">Abstract—</span>
-          {document.abstract}
-        </div>
-      );
-    }
-
-    if (document.keywords) {
-      headerContent.push(
-        <div key="keywords" className="word-keywords">
-          <span className="word-keywords-label">Index Terms—</span>
-          {document.keywords}
-        </div>
-      );
-    }
-
-    // Collect all body content blocks
-    const bodyContent: { node: React.ReactNode; lines: number; type: string }[] = [];
-
-    if (document.sections) {
-      document.sections.forEach((section, sectionIndex) => {
-        const sectionNumber = sectionIndex + 1;
-
-        if (section.title) {
-          bodyContent.push({
-            node: (
-              <div key={`section-${sectionIndex}`} className="word-section-title">
-                {sectionNumber}. {section.title.toUpperCase()}
-              </div>
-            ),
-            lines: Math.ceil(section.title.length / 50) + 2,
-            type: 'section-title',
-          });
-        }
-
-        if (section.contentBlocks) {
-          section.contentBlocks.forEach((block, blockIndex) => {
-            if (block.type === 'text' && block.content) {
-              const paragraphs = block.content.split('\n\n').filter(p => p.trim());
-              paragraphs.forEach((para, paraIndex) => {
-                bodyContent.push({
-                  node: (
-                    <div
-                      key={`section-${sectionIndex}-block-${blockIndex}-para-${paraIndex}`}
-                      className="word-paragraph"
-                      dangerouslySetInnerHTML={{ __html: para }}
-                    />
-                  ),
-                  lines: Math.ceil(para.replace(/<[^>]*>/g, '').length / 50) + 1, // Strip HTML tags for line calculation
-                  type: 'paragraph',
-                });
-              });
-            }
-
-            if ((block.type === 'image' || block.type === 'text') && block.data && block.caption) {
-              figureCounter++;
-              const figure = createFigure(block.data, block.caption, block.size, figureCounter);
-              if (figure) {
-                // Adjust line counts based on figure size and caption
-                const figureHeightIn = {
-                  'very-small': 1.2,
-                  small: 1.8,
-                  medium: 2.5,
-                  large: 3.2,
-                }[block.size || 'medium'];
-                const captionLines = block.caption ? Math.ceil(block.caption.length / 50) + 1 : 0;
-                const figureLines = Math.ceil((figureHeightIn * 72) / 10) + captionLines; // 72pt per inch, 10pt per line
-                bodyContent.push({
-                  node: figure,
-                  lines: figureLines,
-                  type: 'figure',
-                });
-              }
-            }
-          });
-        }
-
-        if (section.subsections) {
-          section.subsections.forEach((subsection, subIndex) => {
-            if (subsection.title) {
-              bodyContent.push({
-                node: (
-                  <div
-                    key={`section-${sectionIndex}-subsection-${subIndex}`}
-                    className="word-subsection-title"
-                  >
-                    {sectionNumber}.{subIndex + 1} {subsection.title}
-                  </div>
-                ),
-                lines: Math.ceil(subsection.title.length / 50) + 2,
-                type: 'subsection-title',
-              });
-            }
-
-            if (subsection.content) {
-              const paragraphs = subsection.content.split('\n\n').filter(p => p.trim());
-              paragraphs.forEach((para, paraIndex) => {
-                bodyContent.push({
-                  node: (
-                    <div
-                      key={`section-${sectionIndex}-subsection-${subIndex}-para-${paraIndex}`}
-                      className="word-paragraph"
-                    >
-                      {para}
-                    </div>
-                  ),
-                  lines: Math.ceil(para.length / 50) + 1,
-                  type: 'paragraph',
-                });
-              });
-            }
-          });
-        }
-      });
-    }
-
-    if (document.references && document.references.length > 0) {
-      bodyContent.push({
-        node: (
-          <div key="references" className="word-section-title">
-            REFERENCES
-          </div>
-        ),
-        lines: 2,
-        type: 'section-title',
-      });
-
-      document.references.forEach((ref, refIndex) => {
-        if (ref.text) {
-          bodyContent.push({
-            node: (
-              <div key={`reference-${refIndex}`} className="word-reference">
-                [{refIndex + 1}] {ref.text}
-              </div>
-            ),
-            lines: Math.ceil(ref.text.length / 50) + 1,
-            type: 'reference',
-          });
-        }
-      });
-    }
-
-    // Distribute content across pages
-    const LINES_PER_COLUMN_PAGE1 = 40; // For page 1 with header
-    const LINES_PER_COLUMN_PAGE2 = 54; // For full pages
-    const MAX_PREVIEW_PAGES = 2;
-    const pages: { header?: React.ReactNode[]; left: React.ReactNode[]; right: React.ReactNode[] }[] = [
-      { header: headerContent, left: [], right: [] },
-    ];
-    let currentPageIndex = 0;
-    let currentColumn: 'left' | 'right' = 'left';
-    let linesInCurrentColumn = 0;
-    let contentIndex = 0;
-
-    // Helper function to split paragraph text
-    const splitParagraph = (text: string, remainingLines: number) => {
-      const charsPerLine = 50;
-      
-      // Handle case where text might be undefined or null
-      if (!text || typeof text !== 'string') {
-        return { firstPart: '', secondPart: '' };
-      }
-      
-      const totalLines = Math.ceil(text.length / charsPerLine);
-      if (totalLines <= remainingLines) {
-        return { firstPart: text, secondPart: '' };
-      }
-
-      const splitPoint = remainingLines * charsPerLine;
-      let splitIndex = splitPoint;
-      while (splitIndex > 0 && text[splitIndex] !== ' ') {
-        splitIndex--;
-      }
-      if (splitIndex === 0) splitIndex = splitPoint;
-
-      return {
-        firstPart: text.slice(0, splitIndex),
-        secondPart: text.slice(splitIndex).trim(),
-      };
-    };
-
-    // Helper function to extract text content from JSX element (handles HTML content)
-    const extractTextFromNode = (node: React.ReactNode): string => {
-      if (typeof node === 'string') {
-        return node;
-      }
-      if (React.isValidElement(node)) {
-        const props = node.props;
-        if (props.dangerouslySetInnerHTML && props.dangerouslySetInnerHTML.__html) {
-          // Strip HTML tags to get plain text for length calculation
-          return props.dangerouslySetInnerHTML.__html.replace(/<[^>]*>/g, '');
-        }
-        if (typeof props.children === 'string') {
-          return props.children;
-        }
-      }
-      return '';
-    };
-
-    // Process body content
-    while (contentIndex < bodyContent.length && currentPageIndex < MAX_PREVIEW_PAGES) {
-      const linesPerColumn = currentPageIndex === 0 ? LINES_PER_COLUMN_PAGE1 : LINES_PER_COLUMN_PAGE2;
-      const remainingLines = linesPerColumn - linesInCurrentColumn;
-
-      const content = bodyContent[contentIndex];
-
-      if (content.type === 'figure' && content.lines > remainingLines && remainingLines >= 1) {
-        // Figure doesn't fit; try to place subsequent text content first
-        let placedText = false;
-        for (let nextIndex = contentIndex + 1; nextIndex < bodyContent.length; nextIndex++) {
-          const nextContent = bodyContent[nextIndex];
-          if (nextContent.type === 'paragraph' && nextContent.lines <= remainingLines) {
-            pages[currentPageIndex][currentColumn].push(nextContent.node);
-            linesInCurrentColumn += nextContent.lines;
-            bodyContent.splice(nextIndex, 1); // Remove placed content
-            placedText = true;
-            break;
-          }
-        }
-
-        if (!placedText) {
-          // No suitable text to fill gap; move to next column or page
-          if (currentColumn === 'left') {
-            currentColumn = 'right';
-            linesInCurrentColumn = 0;
-          } else {
-            currentColumn = 'left';
-            linesInCurrentColumn = 0;
-            if (currentPageIndex + 1 < MAX_PREVIEW_PAGES) {
-              currentPageIndex++;
-              pages.push({ left: [], right: [] });
-            } else {
-              break;
-            }
-          }
-          continue;
-        }
-      } else if (content.type === 'paragraph' && content.lines > remainingLines && remainingLines >= 1) {
-        // Split paragraph - handle both plain text and HTML content
-        const textContent = extractTextFromNode(content.node);
-        const { firstPart, secondPart } = splitParagraph(textContent, remainingLines);
-
-        if (firstPart) {
-          // Create new paragraph with same formatting as original
-          const originalNode = content.node as JSX.Element;
-          const newNode = React.cloneElement(originalNode, {
-            key: originalNode.props.key,
-            dangerouslySetInnerHTML: originalNode.props.dangerouslySetInnerHTML 
-              ? { __html: firstPart } 
-              : undefined,
-            children: originalNode.props.dangerouslySetInnerHTML 
-              ? undefined 
-              : firstPart
-          });
-          
-          pages[currentPageIndex][currentColumn].push(newNode);
-          linesInCurrentColumn += Math.ceil(firstPart.length / 50) + 1;
-        }
-
-        if (secondPart) {
-          // Create continuation paragraph
-          const originalNode = content.node as JSX.Element;
-          const contNode = React.cloneElement(originalNode, {
-            key: `${originalNode.props.key}-cont`,
-            dangerouslySetInnerHTML: originalNode.props.dangerouslySetInnerHTML 
-              ? { __html: secondPart } 
-              : undefined,
-            children: originalNode.props.dangerouslySetInnerHTML 
-              ? undefined 
-              : secondPart
-          });
-          
-          bodyContent.splice(contentIndex, 1, {
-            node: contNode,
-            lines: Math.ceil(secondPart.length / 50) + 1,
-            type: 'paragraph',
-          });
-          // Move to next column or page
-          if (currentColumn === 'left') {
-            currentColumn = 'right';
-            linesInCurrentColumn = 0;
-          } else {
-            currentColumn = 'left';
-            linesInCurrentColumn = 0;
-            if (currentPageIndex + 1 < MAX_PREVIEW_PAGES) {
-              currentPageIndex++;
-              pages.push({ left: [], right: [] });
-            } else {
-              break;
-            }
-          }
-        } else {
-          contentIndex++;
-        }
-      } else if (content.lines <= remainingLines || content.type !== 'paragraph') {
-        // Place entire content block
-        pages[currentPageIndex][currentColumn].push(content.node);
-        linesInCurrentColumn += content.lines;
-        contentIndex++;
+    const timer = setTimeout(() => {
+      if (document.title && document.authors?.some(author => author.name)) {
+        console.log('Triggering PDF preview generation...');
+        generatePdfPreview();
       } else {
-        // Move to next column or page
-        if (currentColumn === 'left') {
-          currentColumn = 'right';
-          linesInCurrentColumn = 0;
-        } else {
-          currentColumn = 'left';
-          linesInCurrentColumn = 0;
-          if (currentPageIndex + 1 < MAX_PREVIEW_PAGES) {
-            currentPageIndex++;
-            pages.push({ left: [], right: [] });
-          } else {
-            break;
-          }
-        }
-        continue;
+        console.log('Skipping PDF generation - missing title or authors');
       }
+    }, 1000); // 1 second debounce
 
-      // Check if column is full
-      if (linesInCurrentColumn >= linesPerColumn) {
-        if (currentColumn === 'left') {
-          currentColumn = 'right';
-          linesInCurrentColumn = 0;
-        } else {
-          currentColumn = 'left';
-          linesInCurrentColumn = 0;
-          if (currentPageIndex + 1 < MAX_PREVIEW_PAGES) {
-            currentPageIndex++;
-            pages.push({ left: [], right: [] });
-          } else {
-            break;
-          }
-        }
+    return () => clearTimeout(timer);
+  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
       }
-    }
-
-    // If content remains, add notice
-    const hasMoreContent = contentIndex < bodyContent.length;
-
-    return (
-      <>
-        {pages.map((page, index) => (
-          <div key={`page-${index + 1}`} className="word-page">
-            {index === 0 && page.header && <div className="word-header">{page.header}</div>}
-            <div className="word-columns">
-              <div className="word-column word-column-left">{page.left}</div>
-              <div className="word-column word-column-right">{page.right}</div>
-            </div>
-          </div>
-        ))}
-        {hasMoreContent && (
-          <div className="preview-limitation-notice">
-            <div className="notice-content">
-              <p>
-                <strong>Preview Limited:</strong> Showing pages 1-{MAX_PREVIEW_PAGES} of document.
-              </p>
-              <p>Download the full document to see all content.</p>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }, [document]);
+    };
+  }, [pdfUrl]);
 
   const handleZoomIn = () => setZoom(prev => Math.min(200, prev + 25));
   const handleZoomOut = () => setZoom(prev => Math.max(25, prev - 25));
+
+
+
+
 
   return (
     <div className="space-y-6">
@@ -706,7 +314,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={sendEmailMutation.isPending}
                 className="border-purple-200 focus:border-purple-400 focus:ring-purple-200"
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleSendEmail();
                   }
@@ -728,338 +336,105 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">
-                Live Preview
-              </span>
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoom <= 25}>
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-xs text-gray-500 min-w-[40px] text-center">{zoom}%</span>
-                <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={zoom >= 200}>
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-              </div>
+      {/* PDF Preview Section */}
+      <Card className="bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-900">
+              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              Live PDF Preview
             </div>
-          </div>
-
-          {/* Compact Caution message */}
-          <div className="px-3 py-2 bg-amber-50 border-b border-amber-200">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 text-amber-600 flex-shrink-0">
-                ⚠️
-              </div>
-              <div className="text-xs text-amber-800 leading-tight">
-                <span className="font-medium">Caution:</span> This live preview is for reference only. The generated Word document follows the official IEEE format.
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={generatePdfPreview}
+                disabled={isGeneratingPreview || !document.title}
+                className="text-purple-600 hover:text-purple-700"
+              >
+                <RefreshCw className={`w-4 h-4 ${isGeneratingPreview ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoom <= 25}>
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <span className="text-xs text-gray-500 min-w-[40px] text-center">{zoom}%</span>
+              <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={zoom >= 200}>
+                <ZoomIn className="w-4 h-4" />
+              </Button>
             </div>
-          </div>
-
-          <div className="p-6 bg-gray-100 overflow-auto" style={{ minHeight: "80vh", maxHeight: "90vh" }}>
-            <div
-              style={{
-                transform: `scale(${zoom / 100})`,
-                transformOrigin: 'top center',
-                transition: 'transform 0.2s ease-in-out',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px',
-                alignItems: 'center',
-                minHeight: 'fit-content',
-                paddingBottom: '40px'
-              }}
-            >
-              <style>{`
-                .word-page {
-                  width: 8.27in;
-                  min-height: 11.69in;
-                  height: auto;
-                  margin: 0 auto;
-                  padding: 0.75in;
-                  background: white;
-                  font-family: 'Times New Roman', serif;
-                  font-size: 9.5pt;
-                  line-height: 10pt;
-                  color: black;
-                  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                  box-sizing: border-box;
-                  display: flex;
-                  flex-direction: column;
-                  overflow: visible;
-                  page-break-after: always;
-                  position: relative;
-                }
-
-                @media (max-width: 768px) {
-                  .word-page {
-                    width: 95vw;
-                    max-width: 8.27in;
-                    min-height: auto;
-                    height: auto;
-                  }
-                }
-
-                .word-header {
-                  width: 100%;
-                  margin-bottom: 12pt;
-                  flex-shrink: 0;
-                }
-
-                .word-title {
-                  text-align: center;
-                  font-weight: bold;
-                  font-size: 24pt;
-                  line-height: 1.2;
-                  margin-bottom: 12pt;
-                  word-wrap: break-word;
-                }
-
-                .word-authors {
-                  display: flex;
-                  justify-content: center;
-                  gap: 1in;
-                  margin-bottom: 12pt;
-                  flex-wrap: wrap;
-                }
-
-                .word-author {
-                  text-align: center;
-                  min-width: 100px;
-                  max-width: 180px;
-                }
-
-                .word-author-name {
-                  font-weight: bold;
-                  font-size: 9.5pt;
-                  margin-bottom: 2pt;
-                  word-wrap: break-word;
-                }
-
-                .word-author-detail {
-                  font-size: 9pt;
-                  font-style: italic;
-                  margin-bottom: 2pt;
-                  line-height: 1.1;
-                  word-wrap: break-word;
-                }
-
-                .word-abstract {
-                  text-align: justify;
-                  font-size: 9.5pt;
-                  line-height: 10pt;
-                  margin-bottom: 12pt;
-                  hyphens: auto;
-                  word-wrap: break-word;
-                }
-
-                .word-abstract-label {
-                  font-style: italic;
-                }
-
-                .word-keywords {
-                  text-align: justify;
-                  font-size: 9.5pt;
-                  line-height: 10pt;
-                  margin-bottom: 12pt;
-                  hyphens: auto;
-                  word-wrap: break-word;
-                }
-
-                .word-keywords-label {
-                  font-style: italic;
-                }
-
-                .word-columns {
-                  display: flex;
-                  gap: 0.25in;
-                  flex: 1;
-                  overflow: visible;
-                  min-height: 0;
-                }
-
-                @media (max-width: 768px) {
-                  .word-columns {
-                    flex-direction: column;
-                    gap: 12pt;
-                  }
-                }
-
-                .word-column {
-                  flex: 1;
-                  width: 3.375in;
-                  overflow: visible;
-                  min-height: 0;
-                }
-
-                @media (max-width: 768px) {
-                  .word-column {
-                    width: 100%;
-                  }
-                }
-
-                .word-column-left {
-                  padding-right: 0.125in;
-                }
-
-                .word-column-right {
-                  padding-left: 0.125in;
-                }
-
-                @media (max-width: 768px) {
-                  .word-column-left,
-                  .word-column-right {
-                    padding: 0;
-                  }
-                }
-
-                .word-section-title {
-                  font-size: 9.5pt;
-                  font-weight: bold;
-                  text-transform: uppercase;
-                  margin: 10pt 0 0 0;
-                  line-height: 10pt;
-                  word-wrap: break-word;
-                }
-
-                .word-subsection-title {
-                  font-size: 9.5pt;
-                  font-weight: bold;
-                  margin: 6pt 0 0 0;
-                  line-height: 10pt;
-                  word-wrap: break-word;
-                }
-
-                .word-paragraph {
-                  text-align: justify;
-                  font-size: 9.5pt;
-                  line-height: 10pt;
-                  margin-bottom: 12pt;
-                  text-indent: 0;
-                  hyphens: auto;
-                  word-wrap: break-word;
-                  overflow-wrap: break-word;
-                }
-
-                .word-figure {
-                  text-align: center;
-                  margin: 6pt 0;
-                  overflow: visible;
-                }
-
-                .word-figure-container {
-                  margin-bottom: 2pt;
-                  overflow: visible;
-                }
-
-                .word-figure-image {
-                  max-width: 100%;
-                  height: auto;
-                  display: block;
-                  margin: 0 auto;
-                  border: 1px solid #ddd;
-                }
-
-                .word-figure-image.size-very-small { max-width: 1.2in; }
-                .word-figure-image.size-small { max-width: 1.8in; }
-                .word-figure-image.size-medium { max-width: 2.5in; }
-                .word-figure-image.size-large { max-width: 3.2in; }
-
-                @media (max-width: 768px) {
-                  .word-figure-image.size-very-small { max-width: 80px; }
-                  .word-figure-image.size-small { max-width: 120px; }
-                  .word-figure-image.size-medium { max-width: 160px; }
-                  .word-figure-image.size-large { max-width: 200px; }
-                }
-
-                .word-figure-placeholder {
-                  width: 1.5in;
-                  height: 1in;
-                  border: 2px dashed #ccc;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  margin: 0 auto;
-                  background-color: #f9f9f9;
-                  color: #666;
-                  font-size: 8pt;
-                }
-
-                .word-figure-caption {
-                  font-size: 9pt;
-                  text-align: center;
-                  margin-top: 2pt;
-                  line-height: 1.1;
-                  word-wrap: break-word;
-                }
-
-                .word-reference {
-                  font-size: 9.5pt;
-                  line-height: 10pt;
-                  margin-bottom: 12pt;
-                  text-align: justify;
-                  text-indent: -0.25in;
-                  padding-left: 0.45in;
-                  hyphens: auto;
-                  word-wrap: break-word;
-                  overflow-wrap: break-word;
-                }
-
-                .preview-limitation-notice {
-                  width: 8.27in;
-                  max-width: 95vw;
-                  margin: 20px auto 0;
-                  padding: 16px;
-                  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-                  border: 2px solid #f59e0b;
-                  border-radius: 8px;
-                  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
-                }
-
-                .notice-content {
-                  text-align: center;
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                }
-
-                .notice-content p {
-                  margin: 4px 0;
-                  font-size: 14px;
-                  color: #92400e;
-                  line-height: 1.4;
-                }
-
-                .notice-content p:first-child {
-                  font-weight: 600;
-                }
-
-                /* Hosting-specific fixes */
-                * {
-                  box-sizing: border-box;
-                }
-
-                @media print {
-                  .word-page {
-                    margin: 0;
-                    box-shadow: none;
-                    page-break-after: always;
-                    width: 8.27in !important;
-                    height: 11.69in !important;
-                  }
-                }
-
-                /* Force proper rendering on hosted environments */
-                .word-page,
-                .word-columns,
-                .word-column {
-                  transform: translateZ(0);
-                  -webkit-transform: translateZ(0);
-                }
-              `}</style>
-              {renderWordPreview}
-            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="bg-gray-100 overflow-auto" style={{ height: "70vh" }}>
+            {isGeneratingPreview ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
+                  <p className="text-gray-600">Generating PDF preview...</p>
+                </div>
+              </div>
+            ) : previewError ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-red-600 mb-2">Preview Error</p>
+                  <p className="text-gray-600 text-sm">{previewError}</p>
+                  <Button
+                    onClick={generatePdfPreview}
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    disabled={!document.title || !document.authors?.some(author => author.name)}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            ) : !document.title || !document.authors?.some(author => author.name) ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">Ready for Preview</p>
+                  <p className="text-gray-500 text-sm">Add a title and at least one author to generate PDF preview</p>
+                </div>
+              </div>
+            ) : pdfUrl ? (
+              <div className="flex justify-center items-start h-full overflow-auto">
+                <div
+                  style={{
+                    transform: `scale(${zoom / 100})`,
+                    transformOrigin: 'top center',
+                    transition: 'transform 0.2s ease-in-out',
+                    width: '8.5in', // Standard letter width
+                    height: '11in', // Standard letter height
+                    minWidth: '8.5in',
+                    minHeight: '11in',
+                    backgroundColor: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    margin: '20px'
+                  }}
+                >
+                  <iframe
+                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      backgroundColor: 'white'
+                    }}
+                    title="PDF Preview"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No preview available</p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

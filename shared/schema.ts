@@ -27,12 +27,14 @@ export interface Section {
 
 export interface ContentBlock {
   id: string;
-  type: "text" | "image";
+  type: "text" | "image" | "table" | "equation";
   content?: string;
   imageId?: string;
   data?: string; // base64 encoded image data
   fileName?: string; // original filename for user feedback
   caption?: string;
+  tableName?: string; // for table blocks
+  equationNumber?: number; // for equation blocks
   size?: "very-small" | "small" | "medium" | "large";
   position?: "top" | "bottom" | "here";
   order: number;
@@ -43,6 +45,8 @@ export interface Subsection {
   title: string;
   content: string;
   order: number;
+  level?: number; // 1 for main subsection, 2 for sub-subsection, etc.
+  parentId?: string; // For nested subsections
 }
 
 export interface Reference {
@@ -122,12 +126,14 @@ export const insertDocumentSchema = z.object({
     title: z.string(),
     contentBlocks: z.array(z.object({
       id: z.string(),
-      type: z.enum(["text", "image"]),
+      type: z.enum(["text", "image", "table", "equation"]),
       content: z.string().optional(),
       imageId: z.string().optional(),
       data: z.string().optional(), // base64 encoded image data
       fileName: z.string().optional(), // original filename for user feedback
       caption: z.string().optional(),
+      tableName: z.string().optional(), // for table blocks
+      equationNumber: z.number().optional(), // for equation blocks
       size: z.enum(["small", "medium"]).optional(),
       position: z.enum(["top", "bottom", "here"]).optional(),
       order: z.number()
@@ -136,7 +142,9 @@ export const insertDocumentSchema = z.object({
       id: z.string(),
       title: z.string(),
       content: z.string(),
-      order: z.number()
+      order: z.number(),
+      level: z.number().optional(),
+      parentId: z.string().optional()
     })),
     order: z.number()
   })).default([]),

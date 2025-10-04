@@ -14,6 +14,26 @@ from docx.oxml import OxmlElement
 from io import BytesIO
 import re
 from html.parser import HTMLParser
+import unicodedata
+
+def sanitize_text(text):
+    """Sanitize text to remove invalid Unicode characters and surrogates."""
+    if not text:
+        return ""
+    
+    # Convert to string if not already
+    text = str(text)
+    
+    # Remove surrogate characters and other problematic Unicode
+    text = text.encode('utf-8', 'ignore').decode('utf-8')
+    
+    # Normalize Unicode characters
+    text = unicodedata.normalize('NFKD', text)
+    
+    # Remove any remaining control characters except newlines and tabs
+    text = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]', '', text)
+    
+    return text
 
 # IEEE formatting configuration - EXACT same as test.py
 IEEE_CONFIG = {
@@ -90,7 +110,7 @@ def set_document_defaults(doc):
 def add_title(doc, title):
     """Add the paper title - EXACT same as test.py."""
     para = doc.add_paragraph()
-    run = para.add_run(title)
+    run = para.add_run(sanitize_text(title))
     run.bold = True
     run.font.name = IEEE_CONFIG['font_name']
     run.font.size = IEEE_CONFIG['font_size_title']
@@ -132,7 +152,7 @@ def add_authors(doc, authors):
         ]
         for field_key, field_name in fields:
             if author.get(field_key):
-                para = cell.add_paragraph(author[field_key])
+                para = cell.add_paragraph(sanitize_text(author[field_key]))
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 para.paragraph_format.space_before = Pt(0)
                 para.paragraph_format.space_after = Pt(2)
@@ -143,7 +163,7 @@ def add_authors(doc, authors):
         
         for custom_field in author.get('custom_fields', []):
             if custom_field['value']:
-                para = cell.add_paragraph(custom_field['value'])
+                para = cell.add_paragraph(sanitize_text(custom_field['value']))
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 para.paragraph_format.space_before = Pt(0)
                 para.paragraph_format.space_after = Pt(2)
@@ -162,7 +182,7 @@ def add_abstract(doc, abstract):
         run.italic = True
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
-        run = para.add_run(abstract)
+        run = para.add_run(sanitize_text(abstract))
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
@@ -197,7 +217,7 @@ def add_abstract(doc, abstract):
 def add_keywords(doc, keywords):
     """Add the keywords section - EXACT same as test.py."""
     if keywords:
-        para = doc.add_paragraph(f"Keywords: {keywords}")
+        para = doc.add_paragraph(f"Keywords: {sanitize_text(keywords)}")
         
         # Apply advanced justification controls to keywords - EXACT same as test.py
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -242,7 +262,7 @@ def add_keywords(doc, keywords):
 
 def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, indent_right=None, space_before=None, space_after=None):
     """Add a paragraph with optimized justification settings to prevent excessive word spacing - EXACT COPY from test.py."""
-    para = doc.add_paragraph(text)
+    para = doc.add_paragraph(sanitize_text(text))
     para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     
     # Set paragraph formatting with exact spacing controls
@@ -306,7 +326,7 @@ def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, in
 def add_section(doc, section_data, section_idx, is_first_section=False):
     """Add a section with content blocks, subsections, and figures - EXACT same as test.py."""
     if section_data.get('title'):
-        para = doc.add_heading(f"{section_idx}. {section_data['title'].upper()}", level=1)
+        para = doc.add_heading(f"{section_idx}. {sanitize_text(section_data['title']).upper()}", level=1)
         para.paragraph_format.page_break_before = False
         para.paragraph_format.space_before = IEEE_CONFIG['line_spacing']  # Exactly one line before heading
         para.paragraph_format.space_after = Pt(0)
@@ -376,7 +396,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
                     
                     # Generate figure number based on section and image position
                     img_count = sum(1 for b in content_blocks[:block_idx+1] if b.get('type') == 'image' or (b.get('type') == 'text' and b.get('data')))
-                    caption = doc.add_paragraph(f"Fig. {section_idx}.{img_count}: {block['caption']}")
+                    caption = doc.add_paragraph(f"Fig. {section_idx}.{img_count}: {sanitize_text(block['caption'])}")
                     caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     caption.paragraph_format.space_before = Pt(0)
                     caption.paragraph_format.space_after = Pt(12)
@@ -432,7 +452,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
                 
                 # Generate figure number based on section and image position
                 img_count = sum(1 for b in content_blocks[:block_idx+1] if b.get('type') == 'image')
-                caption = doc.add_paragraph(f"Fig. {section_idx}.{img_count}: {block['caption']}")
+                caption = doc.add_paragraph(f"Fig. {section_idx}.{img_count}: {sanitize_text(block['caption'])}")
                 caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 caption.paragraph_format.space_before = Pt(0)
                 caption.paragraph_format.space_after = Pt(12)
@@ -457,7 +477,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
     # Add subsections - EXACT same as test.py
     for sub_idx, subsection in enumerate(section_data.get('subsections', []), 1):
         if subsection.get('title'):
-            para = doc.add_heading(f"{section_idx}.{sub_idx} {subsection['title']}", level=2)
+            para = doc.add_heading(f"{section_idx}.{sub_idx} {sanitize_text(subsection['title'])}", level=2)
             para.paragraph_format.page_break_before = False
             para.paragraph_format.space_before = IEEE_CONFIG['line_spacing']  # Exactly one line before heading
             para.paragraph_format.space_after = Pt(0)
@@ -469,7 +489,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
             # Use the new justified paragraph function for better spacing
             add_justified_paragraph(
                 doc, 
-                subsection['content'],
+                sanitize_text(subsection['content']),
                 indent_left=IEEE_CONFIG['column_indent'],
                 indent_right=IEEE_CONFIG['column_indent'],
                 space_before=Pt(1),
@@ -508,8 +528,8 @@ class HTMLToWordParser(HTMLParser):
             self.format_stack.remove('underline')
     
     def handle_data(self, data):
-        # Buffer the text data
-        self.text_buffer += data
+        # Buffer the text data with sanitization
+        self.text_buffer += sanitize_text(data)
     
     def _flush_text(self):
         """Create a run with accumulated text and current formatting."""
@@ -596,7 +616,9 @@ def add_references(doc, references):
         
         for idx, ref in enumerate(references, 1):
             if ref.get('text'):
-                para = doc.add_paragraph(f"[{idx}] {ref['text']}")
+                # Sanitize the reference text to prevent Unicode encoding errors
+                ref_text = sanitize_text(ref['text'])
+                para = doc.add_paragraph(f"[{idx}] {ref_text}")
                 para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                 para.paragraph_format.left_indent = IEEE_CONFIG['column_indent'] + Inches(0.25)
                 para.paragraph_format.right_indent = IEEE_CONFIG['column_indent']

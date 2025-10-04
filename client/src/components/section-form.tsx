@@ -1,18 +1,240 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Plus, Trash2, Type, Image as ImageIcon } from "lucide-react";
-import ContentBlock from "./content-block";
+import { Plus, Trash2, ChevronDown, ChevronRight, Type, Image as ImageIcon, Table, Calculator, Upload } from "lucide-react";
 import type { Section, ContentBlock as ContentBlockType, Subsection } from "@shared/schema";
+
+// Helper function to build subsection hierarchy
+const buildSubsectionHierarchy = (subsections: Subsection[]): Subsection[] => {
+  return subsections.sort((a, b) => a.order - b.order);
+};
+
+// Helper function to get subsection numbering
+const getSubsectionNumber = (subsection: Subsection, sectionIndex: number, allSubsections: Subsection[]): string => {
+  if (!subsection.level || subsection.level === 1) {
+    // Main subsection (e.g., 2.1)
+    const mainSubsections = allSubsections.filter(s => (!s.level || s.level === 1));
+    const index = mainSubsections.findIndex(s => s.id === subsection.id);
+    return `${sectionIndex + 1}.${index + 1}`;
+  } else {
+    // Nested subsection (e.g., 2.1.1)
+    const parent = allSubsections.find(s => s.id === subsection.parentId);
+    if (parent) {
+      const parentNumber = getSubsectionNumber(parent, sectionIndex, allSubsections);
+      const siblings = allSubsections.filter(s => s.parentId === subsection.parentId && s.level === subsection.level);
+      const index = siblings.findIndex(s => s.id === subsection.id);
+      return `${parentNumber}.${index + 1}`;
+    }
+  }
+  return `${sectionIndex + 1}.?`;
+};
 
 interface SectionFormProps {
   sections: Section[];
   onUpdate: (sections: Section[]) => void;
 }
+
+// Compact Content Block Component
+const CompactContentBlock = ({ 
+  block, 
+  onUpdate, 
+  onRemove 
+}: { 
+  block: ContentBlockType; 
+  onUpdate: (updates: Partial<ContentBlockType>) => void; 
+  onRemove: () => void; 
+}) => {
+  if (block.type === "text") {
+    return (
+      <div className="border border-gray-200 rounded p-2 bg-white">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-500 font-medium">TEXT</span>
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+        <Textarea
+          value={block.content || ""}
+          onChange={(e) => onUpdate({ content: e.target.value })}
+          placeholder="Enter your text content here..."
+          className="min-h-[120px] text-sm resize-none border border-gray-200 p-2 focus-visible:ring-1 focus-visible:ring-purple-200"
+        />
+      </div>
+    );
+  }
+
+  if (block.type === "image") {
+    return (
+      <div className="border border-gray-200 rounded p-2 bg-gray-50">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-500 font-medium">IMAGE</span>
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+        <div className="space-y-2">
+          <Input
+            value={block.caption || ""}
+            onChange={(e) => onUpdate({ caption: e.target.value })}
+            placeholder="Image caption"
+            className="text-xs h-7"
+          />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-7 text-xs">
+              <Upload className="w-3 h-3 mr-1" />
+              Upload
+            </Button>
+            <span className="text-xs text-gray-500">
+              {block.data ? "✓ Uploaded" : "No image"}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === "table") {
+    return (
+      <div className="border border-gray-200 rounded p-2 bg-gray-50">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-500 font-medium">TABLE</span>
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+        <Input
+          value={block.tableName || ""}
+          onChange={(e) => onUpdate({ tableName: e.target.value })}
+          placeholder="Table name"
+          className="text-xs h-7"
+        />
+      </div>
+    );
+  }
+
+  if (block.type === "equation") {
+    return (
+      <div className="border border-gray-200 rounded p-2 bg-gray-50">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-500 font-medium">EQUATION</span>
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+        <Input
+          value={block.content || ""}
+          onChange={(e) => onUpdate({ content: e.target.value })}
+          placeholder="LaTeX equation"
+          className="text-xs h-7 font-mono"
+        />
+      </div>
+    );
+  }
+
+  return null;
+};
+
+// Subsection Component using proper schema structure
+const SubsectionComponent = ({ 
+  subsection, 
+  sectionIndex,
+  sectionId,
+  allSubsections,
+  onUpdateSubsection,
+  onRemoveSubsection,
+  onAddSubsection
+}: {
+  subsection: Subsection;
+  sectionIndex: number;
+  sectionId: string;
+  allSubsections: Subsection[];
+  onUpdateSubsection: (subsectionId: string, field: keyof Subsection, value: any) => void;
+  onRemoveSubsection: (subsectionId: string) => void;
+  onAddSubsection: (parentId: string, level: number) => void;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const subsectionNumber = getSubsectionNumber(subsection, sectionIndex, allSubsections);
+  const level = subsection.level || 1;
+  const marginClass = level === 1 ? '' : level === 2 ? 'ml-4' : level === 3 ? 'ml-8' : level === 4 ? 'ml-12' : 'ml-16';
+  
+  // Get child subsections
+  const childSubsections = allSubsections.filter(s => s.parentId === subsection.id);
+  
+  return (
+    <div className={`border-l-2 border-gray-300 pl-3 ${marginClass}`}>
+      <div className="bg-white border border-gray-200 rounded p-2 mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsExpanded(!isExpanded)}
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0"
+            >
+              {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            </Button>
+            <span className="text-xs font-medium text-gray-600">{subsectionNumber}</span>
+          </div>
+          <div className="flex gap-1">
+            <Button 
+              onClick={() => onAddSubsection(subsection.id, level + 1)} 
+              variant="ghost" 
+              size="sm" 
+              className="h-5 w-5 p-0 text-blue-500"
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+            <Button 
+              onClick={() => onRemoveSubsection(subsection.id)} 
+              variant="ghost" 
+              size="sm" 
+              className="h-5 w-5 p-0 text-red-500"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+        
+        <Input
+          value={subsection.title}
+          onChange={(e) => onUpdateSubsection(subsection.id, "title", e.target.value)}
+          placeholder="Subsection title"
+          className="text-sm h-7 mb-2 font-medium"
+        />
+        
+        {isExpanded && (
+          <>
+            <Textarea
+              value={subsection.content}
+              onChange={(e) => onUpdateSubsection(subsection.id, "content", e.target.value)}
+              placeholder="Subsection content"
+              className="text-sm min-h-[80px] resize-none border border-gray-200 p-2 focus-visible:ring-1 focus-visible:ring-purple-200"
+            />
+            
+            {/* Child subsections */}
+            {childSubsections.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {childSubsections.map((childSub) => (
+                  <SubsectionComponent
+                    key={childSub.id}
+                    subsection={childSub}
+                    sectionIndex={sectionIndex}
+                    sectionId={sectionId}
+                    allSubsections={allSubsections}
+                    onUpdateSubsection={onUpdateSubsection}
+                    onRemoveSubsection={onRemoveSubsection}
+                    onAddSubsection={onAddSubsection}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -38,13 +260,14 @@ export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
     ));
   };
 
-  const addContentBlock = (sectionId: string, type: "text" | "image") => {
+  const addContentBlock = (sectionId: string, type: "text" | "image" | "table" | "equation") => {
     const section = sections.find(s => s.id === sectionId);
     if (section) {
       const newBlock: ContentBlockType = {
         id: `block_${Date.now()}`,
         type,
         content: type === "text" ? "" : undefined,
+        tableName: type === "table" ? "Table Name" : undefined,
         order: section.contentBlocks.length
       };
       updateSection(sectionId, "contentBlocks", [...section.contentBlocks, newBlock]);
@@ -71,20 +294,22 @@ export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
     }
   };
 
-  const addSubsection = (sectionId: string) => {
+  const addSubsection = (sectionId: string, parentId?: string, level: number = 1) => {
     const section = sections.find(s => s.id === sectionId);
     if (section) {
       const newSubsection: Subsection = {
         id: `subsection_${Date.now()}`,
         title: "",
         content: "",
-        order: section.subsections.length
+        order: section.subsections.length,
+        level: level,
+        parentId: parentId
       };
       updateSection(sectionId, "subsections", [...section.subsections, newSubsection]);
     }
   };
 
-  const updateSubsection = (sectionId: string, subsectionId: string, field: keyof Subsection, value: string) => {
+  const updateSubsection = (sectionId: string, subsectionId: string, field: keyof Subsection, value: any) => {
     const section = sections.find(s => s.id === sectionId);
     if (section) {
       updateSection(sectionId, "subsections",
@@ -98,8 +323,20 @@ export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
   const removeSubsection = (sectionId: string, subsectionId: string) => {
     const section = sections.find(s => s.id === sectionId);
     if (section) {
+      // Also remove all child subsections
+      const toRemove = new Set([subsectionId]);
+      const findChildren = (parentId: string) => {
+        section.subsections.forEach(sub => {
+          if (sub.parentId === parentId) {
+            toRemove.add(sub.id);
+            findChildren(sub.id);
+          }
+        });
+      };
+      findChildren(subsectionId);
+      
       updateSection(sectionId, "subsections", 
-        section.subsections.filter(sub => sub.id !== subsectionId)
+        section.subsections.filter(sub => !toRemove.has(sub.id))
       );
     }
   };
@@ -115,150 +352,118 @@ export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Document Sections</CardTitle>
-          <Button onClick={addSection} variant="outline" size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Section
-          </Button>
+    <div className="space-y-3">
+      {/* Add Section Button */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-medium text-gray-700">Sections</h3>
+        <Button onClick={addSection} size="sm" className="h-7 text-xs">
+          <Plus className="w-3 h-3 mr-1" />
+          Add Section
+        </Button>
+      </div>
+
+      {sections.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-sm">No sections added yet.</p>
+          <p className="text-xs">Click "Add Section" to get started.</p>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {sections.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>No sections added yet. Click "Add Section" to get started.</p>
-          </div>
-        ) : (
-          sections.map((section, index) => {
+      ) : (
+        <div className="space-y-3">
+          {sections.map((section, index) => {
             const isExpanded = expandedSections.has(section.id);
             return (
-              <Card key={section.id} className="bg-gray-50">
-                <Collapsible open={isExpanded} onOpenChange={() => toggleSection(section.id)}>
-                  <div className="bg-gray-100 px-4 py-3 rounded-t-lg flex justify-between items-center">
-                    <CollapsibleTrigger asChild>
-                      <div className="flex items-center space-x-2 cursor-pointer flex-1">
-                        {isExpanded ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                        <h4 className="text-md font-medium text-gray-900">
-                          {section.title || `Section ${index + 1}`}
-                        </h4>
-                      </div>
-                    </CollapsibleTrigger>
-                    <Button
-                      onClick={() => removeSection(section.id)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
+              <div key={section.id} className="border border-gray-200 rounded bg-white">
+                {/* Section Header */}
+                <div className="p-3 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => toggleSection(section.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                      >
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </Button>
+                      <span className="text-sm font-medium text-gray-700">{index + 1}.</span>
+                    </div>
+                    <Button onClick={() => removeSection(section.id)} variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
-                  
-                  <CollapsibleContent>
-                    <CardContent className="p-4 space-y-4">
-                      <div>
-                        <Label>Section Title</Label>
-                        <Input
-                          value={section.title}
-                          onChange={(e) => updateSection(section.id, "title", e.target.value)}
-                          placeholder="Section Title"
-                        />
-                      </div>
+                  <Input
+                    value={section.title}
+                    onChange={(e) => updateSection(section.id, "title", e.target.value)}
+                    placeholder="Section Title"
+                    className="text-sm h-8 font-medium"
+                  />
+                </div>
 
-                      {/* Content Blocks */}
-                      <div>
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm font-medium text-gray-700">Content Blocks</span>
-                          <div className="flex space-x-2">
-                            <Button
-                              onClick={() => addContentBlock(section.id, "text")}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Type className="w-4 h-4 mr-1" />
-                              Add Text
-                            </Button>
-                            <Button
-                              onClick={() => addContentBlock(section.id, "image")}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <ImageIcon className="w-4 h-4 mr-1" />
-                              Add Image
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          {section.contentBlocks.map((block) => (
-                            <ContentBlock
-                              key={block.id}
-                              block={block}
-                              onUpdate={(updates) => updateContentBlock(section.id, block.id, updates)}
-                              onRemove={() => removeContentBlock(section.id, block.id)}
+                {/* Section Content */}
+                {isExpanded && (
+                  <div className="p-3 space-y-3">
+                    {/* Quick Add Buttons */}
+                    <div className="flex gap-1 flex-wrap">
+                      <Button onClick={() => addContentBlock(section.id, "text")} variant="outline" size="sm" className="h-6 text-xs">
+                        <Type className="w-3 h-3 mr-1" />
+                        Text
+                      </Button>
+                      <Button onClick={() => addContentBlock(section.id, "image")} variant="outline" size="sm" className="h-6 text-xs">
+                        <ImageIcon className="w-3 h-3 mr-1" />
+                        Image
+                      </Button>
+                      <Button onClick={() => addContentBlock(section.id, "table")} variant="outline" size="sm" className="h-6 text-xs">
+                        <Table className="w-3 h-3 mr-1" />
+                        Table
+                      </Button>
+                      <Button onClick={() => addContentBlock(section.id, "equation")} variant="outline" size="sm" className="h-6 text-xs">
+                        <Calculator className="w-3 h-3 mr-1" />
+                        Equation
+                      </Button>
+                      <Button onClick={() => addSubsection(section.id)} variant="outline" size="sm" className="h-6 text-xs">
+                        <Plus className="w-3 h-3 mr-1" />
+                        Subsection
+                      </Button>
+                    </div>
+
+                    {/* Content Blocks */}
+                    <div className="space-y-2">
+                      {section.contentBlocks.map((block) => (
+                        <CompactContentBlock
+                          key={block.id}
+                          block={block}
+                          onUpdate={(updates) => updateContentBlock(section.id, block.id, updates)}
+                          onRemove={() => removeContentBlock(section.id, block.id)}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Subsections - Only show top-level ones (level 1 or no level) */}
+                    {section.subsections.length > 0 && (
+                      <div className="space-y-2">
+                        {section.subsections
+                          .filter(sub => !sub.level || sub.level === 1) // Only top-level subsections
+                          .map((subsection) => (
+                            <SubsectionComponent
+                              key={subsection.id}
+                              subsection={subsection}
+                              sectionIndex={index}
+                              sectionId={section.id}
+                              allSubsections={section.subsections}
+                              onUpdateSubsection={(subsectionId, field, value) => updateSubsection(section.id, subsectionId, field, value)}
+                              onRemoveSubsection={(subsectionId) => removeSubsection(section.id, subsectionId)}
+                              onAddSubsection={(parentId, level) => addSubsection(section.id, parentId, level)}
                             />
                           ))}
-                        </div>
                       </div>
-
-                      {/* Subsections */}
-                      <div>
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm font-medium text-gray-700">Subsections</span>
-                          <Button
-                            onClick={() => addSubsection(section.id)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add Subsection
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-2 ml-4">
-                          {section.subsections.map((subsection) => (
-                            <Card key={subsection.id} className="bg-white">
-                              <CardContent className="p-3">
-                                <div className="flex justify-between items-center mb-2">
-                                  <Input
-                                    placeholder="Subsection title"
-                                    value={subsection.title}
-                                    onChange={(e) => updateSubsection(section.id, subsection.id, "title", e.target.value)}
-                                    className="flex-1 mr-2"
-                                  />
-                                  <Button
-                                    onClick={() => removeSubsection(section.id, subsection.id)}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                                <Textarea
-                                  rows={3}
-                                  placeholder="Subsection content"
-                                  value={subsection.content}
-                                  onChange={(e) => updateSubsection(section.id, subsection.id, "content", e.target.value)}
-                                />
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Card>
+                    )}
+                  </div>
+                )}
+              </div>
             );
-          })
-        )}
-      </CardContent>
-    </Card>
+          })}
+        </div>
+      )}
+    </div>
   );
 }

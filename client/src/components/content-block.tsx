@@ -1,8 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { X, Type, Image as ImageIcon, Plus } from "lucide-react";
+import { X, Type, Image as ImageIcon, Plus, Table, Calculator } from "lucide-react";
 import FileUpload from "./file-upload";
 import RichTextEditor from "./rich-text-editor";
 import type { ContentBlock as ContentBlockType } from "@shared/schema";
@@ -27,10 +28,20 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 <Type className="w-3 h-3 mr-1" />
                 TEXT BLOCK
               </>
-            ) : (
+            ) : block.type === "image" ? (
               <>
                 <ImageIcon className="w-3 h-3 mr-1" />
                 IMAGE BLOCK
+              </>
+            ) : block.type === "table" ? (
+              <>
+                <Table className="w-3 h-3 mr-1" />
+                TABLE BLOCK
+              </>
+            ) : (
+              <>
+                <Calculator className="w-3 h-3 mr-1" />
+                EQUATION BLOCK
               </>
             )}
           </Badge>
@@ -163,7 +174,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
               </div>
             )}
           </div>
-        ) : (
+        ) : block.type === "image" ? (
           <div className="space-y-2">
             <FileUpload
               onFileSelect={(file, base64) => {
@@ -213,6 +224,139 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 </select>
               </>
             )}
+          </div>
+        ) : block.type === "table" ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Table Name
+              </label>
+              <Input
+                placeholder="Enter table name"
+                value={block.tableName || ""}
+                onChange={(e) => onUpdate({ tableName: e.target.value })}
+              />
+              <div className="text-xs text-gray-500">
+                Will appear as "Table 1: {block.tableName || 'Table Name'}"
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Table Image
+              </label>
+              <FileUpload
+                onFileSelect={(file, base64) => {
+                  onUpdate({ 
+                    imageId: `table_${Date.now()}`,
+                    data: base64.split(',')[1],
+                    fileName: file.name
+                  });
+                }}
+                onClear={() => {
+                  onUpdate({ 
+                    imageId: undefined,
+                    data: undefined,
+                    fileName: undefined
+                  });
+                }}
+                accept="image/*"
+                maxSize={10 * 1024 * 1024}
+                currentFile={block.imageId ? { 
+                  name: block.fileName || 'Table Image',
+                  preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
+                } : undefined}
+              />
+              {block.imageId && (
+                <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+                  ✅ Table image uploaded: {block.fileName || 'Table Image'}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Equation Content
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => onUpdate({ content: (block.content || "") + "\\frac{1}{2}" })}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Add Fraction
+                </Button>
+                <Button
+                  onClick={() => onUpdate({ content: (block.content || "") + "\\sqrt{x}" })}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Add Square Root
+                </Button>
+                <Button
+                  onClick={() => onUpdate({ content: (block.content || "") + "\\sum_{i=1}^{n}" })}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Add Summation
+                </Button>
+                <Button
+                  onClick={() => onUpdate({ content: (block.content || "") + "\\int_{a}^{b}" })}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Add Integral
+                </Button>
+              </div>
+              <Textarea
+                rows={3}
+                placeholder="Enter equation (LaTeX format) or upload an image"
+                value={block.content || ""}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+              />
+              <div className="text-xs text-gray-500">
+                Will be numbered as ({block.equationNumber || 0})
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Or Upload Equation Image
+              </label>
+              <FileUpload
+                onFileSelect={(file, base64) => {
+                  onUpdate({ 
+                    imageId: `eq_${Date.now()}`,
+                    data: base64.split(',')[1],
+                    fileName: file.name
+                  });
+                }}
+                onClear={() => {
+                  onUpdate({ 
+                    imageId: undefined,
+                    data: undefined,
+                    fileName: undefined
+                  });
+                }}
+                accept="image/*"
+                maxSize={10 * 1024 * 1024}
+                currentFile={block.imageId ? { 
+                  name: block.fileName || 'Equation Image',
+                  preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
+                } : undefined}
+              />
+              {block.imageId && (
+                <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+                  ✅ Equation image uploaded: {block.fileName || 'Equation Image'}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

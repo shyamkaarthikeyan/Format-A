@@ -208,88 +208,79 @@ export default function HomeClient() {
 
       <div className="relative z-10 p-6">
         <div className="max-w-8xl mx-auto">
-          {/* Header Section */}
-          <div className={`mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <div className="flex items-center gap-4 mb-6">
-              <Button
-                onClick={() => setLocation("/")}
-                variant="outline"
-                className="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400 transition-all duration-300"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
-              </Button>
-              
-              <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 text-sm text-purple-600 animate-pulse">
-                <span className="font-semibold">Format A</span>
+          {/* Compact Header */}
+          <div className={`mb-4 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <div className="flex items-center justify-between bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg border border-purple-200">
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={() => setLocation("/")}
+                  variant="ghost"
+                  size="sm"
+                  className="text-purple-600 hover:text-purple-700"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  Back
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-purple-600">Format A</span>
+                  <span className="text-sm text-gray-600">IEEE Document Engine</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={handleCreateDocument} 
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  New
+                </Button>
+                
+                {documents.length > 1 && (
+                  <select 
+                    value={currentDocument?.id || ""} 
+                    onChange={(e) => {
+                      const doc = documents.find(d => d.id === e.target.value);
+                      if (doc) setCurrentDocument(doc);
+                    }}
+                    className="px-3 py-1 text-sm border border-purple-200 rounded bg-white text-gray-700 focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
+                  >
+                    {documents.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.title || "Untitled Document"}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                
+                {currentDocument && (
+                  <Button 
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteDocument(currentDocument.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
-
-            <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600 font-serif mb-3">
-              Academic IEEE Document Engine
-            </h1>
-            <p className="text-lg text-gray-700 max-w-2xl">
-              Create professional IEEE-formatted research papers with intelligent formatting and real-time preview
-            </p>
           </div>
 
-          {/* Document Management */}
-          <div className={`mb-8 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
-            <Card className="bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex flex-wrap gap-4 items-center">
-                  <Button 
-                    onClick={handleCreateDocument} 
-                    className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Document
-                  </Button>
-                  
-                  {documents.length > 1 && (
-                    <select 
-                      value={currentDocument?.id || ""} 
-                      onChange={(e) => {
-                        const doc = documents.find(d => d.id === e.target.value);
-                        if (doc) setCurrentDocument(doc);
-                      }}
-                      className="px-4 py-2 border-2 border-purple-200 rounded-lg bg-white/80 backdrop-blur-sm text-gray-700 font-medium focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all duration-300"
-                    >
-                      {documents.map(doc => (
-                        <option key={doc.id} value={doc.id}>
-                          {doc.title || "Untitled Document"}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  
-                  {currentDocument && (
-                    <Button 
-                      variant="outline"
-                      onClick={() => handleDeleteDocument(currentDocument.id)}
-                      className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-all duration-300"
-                    >
-                      Delete Current
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex gap-6 min-h-screen">
-            {/* Left Column - Forms (scrollable) */}
-            <div className="w-[55%] space-y-6 overflow-y-auto pr-6 border-2 border-purple-400 rounded-lg p-8 bg-white/50 backdrop-blur-sm shadow-xl" style={{ maxHeight: "calc(100vh - 200px)" }}>
-              {/* Document Info */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-violet-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-6 pt-8 px-8">
-                  <CardTitle className="flex items-center gap-3 text-gray-900 group-hover:text-purple-800 transition-colors duration-300 text-xl">
-                    <FileText className="w-6 h-6 text-purple-600" />
-                    Document Information
+          <div className="flex gap-4 h-[calc(100vh-120px)]">
+            {/* Left Column - Forms (50% width, scrollable) */}
+            <div className="w-[50%] space-y-4 overflow-y-auto pr-4 bg-white/70 backdrop-blur-sm rounded-lg p-5 shadow-lg border border-purple-200">
+              {/* Document Info - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <FileText className="w-4 h-4 text-purple-600" />
+                    Document
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-8 pb-8">
+                <CardContent className="px-4 pb-3">
                   <DocumentForm 
                     document={documentToDisplay} 
                     onUpdate={handleUpdateDocument} 
@@ -297,16 +288,15 @@ export default function HomeClient() {
                 </CardContent>
               </Card>
 
-              {/* Authors */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
-                    <Users className="w-5 h-5 text-fuchsia-600" />
+              {/* Authors - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <Users className="w-4 h-4 text-fuchsia-600" />
                     Authors
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-3">
                   <AuthorForm 
                     authors={documentToDisplay.authors} 
                     onUpdate={(authors) => handleUpdateDocument({ authors })} 
@@ -314,16 +304,15 @@ export default function HomeClient() {
                 </CardContent>
               </Card>
 
-              {/* Sections */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
-                    <BookOpen className="w-5 h-5 text-violet-600" />
+              {/* Sections - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <BookOpen className="w-4 h-4 text-violet-600" />
                     Sections
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-3">
                   <SectionForm 
                     sections={documentToDisplay.sections} 
                     onUpdate={(sections) => handleUpdateDocument({ sections })} 
@@ -331,16 +320,15 @@ export default function HomeClient() {
                 </CardContent>
               </Card>
 
-              {/* References */}
-              <Card className="group bg-white/80 backdrop-blur-sm border-2 border-purple-300 shadow-lg hover:shadow-xl hover:border-purple-400 transition-all duration-500 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 group-hover:text-purple-800 transition-colors duration-300">
-                    <Link className="w-5 h-5 text-pink-600" />
+              {/* References - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <Link className="w-4 h-4 text-pink-600" />
                     References
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-3">
                   <ReferenceForm 
                     references={documentToDisplay.references} 
                     onUpdate={(references) => handleUpdateDocument({ references })} 
@@ -349,21 +337,19 @@ export default function HomeClient() {
               </Card>
             </div>
 
-            {/* Right Column - Preview (fixed/sticky) */}
-            <div className="w-[45%] sticky top-6 h-fit">
-              <div className={`transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
-                <Card className="h-[calc(100vh-180px)] bg-white/90 backdrop-blur-sm border-4 border-purple-500 shadow-2xl rounded-lg">
-                  <CardHeader className="pb-4 border-b-2 border-purple-200">
-                    <CardTitle className="flex items-center gap-2 text-gray-900">
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                      Live Preview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[calc(100%-80px)] overflow-hidden p-0">
-                    <DocumentPreview document={documentToDisplay} documentId={currentDocument?.id || null} />
-                  </CardContent>
-                </Card>
-              </div>
+            {/* Right Column - Preview (50% width) */}
+            <div className="w-[50%] h-full">
+              <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-white/80">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    Live Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
+                  <DocumentPreview document={documentToDisplay} documentId={currentDocument?.id || null} />
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

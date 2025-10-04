@@ -415,6 +415,95 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
             if caption.runs:
                 caption.runs[0].font.name = IEEE_CONFIG['font_name']
                 caption.runs[0].font.size = IEEE_CONFIG['font_size_caption']
+                
+        elif block.get('type') == 'table' and block.get('data') and block.get('tableName'):
+            # Generate table number based on section and table position
+            table_count = sum(1 for b in section_data.get('contentBlocks', [])[:block_idx+1] if b.get('type') == 'table')
+            
+            # Add table title above the table
+            table_title = doc.add_paragraph(f"Table {section_idx}.{table_count}: {block['tableName']}")
+            table_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            table_title.paragraph_format.space_before = Pt(12)
+            table_title.paragraph_format.space_after = Pt(6)
+            if table_title.runs:
+                table_title.runs[0].font.name = IEEE_CONFIG['font_name']
+                table_title.runs[0].font.size = IEEE_CONFIG['font_size_caption']
+                table_title.runs[0].font.bold = True
+            
+            # Add table image
+            try:
+                image_data = base64.b64decode(block['data'])
+                image_stream = BytesIO(image_data)
+                
+                para = doc.add_paragraph()
+                run = para.add_run()
+                # Tables typically use medium size
+                width = IEEE_CONFIG['figure_sizes'].get('medium', IEEE_CONFIG['figure_sizes']['medium'])
+                picture = run.add_picture(image_stream, width=width)
+                if picture.height > IEEE_CONFIG['max_figure_height']:
+                    scale_factor = IEEE_CONFIG['max_figure_height'] / picture.height
+                    run.clear()
+                    run.add_picture(image_stream, width=width * scale_factor, height=IEEE_CONFIG['max_figure_height'])
+                
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                para.paragraph_format.space_before = Pt(0)
+                para.paragraph_format.space_after = Pt(12)
+            except Exception as e:
+                print(f"Error processing table image: {e}", file=sys.stderr)
+                
+        elif block.get('type') == 'equation':
+            # Generate equation number
+            eq_count = sum(1 for b in section_data.get('contentBlocks', [])[:block_idx+1] if b.get('type') == 'equation')
+            
+            if block.get('data'):
+                # Handle equation as image
+                try:
+                    image_data = base64.b64decode(block['data'])
+                    image_stream = BytesIO(image_data)
+                    
+                    para = doc.add_paragraph()
+                    run = para.add_run()
+                    # Equations typically use small size
+                    width = IEEE_CONFIG['figure_sizes'].get('small', IEEE_CONFIG['figure_sizes']['small'])
+                    picture = run.add_picture(image_stream, width=width)
+                    if picture.height > IEEE_CONFIG['max_figure_height']:
+                        scale_factor = IEEE_CONFIG['max_figure_height'] / picture.height
+                        run.clear()
+                        run.add_picture(image_stream, width=width * scale_factor, height=IEEE_CONFIG['max_figure_height'])
+                    
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    para.paragraph_format.space_before = Pt(6)
+                    para.paragraph_format.space_after = Pt(6)
+                    
+                    # Add equation number on the right
+                    eq_num_para = doc.add_paragraph(f"({eq_count - 1})")
+                    eq_num_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    eq_num_para.paragraph_format.space_before = Pt(0)
+                    eq_num_para.paragraph_format.space_after = Pt(12)
+                    if eq_num_para.runs:
+                        eq_num_para.runs[0].font.name = IEEE_CONFIG['font_name']
+                        eq_num_para.runs[0].font.size = IEEE_CONFIG['font_size_body']
+                except Exception as e:
+                    print(f"Error processing equation image: {e}", file=sys.stderr)
+            elif block.get('content'):
+                # Handle equation as text (LaTeX)
+                para = doc.add_paragraph()
+                run = para.add_run(block['content'])
+                run.font.name = IEEE_CONFIG['font_name']
+                run.font.size = IEEE_CONFIG['font_size_body']
+                run.font.italic = True  # Math equations are typically italic
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                para.paragraph_format.space_before = Pt(6)
+                para.paragraph_format.space_after = Pt(6)
+                
+                # Add equation number on the right
+                eq_num_para = doc.add_paragraph(f"({eq_count - 1})")
+                eq_num_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                eq_num_para.paragraph_format.space_before = Pt(0)
+                eq_num_para.paragraph_format.space_after = Pt(12)
+                if eq_num_para.runs:
+                    eq_num_para.runs[0].font.name = IEEE_CONFIG['font_name']
+                    eq_num_para.runs[0].font.size = IEEE_CONFIG['font_size_body']
 
     # Handle subsections
     for sub_idx, subsection in enumerate(section_data.get('subsections', []), 1):
