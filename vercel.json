@@ -6,11 +6,21 @@
   "framework": "vite",
   "functions": {
     "server/index.ts": {
-      "runtime": "nodejs18.x"
+      "runtime": "@vercel/node@3.0.7"
     }
   },
   "env": {
     "PYTHON_PATH": "/usr/bin/python3",
     "SKIP_DOCX2PDF": "true"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/server/index.ts"
+    },
+    {
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
