@@ -69,16 +69,15 @@ def create_ieee_pdf(form_data):
             fontName='Times-Italic'
         )
         
-        # IEEE Abstract style
+        # IEEE Abstract style - full width like Word documents
         ieee_abstract = ParagraphStyle(
             'IEEEAbstract',
             parent=styles['Normal'],
             fontSize=9.5,
             spaceAfter=12*pt,
             alignment=TA_JUSTIFY,
-            fontName='Times-Roman',
-            leftIndent=0.2*inch,
-            rightIndent=0.2*inch
+            fontName='Times-Roman'
+            # No indents - full width formatting like Word
         )
         
         # IEEE Body text style

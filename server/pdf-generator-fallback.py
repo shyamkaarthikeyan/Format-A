@@ -100,16 +100,15 @@ def generate_reportlab_pdf(document_data):
             fontName='Times-Roman'
         )
         
-        # IEEE Abstract style
+        # IEEE Abstract style - full width like Word documents
         ieee_abstract = ParagraphStyle(
             'IEEEAbstract',
             parent=styles['Normal'],
             fontSize=10,
             spaceAfter=12,
             alignment=TA_JUSTIFY,
-            fontName='Times-Roman',
-            leftIndent=0.5*inch,
-            rightIndent=0.5*inch
+            fontName='Times-Roman'
+            # No indents - full width formatting like Word
         )
         
         # IEEE Body style
