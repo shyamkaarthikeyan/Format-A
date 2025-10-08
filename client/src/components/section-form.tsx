@@ -1,14 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, ChevronDown, ChevronRight, Type, Image as ImageIcon, Table, Calculator, Upload } from "lucide-react";
 import type { Section, ContentBlock as ContentBlockType, Subsection } from "@shared/schema";
 
-// Helper function to build subsection hierarchy
-const buildSubsectionHierarchy = (subsections: Subsection[]): Subsection[] => {
-  return subsections.sort((a, b) => a.order - b.order);
-};
+
 
 // Helper function to get subsection numbering
 const getSubsectionNumber = (subsection: Subsection, sectionIndex: number, allSubsections: Subsection[]): string => {
@@ -81,12 +78,37 @@ const CompactContentBlock = ({
             className="text-xs h-7"
           />
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs">
+            <Button 
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      const base64 = e.target?.result as string;
+                      onUpdate({ 
+                        imageId: `img_${Date.now()}`,
+                        data: base64.split(',')[1],
+                        fileName: file.name
+                      });
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                };
+                input.click();
+              }}
+              variant="outline" 
+              size="sm" 
+              className="h-7 text-xs"
+            >
               <Upload className="w-3 h-3 mr-1" />
               Upload
             </Button>
             <span className="text-xs text-gray-500">
-              {block.data ? "✓ Uploaded" : "No image"}
+              {block.imageId ? `✅ ${block.fileName || 'Image uploaded'}` : "No image"}
             </span>
           </div>
         </div>
@@ -103,12 +125,51 @@ const CompactContentBlock = ({
             <Trash2 className="w-3 h-3" />
           </Button>
         </div>
-        <Input
-          value={block.tableName || ""}
-          onChange={(e) => onUpdate({ tableName: e.target.value })}
-          placeholder="Table name"
-          className="text-xs h-7"
-        />
+        <div className="space-y-2">
+          <Input
+            value={block.tableName || ""}
+            onChange={(e) => onUpdate({ tableName: e.target.value })}
+            placeholder="Table name"
+            className="text-xs h-7"
+          />
+          <div className="text-xs text-gray-400">
+            Will appear as "Table 1: {block.tableName || 'Table Name'}"
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      const base64 = e.target?.result as string;
+                      onUpdate({ 
+                        imageId: `table_${Date.now()}`,
+                        data: base64.split(',')[1],
+                        fileName: file.name
+                      });
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                };
+                input.click();
+              }}
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs"
+            >
+              <Upload className="w-3 h-3 mr-1" />
+              Upload Image
+            </Button>
+            {block.imageId && (
+              <span className="text-xs text-green-600">✅ {block.fileName || 'Image uploaded'}</span>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -122,12 +183,56 @@ const CompactContentBlock = ({
             <Trash2 className="w-3 h-3" />
           </Button>
         </div>
-        <Input
-          value={block.content || ""}
-          onChange={(e) => onUpdate({ content: e.target.value })}
-          placeholder="LaTeX equation"
-          className="text-xs h-7 font-mono"
-        />
+        <div className="space-y-2">
+          <div className="text-xs text-gray-400">
+            Enter LaTeX equation OR upload equation image:
+          </div>
+          <Input
+            value={block.content || ""}
+            onChange={(e) => onUpdate({ content: e.target.value })}
+            placeholder="LaTeX equation (e.g., E = mc^2 or \frac{a}{b})"
+            className="text-xs h-7 font-mono"
+          />
+          <div className="text-xs text-gray-400 text-center">OR</div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      const base64 = e.target?.result as string;
+                      onUpdate({ 
+                        imageId: `eq_${Date.now()}`,
+                        data: base64.split(',')[1],
+                        fileName: file.name,
+                        content: "" // Clear text when image is uploaded
+                      });
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                };
+                input.click();
+              }}
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs"
+            >
+              <Upload className="w-3 h-3 mr-1" />
+              Upload Equation Image
+            </Button>
+            {block.imageId && (
+              <span className="text-xs text-green-600">✅ {block.fileName || 'Equation image uploaded'}</span>
+            )}
+          </div>
+          <div className="text-xs text-gray-400">
+            Will be numbered as (1), (2), etc.
+          </div>
+        </div>
       </div>
     );
   }
@@ -237,7 +342,16 @@ const SubsectionComponent = ({
 };
 
 export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  // Always keep all sections expanded - start with all sections expanded immediately
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => {
+    return new Set(sections.map(s => s.id));
+  });
+  
+  // Ensure all sections are always expanded when sections change
+  useEffect(() => {
+    const allSectionIds = sections.map(s => s.id);
+    setExpandedSections(new Set(allSectionIds));
+  }, [sections]);
 
   const addSection = () => {
     const newSection: Section = {
@@ -343,12 +457,12 @@ export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(sectionId)) {
-      newExpanded.delete(sectionId);
-    } else {
+    // Only expand sections, never collapse them once expanded
+    if (!newExpanded.has(sectionId)) {
       newExpanded.add(sectionId);
+      setExpandedSections(newExpanded);
     }
-    setExpandedSections(newExpanded);
+    // If already expanded, do nothing (stay expanded)
   };
 
   return (
@@ -370,7 +484,7 @@ export default function SectionForm({ sections, onUpdate }: SectionFormProps) {
       ) : (
         <div className="space-y-3">
           {sections.map((section, index) => {
-            const isExpanded = expandedSections.has(section.id);
+            const isExpanded = true; // Always show sections as expanded
             return (
               <div key={section.id} className="border border-gray-200 rounded bg-white">
                 {/* Section Header */}

@@ -432,11 +432,25 @@ function improveWordChoice(content: string): string {
 
 function generalImprovement(sections: any[], feedback?: string, specificRequests?: string[]): any[] {
   return sections.map(section => {
+    // Process section content if it exists (legacy format)
     if (section.content) {
-      // Apply general improvements
       section.content = improveGrammarAndStyle(section.content);
       section.content = improveTechnicalTerminology(section.content);
     }
+    
+    // Process content blocks, but skip equations to preserve LaTeX formatting
+    if (section.contentBlocks && Array.isArray(section.contentBlocks)) {
+      section.contentBlocks = section.contentBlocks.map((block: any) => {
+        if (block.type === 'text' && block.content) {
+          // Only apply improvements to text blocks, not equations
+          block.content = improveGrammarAndStyle(block.content);
+          block.content = improveTechnicalTerminology(block.content);
+        }
+        // Skip processing for equation, image, and table blocks to preserve their content
+        return block;
+      });
+    }
+    
     return section;
   });
 }

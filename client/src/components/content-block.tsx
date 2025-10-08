@@ -278,8 +278,11 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
           <div className="space-y-3">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Equation Content
+                Equation Content (LaTeX Format)
               </label>
+              <div className="text-xs text-gray-500 mb-2">
+                You can copy and paste equations from any source. Common LaTeX symbols: \frac{a}{b}, \sqrt{x}, \sum, \int, \alpha, \beta, etc.
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   onClick={() => onUpdate({ content: (block.content || "") + "\\frac{1}{2}" })}
@@ -315,13 +318,19 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 </Button>
               </div>
               <Textarea
-                rows={3}
-                placeholder="Enter equation (LaTeX format) or upload an image"
+                rows={4}
+                placeholder="Paste or type your equation here (LaTeX format). Example: E = mc^2 or \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
                 value={block.content || ""}
-                onChange={(e) => onUpdate({ content: e.target.value })}
+                onChange={(e) => {
+                  // Preserve the original content without any transformations
+                  const rawContent = e.target.value;
+                  onUpdate({ content: rawContent });
+                }}
+                className="font-mono text-sm"
+                style={{ fontFamily: 'monospace' }}
               />
               <div className="text-xs text-gray-500">
-                Will be numbered as ({block.equationNumber || 0})
+                Will be numbered as ({block.equationNumber || 0}). Supports standard LaTeX syntax.
               </div>
             </div>
             
