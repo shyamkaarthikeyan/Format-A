@@ -657,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Word to PDF conversion route
+  // Word to PDF conversion route with hosting platform compatibility
   app.post('/api/generate/docx-to-pdf', async (req, res) => {
     try {
       console.log('=== Word to PDF Conversion Debug Info ===');
@@ -789,14 +789,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               if (pdfCode !== 0) {
                 console.error('PDF conversion error:', pdfErrorOutput);
-                return res.status(500).json({ 
-                  error: 'Failed to convert DOCX to PDF', 
-                  details: pdfErrorOutput,
-                  pythonExitCode: pdfCode,
-                  scriptPath: pdfConverterPath,
-                  workingDirectory: __dirname,
-                  suggestion: 'Check docx2pdf installation and PDF converter dependencies'
-                });
+                console.log('🔄 DOCX-to-PDF failed, falling back to ReportLab direct PDF generation...');
+                
+                // Fallback to ReportLab direct PDF generation
+                try {
+                  const reportLabScriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
+                  console.log('Using ReportLab fallback script:', reportLabScriptPath);
+                  
+                  const fallbackPython = spawn(getPythonCommand(), [reportLabScriptPath], {
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    cwd: __dirname
+                  });
+                  
+                  // Send the original document data to ReportLab generator
+                  fallbackPython.stdin.write(JSON.stringify(documentData));
+                  fallbackPython.stdin.end();
+                  
+                  let fallbackBuffer = Buffer.alloc(0);
+                  let fallbackError = '';
+                  
+                  fallbackPython.stdout.on('data', (data: Buffer) => {
+                    fallbackBuffer = Buffer.concat([fallbackBuffer, data]);
+                  });
+                  
+                  fallbackPython.stderr.on('data', (data: Buffer) => {
+                    fallbackError += data.toString();
+                  });
+                  
+                  fallbackPython.on('close', (fallbackCode: number) => {
+                    if (fallbackCode === 0 && fallbackBuffer.length > 0) {
+                      console.log('✅ ReportLab fallback successful, PDF size:', fallbackBuffer.length);
+                      res.setHeader('Content-Type', 'application/pdf');
+                      res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                      res.send(fallbackBuffer);
+                    } else {
+                      console.error('ReportLab fallback also failed:', fallbackError);
+                      res.status(500).json({ 
+                        error: 'Both DOCX-to-PDF and ReportLab PDF generation failed', 
+                        docx2pdfError: pdfErrorOutput,
+                        reportlabError: fallbackError,
+                        suggestion: 'PDF generation is not available on this hosting platform'
+                      });
+                    }
+                  });
+                  
+                  return; // Exit early since we're handling the response in the fallback
+                  
+                } catch (fallbackError) {
+                  console.error('Fallback to ReportLab failed:', fallbackError);
+                  return res.status(500).json({ 
+                    error: 'Failed to convert DOCX to PDF and fallback failed', 
+                    details: pdfErrorOutput,
+                    fallbackError: (fallbackError as Error).message,
+                    pythonExitCode: pdfCode,
+                    scriptPath: pdfConverterPath,
+                    workingDirectory: __dirname,
+                    suggestion: 'Check docx2pdf installation and ReportLab dependencies'
+                  });
+                }
               }
               
               // Check if PDF file was created and read it

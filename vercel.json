@@ -3,5 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": "vite"
+  "framework": "vite",
+  "functions": {
+    "server/index.ts": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "env": {
+    "PYTHON_PATH": "/usr/bin/python3",
+    "SKIP_DOCX2PDF": "true"
+  }
 }
