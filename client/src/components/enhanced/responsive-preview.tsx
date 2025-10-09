@@ -95,10 +95,10 @@ export const ResponsivePreview = withPerformanceOptimization<ResponsivePreviewPr
 
     const toggleFullscreen = useCallback(() => {
       if (!isFullscreen && containerRef.current) {
-        containerRef.current.requestFullscreen?.();
+        (containerRef.current as any).requestFullscreen?.();
         setIsFullscreen(true);
-      } else if (document.fullscreenElement) {
-        document.exitFullscreen?.();
+      } else if ((document as any).fullscreenElement) {
+        (document as any).exitFullscreen?.();
         setIsFullscreen(false);
       }
     }, [isFullscreen]);
@@ -106,7 +106,7 @@ export const ResponsivePreview = withPerformanceOptimization<ResponsivePreviewPr
     // Handle fullscreen change
     useEffect(() => {
       const handleFullscreenChange = () => {
-        setIsFullscreen(!!document.fullscreenElement);
+        setIsFullscreen(!!(document as any).fullscreenElement);
       };
 
       document.addEventListener('fullscreenchange', handleFullscreenChange);

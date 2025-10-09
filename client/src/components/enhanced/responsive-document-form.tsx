@@ -54,7 +54,7 @@ const ResponsiveSectionComponent = withPerformanceOptimization<{
           <div className="flex items-center justify-between mb-4">
             <ResponsiveInput
               value={section.title || ''}
-              onChange={(e) => handleTitleChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTitleChange(e.target.value)}
               placeholder={`Section ${index + 1} Title`}
               className={cn(
                 'border-none bg-transparent font-semibold flex-1 mr-2',
@@ -80,7 +80,7 @@ const ResponsiveSectionComponent = withPerformanceOptimization<{
                 </div>
                 <ResponsiveTextarea
                   value={block.content || ''}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                     const newBlocks = [...(section.contentBlocks || [])];
                     newBlocks[blockIndex] = { ...block, content: e.target.value };
                     handleContentChange(newBlocks);
@@ -204,7 +204,7 @@ export const ResponsiveDocumentForm = withPerformanceOptimization<ResponsiveDocu
               </label>
               <ResponsiveInput
                 value={documentMetadata.title || ''}
-                onChange={(e) => handleTitleChange(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTitleChange(e.target.value)}
                 placeholder="Enter document title..."
                 className="w-full"
               />
@@ -219,7 +219,7 @@ export const ResponsiveDocumentForm = withPerformanceOptimization<ResponsiveDocu
               </label>
               <ResponsiveTextarea
                 value={documentMetadata.abstract || ''}
-                onChange={(e) => handleAbstractChange(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleAbstractChange(e.target.value)}
                 placeholder="Enter abstract..."
                 rows={isMobile ? 3 : 4}
                 autoResize={true}
@@ -235,7 +235,7 @@ export const ResponsiveDocumentForm = withPerformanceOptimization<ResponsiveDocu
               </label>
               <ResponsiveInput
                 value={documentMetadata.keywords || ''}
-                onChange={(e) => handleKeywordsChange(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleKeywordsChange(e.target.value)}
                 placeholder="Enter keywords separated by commas..."
                 className="w-full"
               />

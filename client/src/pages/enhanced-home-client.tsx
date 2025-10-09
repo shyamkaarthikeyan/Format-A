@@ -108,7 +108,7 @@ const EnhancedHomeClientInner = React.memo(() => {
       title: "Document Created",
       description: "New IEEE document ready for editing."
     });
-  };
+  }, [documents.length, toast]);
 
   const handleUpdateDocument = (updates: UpdateDocument) => {
     if (!currentDocument) return;
@@ -324,4 +324,4 @@ const EnhancedHomeClientInner = React.memo(() => {
       <PerformanceMonitor enabled={process.env.NODE_ENV === 'development'} />
     </div>
   );
-}
+});
