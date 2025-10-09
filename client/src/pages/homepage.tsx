@@ -574,7 +574,7 @@ export default function Homepage() {
       </footer>
 
       {/* Enhanced Custom Styles */}
-      <style jsx>{`
+      <style>{`
         .bg-grid-pattern {
           background-image: 
             linear-gradient(rgba(147, 51, 234, 0.05) 1px, transparent 1px),
