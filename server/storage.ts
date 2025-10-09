@@ -1,15 +1,27 @@
-import { documents, type Document, type InsertDocument, type UpdateDocument } from "@shared/schema";
+import { type Document, type InsertDocument, type UpdateDocument } from "@shared/schema";
+
+// Extended document interface for server-side storage
+interface ServerDocument extends Document {
+  createdAt?: string;
+  updatedAt?: string;
+  receivedDate?: string | null;
+  revisedDate?: string | null;
+  acceptedDate?: string | null;
+  funding?: string | null;
+  acknowledgments?: string | null;
+  doi?: string | null;
+}
 
 export interface IStorage {
-  getDocument(id: number): Promise<Document | undefined>;
-  getAllDocuments(): Promise<Document[]>;
-  createDocument(document: InsertDocument): Promise<Document>;
-  updateDocument(id: number, document: UpdateDocument): Promise<Document | undefined>;
-  deleteDocument(id: number): Promise<boolean>;
+  getDocument(id: string): Promise<ServerDocument | undefined>;
+  getAllDocuments(): Promise<ServerDocument[]>;
+  createDocument(document: InsertDocument): Promise<ServerDocument>;
+  updateDocument(id: string, document: UpdateDocument): Promise<ServerDocument | undefined>;
+  deleteDocument(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
-  private documents: Map<number, Document>;
+  private documents: Map<string, ServerDocument>;
   private currentId: number;
 
   constructor() {
@@ -17,30 +29,24 @@ export class MemStorage implements IStorage {
     this.currentId = 1;
   }
 
-  async getDocument(id: number): Promise<Document | undefined> {
+  async getDocument(id: string): Promise<ServerDocument | undefined> {
     return this.documents.get(id);
   }
 
-  async getAllDocuments(): Promise<Document[]> {
+  async getAllDocuments(): Promise<ServerDocument[]> {
     return Array.from(this.documents.values()).sort((a, b) => 
       new Date(b.updatedAt || new Date()).getTime() - new Date(a.updatedAt || new Date()).getTime()
     );
   }
 
-  async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const id = this.currentId++;
+  async createDocument(insertDocument: InsertDocument): Promise<ServerDocument> {
+    const id = `doc_${this.currentId++}`;
     const now = new Date().toISOString();
-    const document: Document = { 
+    const document: ServerDocument = { 
       id,
       title: insertDocument.title || "",
       abstract: insertDocument.abstract || null,
       keywords: insertDocument.keywords || null,
-      receivedDate: insertDocument.receivedDate || null,
-      revisedDate: insertDocument.revisedDate || null,
-      acceptedDate: insertDocument.acceptedDate || null,
-      funding: insertDocument.funding || null,
-      acknowledgments: insertDocument.acknowledgments || null,
-      doi: null,
       authors: insertDocument.authors || [],
       sections: insertDocument.sections || [],
       references: insertDocument.references || [],
@@ -52,18 +58,25 @@ export class MemStorage implements IStorage {
         includePageNumbers: true,
         includeCopyright: true
       },
+      // Server-specific fields
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      receivedDate: null,
+      revisedDate: null,
+      acceptedDate: null,
+      funding: null,
+      acknowledgments: null,
+      doi: null
     };
     this.documents.set(id, document);
     return document;
   }
 
-  async updateDocument(id: number, updateDocument: UpdateDocument): Promise<Document | undefined> {
+  async updateDocument(id: string, updateDocument: UpdateDocument): Promise<ServerDocument | undefined> {
     const existing = this.documents.get(id);
     if (!existing) return undefined;
 
-    const updated: Document = {
+    const updated: ServerDocument = {
       ...existing,
       ...updateDocument,
       updatedAt: new Date().toISOString()
@@ -72,7 +85,7 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteDocument(id: number): Promise<boolean> {
+  async deleteDocument(id: string): Promise<boolean> {
     return this.documents.delete(id);
   }
 }

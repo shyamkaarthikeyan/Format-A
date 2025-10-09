@@ -1050,7 +1050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get single document
   app.get("/api/documents/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const document = await storage.getDocument(id);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1075,7 +1075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update document
   app.patch("/api/documents/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       console.log("PATCH request body:", JSON.stringify(req.body, null, 2));
       const validatedData = updateDocumentSchema.parse(req.body);
       const document = await storage.updateDocument(id, validatedData);
@@ -1095,7 +1095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete document
   app.delete("/api/documents/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const deleted = await storage.deleteDocument(id);
       if (!deleted) {
         return res.status(404).json({ message: "Document not found" });
@@ -1109,7 +1109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload figure
   app.post("/api/documents/:id/figures", upload.single("figure"), async (req, res) => {
     try {
-      const documentId = parseInt(req.params.id);
+      const documentId = req.params.id;
       const document = await storage.getDocument(documentId);
       
       if (!document) {
@@ -1146,7 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate DOCX
   app.post("/api/documents/:id/generate/docx", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const document = await storage.getDocument(id);
       
       if (!document) {
@@ -1168,7 +1168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate LaTeX
   app.post("/api/documents/:id/generate/latex", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const document = await storage.getDocument(id);
       
       if (!document) {
@@ -1398,7 +1398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document iteration and improvement routes
   app.post('/api/documents/:id/iterate', async (req, res) => {
     try {
-      const documentId = parseInt(req.params.id);
+      const documentId = req.params.id;
       const { iterationType, feedback, specificRequests } = req.body;
       
       // Get the existing document
@@ -1448,7 +1448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get iteration history for a document
   app.get('/api/documents/:id/iterations', async (req, res) => {
     try {
-      const documentId = parseInt(req.params.id);
+      const documentId = req.params.id;
       const document = await storage.getDocument(documentId);
       
       if (!document) {
@@ -1482,7 +1482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get improvement suggestions for a document
   app.get('/api/documents/:id/suggestions', async (req, res) => {
     try {
-      const documentId = parseInt(req.params.id);
+      const documentId = req.params.id;
       const document = await storage.getDocument(documentId);
       
       if (!document) {
