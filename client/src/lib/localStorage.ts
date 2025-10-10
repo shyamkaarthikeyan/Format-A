@@ -1,4 +1,4 @@
-import type { Document, InsertDocument, UpdateDocument } from '../../../shared/schema-fixed.js';
+import type { Document, InsertDocument, UpdateDocument } from '@shared/schema';
 
 const STORAGE_KEY = 'ieee_documents';
 

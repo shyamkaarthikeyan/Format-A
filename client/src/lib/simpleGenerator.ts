@@ -1,4 +1,4 @@
-import type { Document } from '../../../shared/schema-client.js';
+import type { Document, Author, Section, ContentBlock, Subsection, Reference } from '@shared/schema';
 
 export interface GenerationResult {
   success: boolean;
@@ -34,7 +34,7 @@ export async function generateSimpleDocx(document: Document): Promise<Generation
     
     ${document.authors.length > 0 ? `
     <div class="authors">
-        ${document.authors.map(author => 
+        ${document.authors.map((author: Author) => 
             `${author.name}${author.department ? `, ${author.department}` : ''}${author.organization ? `, ${author.organization}` : ''}`
         ).join('<br>')}
     </div>
@@ -53,14 +53,14 @@ export async function generateSimpleDocx(document: Document): Promise<Generation
     </div>
     ` : ''}
     
-    ${document.sections.map((section, index) => `
+    ${document.sections.map((section: Section, index: number) => `
     <div class="section">
         <div class="section-title">${index + 1}. ${section.title.toUpperCase()}</div>
-        ${section.contentBlocks.map(block => 
+        ${section.contentBlocks.map((block: ContentBlock) => 
             block.type === 'text' && block.content ? 
             `<div class="content">${block.content}</div>` : ''
         ).join('')}
-        ${section.subsections.map(subsection => `
+        ${section.subsections.map((subsection: Subsection) => `
             <div class="section-title">${index + 1}.${subsection.order + 1} ${subsection.title}</div>
             <div class="content">${subsection.content}</div>
         `).join('')}
@@ -70,7 +70,7 @@ export async function generateSimpleDocx(document: Document): Promise<Generation
     ${document.references.length > 0 ? `
     <div class="references">
         <div class="section-title">REFERENCES</div>
-        ${document.references.map((ref, index) => `
+        ${document.references.map((ref: Reference, index: number) => `
         <div class="reference">[${index + 1}] ${ref.text}</div>
         `).join('')}
     </div>
@@ -116,7 +116,7 @@ export async function generateSimplePdf(document: Document): Promise<GenerationR
     if (document.authors.length > 0) {
       doc.setFontSize(12);
       doc.setFont('times', 'italic');
-      document.authors.forEach(author => {
+      document.authors.forEach((author: Author) => {
         const authorText = `${author.name}${author.department ? `, ${author.department}` : ''}${author.organization ? `, ${author.organization}` : ''}`;
         doc.text(authorText, doc.internal.pageSize.width / 2, yPos, { align: 'center' });
         yPos += lineHeight;
@@ -154,7 +154,7 @@ export async function generateSimplePdf(document: Document): Promise<GenerationR
     }
     
     // Sections
-    document.sections.forEach((section, index) => {
+    document.sections.forEach((section: Section, index: number) => {
       if (yPos > pageHeight - 40) {
         doc.addPage();
         yPos = 20;
@@ -165,7 +165,7 @@ export async function generateSimplePdf(document: Document): Promise<GenerationR
       doc.text(`${index + 1}. ${section.title.toUpperCase()}`, 20, yPos);
       yPos += lineHeight * 1.5;
       
-      section.contentBlocks.forEach(block => {
+      section.contentBlocks.forEach((block: ContentBlock) => {
         if (block.type === 'text' && block.content) {
           doc.setFontSize(11);
           doc.setFont('times', 'normal');
@@ -182,7 +182,7 @@ export async function generateSimplePdf(document: Document): Promise<GenerationR
         }
       });
       
-      section.subsections.forEach((subsection, subIndex) => {
+      section.subsections.forEach((subsection: Subsection, subIndex: number) => {
         if (yPos > pageHeight - 30) {
           doc.addPage();
           yPos = 20;
@@ -219,7 +219,7 @@ export async function generateSimplePdf(document: Document): Promise<GenerationR
       doc.text('REFERENCES', 20, yPos);
       yPos += lineHeight * 1.5;
       
-      document.references.forEach((ref, index) => {
+      document.references.forEach((ref: Reference, index: number) => {
         if (yPos > pageHeight - 20) {
           doc.addPage();
           yPos = 20;
