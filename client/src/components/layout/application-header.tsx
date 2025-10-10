@@ -174,8 +174,8 @@ export default function ApplicationHeader({
             <div className="flex-1 min-w-0">
               <BreadcrumbNavigation
                 document={activeDocument}
-                activeSection={state.activeSection}
-                activeSubsection={state.activeSubsection}
+                activeSection={state.activeSection || undefined}
+                activeSubsection={state.activeSubsection || undefined}
                 onNavigate={({ section, subsection }) => {
                   if (section) {
                     actions.setActiveSection(section);
@@ -198,7 +198,7 @@ export default function ApplicationHeader({
               <div className="flex-shrink-0">
                 <SectionNavigation
                   document={activeDocument}
-                  activeSection={state.activeSection}
+                  activeSection={state.activeSection || undefined}
                   onSectionChange={(sectionId) => {
                     actions.setActiveSection(sectionId);
                     onSectionClick?.(sectionId);

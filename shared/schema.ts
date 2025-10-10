@@ -134,7 +134,7 @@ export const insertDocumentSchema = z.object({
       caption: z.string().optional(),
       tableName: z.string().optional(), // for table blocks
       equationNumber: z.number().optional(), // for equation blocks
-      size: z.enum(["small", "medium"]).optional(),
+      size: z.enum(["very-small", "small", "medium", "large"]).optional(),
       position: z.enum(["top", "bottom", "here"]).optional(),
       order: z.number()
     })),

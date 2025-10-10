@@ -144,8 +144,8 @@ export default function WorkspaceLayout({
             document={activeDocument}
             isCollapsed={state.sidebarCollapsed}
             onToggleCollapse={() => actions.setSidebarCollapsed(!state.sidebarCollapsed)}
-            activeSection={state.activeSection}
-            activeSubsection={state.activeSubsection}
+            activeSection={state.activeSection || undefined}
+            activeSubsection={state.activeSubsection || undefined}
             onSectionClick={(sectionId) => {
               actions.setActiveSection(sectionId);
               onSectionClick(sectionId);

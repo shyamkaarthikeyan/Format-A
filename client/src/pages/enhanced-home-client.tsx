@@ -294,7 +294,7 @@ const EnhancedHomeClientInner = React.memo(() => {
   // Preview content with lazy loading and optimization
   const previewContent = useMemo(() => (
     <div className="h-full">
-      <LazyComponent fallback={<LoadingState />}>
+      <LazyComponent fallback={<LoadingState isLoading={true} children={<></>} />}>
         <OptimizedPreview 
           document={documentToDisplay} 
           className="h-full"

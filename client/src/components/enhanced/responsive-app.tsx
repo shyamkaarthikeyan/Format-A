@@ -62,8 +62,14 @@ export const ResponsiveApp = withPerformanceOptimization<ResponsiveAppProps>(
             <DocumentTabs
               documents={[memoizedDocument]}
               activeDocumentId={memoizedDocument.id || 'current'}
-              onTabChange={(documentId) => {
+              onTabClick={(documentId: string) => {
                 console.log('Switch to document:', documentId);
+              }}
+              onTabClose={(documentId: string) => {
+                console.log('Close document:', documentId);
+              }}
+              onNewDocument={() => {
+                console.log('New document');
               }}
             />
           </header>
@@ -118,16 +124,27 @@ export const ResponsiveApp = withPerformanceOptimization<ResponsiveAppProps>(
               <DocumentTabs
                 documents={[memoizedDocument]}
                 activeDocumentId={memoizedDocument.id || 'current'}
-                onTabChange={(documentId) => {
+                onTabClick={(documentId: string) => {
                   console.log('Switch to document:', documentId);
+                }}
+                onTabClose={(documentId: string) => {
+                  console.log('Close document:', documentId);
+                }}
+                onNewDocument={() => {
+                  console.log('New document');
                 }}
               />
             }
             sidebar={
               <SidebarNavigation 
                 document={memoizedDocument}
-                onSectionSelect={(sectionId) => {
+                isCollapsed={false}
+                onToggleCollapse={() => {}}
+                onSectionClick={(sectionId: string) => {
                   console.log('Navigate to section:', sectionId);
+                }}
+                onSubsectionClick={(sectionId: string, subsectionId: string) => {
+                  console.log('Navigate to subsection:', sectionId, subsectionId);
                 }}
               />
             }
@@ -177,16 +194,27 @@ export const ResponsiveApp = withPerformanceOptimization<ResponsiveAppProps>(
             <DocumentTabs
               documents={[memoizedDocument]}
               activeDocumentId={memoizedDocument.id || 'current'}
-              onTabChange={(documentId) => {
+              onTabClick={(documentId: string) => {
                 console.log('Switch to document:', documentId);
+              }}
+              onTabClose={(documentId: string) => {
+                console.log('Close document:', documentId);
+              }}
+              onNewDocument={() => {
+                console.log('New document');
               }}
             />
           }
           sidebar={
             <SidebarNavigation 
               document={memoizedDocument}
-              onSectionSelect={(sectionId) => {
+              isCollapsed={false}
+              onToggleCollapse={() => {}}
+              onSectionClick={(sectionId: string) => {
                 console.log('Navigate to section:', sectionId);
+              }}
+              onSubsectionClick={(sectionId: string, subsectionId: string) => {
+                console.log('Navigate to subsection:', sectionId, subsectionId);
               }}
             />
           }

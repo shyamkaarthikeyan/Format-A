@@ -35,7 +35,7 @@ export function LazyComponent({
   );
 
   return (
-    <div ref={targetRef} className={className}>
+    <div ref={targetRef as React.RefObject<HTMLDivElement>} className={className}>
       {isVisible || hasBeenVisible ? children : fallback}
     </div>
   );
