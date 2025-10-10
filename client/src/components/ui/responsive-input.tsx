@@ -1,11 +1,13 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { useDeviceType, useResponsiveFontSize } from '@/lib/responsive-utils';
-import { Input, InputProps } from './input';
+import { Input } from './input';
 
-interface ResponsiveInputProps extends InputProps {
+export interface ResponsiveInputProps extends React.ComponentProps<"input"> {
   touchOptimized?: boolean;
 }
+
+export type InputProps = React.ComponentProps<"input">;
 
 export const ResponsiveInput = React.memo<ResponsiveInputProps>(({
   className,

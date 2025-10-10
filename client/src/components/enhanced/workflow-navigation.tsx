@@ -397,17 +397,17 @@ function getDocumentInfoProgress(document: Document | null): number {
 function getAuthorsStatus(document: Document | null): WorkflowStep['status'] {
   if (!document) return 'pending';
   if (document.authors.length === 0) return getDocumentInfoStatus(document) === 'completed' ? 'current' : 'pending';
-  if (document.authors.some(author => !author.name?.trim() || !author.affiliation?.trim())) return 'warning';
+  if (document.authors.some(author => !author.name?.trim() || (!author.department?.trim() && !author.organization?.trim()))) return 'warning';
   return 'completed';
 }
 
 function getAuthorsProgress(document: Document | null): number {
   if (!document || document.authors.length === 0) return 0;
-  const totalFields = document.authors.length * 3; // name, affiliation, email
+  const totalFields = document.authors.length * 3; // name, department/organization, email
   const completedFields = document.authors.reduce((acc, author) => {
     let fields = 0;
     if (author.name?.trim()) fields++;
-    if (author.affiliation?.trim()) fields++;
+    if (author.department?.trim() || author.organization?.trim()) fields++;
     if (author.email?.trim()) fields++;
     return acc + fields;
   }, 0);
@@ -442,7 +442,7 @@ function getReferencesStatus(document: Document | null): WorkflowStep['status'] 
 function getReferencesProgress(document: Document | null): number {
   if (!document || document.references.length === 0) return 0;
   const completeRefs = document.references.filter(ref => 
-    ref.title?.trim() && ref.authors?.trim()
+    ref.text?.trim()
   ).length;
   return Math.round((completeRefs / document.references.length) * 100);
 }

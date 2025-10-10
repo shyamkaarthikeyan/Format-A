@@ -29,6 +29,7 @@ interface DraggableSectionProps {
   onDuplicate: () => void;
   onAddContentBlock: (type: 'text' | 'image' | 'table' | 'equation') => void;
   onAddSubsection: () => void;
+  onClick?: () => void;
   children?: React.ReactNode;
   className?: string;
 }

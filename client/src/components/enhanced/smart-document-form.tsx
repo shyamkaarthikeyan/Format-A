@@ -154,9 +154,6 @@ export default function SmartDocumentForm({
             maxHeight={300}
             showWordCount={true}
             showCharCount={true}
-            validation={{
-              custom: validateAbstract,
-            }}
             onFocus={() => setActiveField('abstract')}
             onBlur={() => setActiveField(null)}
           />

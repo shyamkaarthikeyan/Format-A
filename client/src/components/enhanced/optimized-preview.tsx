@@ -24,7 +24,7 @@ export const OptimizedPreview = withPerformanceOptimization<OptimizedPreviewProp
     const documentHash = useMemo(() => {
       return JSON.stringify({
         title: document.title,
-        authors: document.authors?.map(a => ({ name: a.name, affiliation: a.affiliation })),
+        authors: document.authors?.map(a => ({ name: a.name, affiliation: a.department || a.organization })),
         abstract: document.abstract,
         keywords: document.keywords,
         sections: document.sections?.map(s => ({

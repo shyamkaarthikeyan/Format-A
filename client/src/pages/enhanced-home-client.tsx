@@ -12,7 +12,7 @@ import EnhancedSectionForm from '@/components/enhanced/enhanced-section-form';
 import ReferenceForm from '@/components/reference-form';
 import SmartDocumentForm from '@/components/enhanced/smart-document-form';
 import DocumentSetupWizard from '@/components/enhanced/document-setup-wizard';
-import OptimizedPreview from '@/components/enhanced/optimized-preview';
+import { OptimizedPreview } from '@/components/enhanced/optimized-preview';
 import { EnhancedCard, CardHeader, CardTitle, CardContent } from '@/components/ui/enhanced-card';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { LoadingState } from '@/components/ui/loading-spinner';

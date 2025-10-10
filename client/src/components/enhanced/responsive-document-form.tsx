@@ -86,7 +86,6 @@ const ResponsiveSectionComponent = withPerformanceOptimization<{
                     handleContentChange(newBlocks);
                   }}
                   placeholder="Enter content..."
-                  autoResize={true}
                   rows={isMobile ? 2 : 3}
                 />
               </div>
@@ -96,7 +95,12 @@ const ResponsiveSectionComponent = withPerformanceOptimization<{
               variant="ghost"
               size="sm"
               onClick={() => {
-                const newBlocks = [...(section.contentBlocks || []), { type: 'text', content: '' }];
+                const newBlocks = [...(section.contentBlocks || []), { 
+                  id: `block-${Date.now()}`,
+                  type: 'text' as const, 
+                  content: '',
+                  order: section.contentBlocks?.length || 0
+                }];
                 handleContentChange(newBlocks);
               }}
               className="text-blue-600 hover:text-blue-800 w-full justify-center"
@@ -166,7 +170,14 @@ export const ResponsiveDocumentForm = withPerformanceOptimization<ResponsiveDocu
       const newSection: Section = {
         id: `section-${Date.now()}`,
         title: '',
-        contentBlocks: [{ type: 'text', content: '' }],
+        contentBlocks: [{ 
+          id: `block-${Date.now()}`,
+          type: 'text' as const, 
+          content: '',
+          order: 0
+        }],
+        subsections: [],
+        order: 0
       };
       const newSections = [...(document.sections || []), newSection];
       const updatedDocument = { ...document, sections: newSections };
@@ -222,7 +233,6 @@ export const ResponsiveDocumentForm = withPerformanceOptimization<ResponsiveDocu
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleAbstractChange(e.target.value)}
                 placeholder="Enter abstract..."
                 rows={isMobile ? 3 : 4}
-                autoResize={true}
               />
             </div>
 

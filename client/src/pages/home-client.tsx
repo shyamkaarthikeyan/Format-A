@@ -14,7 +14,7 @@ import FigureForm from "@/components/figure-form";
 
 import { clientStorage } from "@/lib/localStorage";
 import { generateSimpleDocx, generateSimplePdf } from "@/lib/simpleGenerator";
-import type { Document, InsertDocument, UpdateDocument } from "../../../shared/schema-client.js";
+import type { Document, InsertDocument, UpdateDocument } from "@shared/schema";
 
 // Floating particles component
 const FloatingParticle = ({ delay }: { delay: number }) => (
@@ -356,7 +356,7 @@ export default function HomeClient() {
       </div>
 
       {/* Custom Styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-20px) rotate(180deg); }

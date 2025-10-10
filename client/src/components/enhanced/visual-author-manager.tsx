@@ -16,10 +16,11 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import {
-  restrictToVerticalAxis,
-  restrictToWindowEdges,
-} from '@dnd-kit/modifiers';
+// Note: @dnd-kit/modifiers package not available, removing modifiers for now
+// import {
+//   restrictToVerticalAxis,
+//   restrictToWindowEdges,
+// } from '@dnd-kit/modifiers';
 import { 
   Plus, 
   Users, 
@@ -395,7 +396,7 @@ export function VisualAuthorManager({
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+          // modifiers={[restrictToVerticalAxis, restrictToWindowEdges]} // Removed due to missing package
         >
           <SortableContext
             items={filteredAndSortedAuthors.map(author => author.id)}

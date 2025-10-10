@@ -281,7 +281,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 Equation Content (LaTeX Format)
               </label>
               <div className="text-xs text-gray-500 mb-2">
-                You can copy and paste equations from any source. Common LaTeX symbols: \frac{a}{b}, \sqrt{x}, \sum, \int, \alpha, \beta, etc.
+                You can copy and paste equations from any source. Common LaTeX symbols: \frac{`{a}`}{`{b}`}, \sqrt{`{x}`}, \sum, \int, \alpha, \beta, etc.
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button

@@ -118,8 +118,10 @@ export default function SectionNavigation({
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    if (typeof window !== 'undefined' && window.document) {
+      window.document.addEventListener('keydown', handleKeyDown);
+      return () => window.document.removeEventListener('keydown', handleKeyDown);
+    }
   }, [currentIndex, sections.length, isTransitioning]);
 
   if (!document || sections.length === 0) {

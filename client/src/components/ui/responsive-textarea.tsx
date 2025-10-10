@@ -1,12 +1,14 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { useDeviceType, useResponsiveFontSize } from '@/lib/responsive-utils';
-import { Textarea, TextareaProps } from './textarea';
+import { Textarea } from './textarea';
 
-interface ResponsiveTextareaProps extends TextareaProps {
+export interface ResponsiveTextareaProps extends React.ComponentProps<"textarea"> {
   touchOptimized?: boolean;
   autoResize?: boolean;
 }
+
+export type TextareaProps = React.ComponentProps<"textarea">;
 
 export const ResponsiveTextarea = React.memo<ResponsiveTextareaProps>(({
   className,

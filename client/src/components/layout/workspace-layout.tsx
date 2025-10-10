@@ -33,7 +33,7 @@ interface WorkspaceLayoutProps {
   onSubsectionClick: (sectionId: string, subsectionId: string) => void;
   editorContent: React.ReactNode;
   previewContent: React.ReactNode;
-  documentStatuses?: Record<string, import('./application-header').DocumentStatus>;
+  documentStatuses?: Record<string, import('./document-tabs').DocumentStatus>;
   className?: string;
 }
 

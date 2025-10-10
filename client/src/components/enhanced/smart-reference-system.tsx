@@ -61,7 +61,7 @@ interface CitationFormat {
   name: string;
   example: string;
   pattern: RegExp;
-  validator: (text: string) => { isValid: boolean; errors: string[] };
+  validator: (text: string) => ReferenceValidation;
   formatter: (text: string) => string;
 }
 

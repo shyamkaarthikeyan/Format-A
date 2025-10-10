@@ -190,10 +190,9 @@ export function useBatchedUpdates() {
     }
     
     timeoutRef.current = setTimeout(() => {
-      React.unstable_batchedUpdates(() => {
-        updates.current.forEach(fn => fn());
-        updates.current = [];
-      });
+      // React 18+ automatically batches updates, no need for unstable_batchedUpdates
+      updates.current.forEach(fn => fn());
+      updates.current = [];
     }, 0);
   }, []);
   

@@ -108,8 +108,8 @@ export default function EnhancedPreviewNavigation({
 
       switch (format) {
         case 'pdf':
-          if (pdfUrl) {
-            const link = document.createElement('a');
+          if (pdfUrl && typeof window !== 'undefined') {
+            const link = window.document.createElement('a');
             link.href = pdfUrl;
             link.download = `${document.title || 'document'}.pdf`;
             link.click();
@@ -127,10 +127,10 @@ export default function EnhancedPreviewNavigation({
             body: JSON.stringify(document),
           });
           
-          if (docxResponse.ok) {
+          if (docxResponse.ok && typeof window !== 'undefined') {
             const blob = await docxResponse.blob();
             const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
+            const link = window.document.createElement('a');
             link.href = url;
             link.download = `${document.title || 'document'}.docx`;
             link.click();

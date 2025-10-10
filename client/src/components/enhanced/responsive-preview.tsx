@@ -109,8 +109,10 @@ export const ResponsivePreview = withPerformanceOptimization<ResponsivePreviewPr
         setIsFullscreen(!!(document as any).fullscreenElement);
       };
 
-      document.addEventListener('fullscreenchange', handleFullscreenChange);
-      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (typeof window !== 'undefined' && window.document) {
+        window.document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => window.document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      }
     }, []);
 
     // Cleanup on unmount

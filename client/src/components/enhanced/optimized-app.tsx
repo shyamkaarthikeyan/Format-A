@@ -4,9 +4,9 @@ import { PerformanceMonitor } from '@/components/ui/performance-monitor';
 import { OptimizedDocumentForm } from './optimized-document-form';
 import { OptimizedPreview } from './optimized-preview';
 import { preloadAllNonCriticalComponents } from './lazy-component-manager';
-import { WorkspaceLayout } from '@/components/layout/workspace-layout';
-import { DocumentTabs } from '@/components/layout/document-tabs';
-import { SidebarNavigation } from '@/components/layout/sidebar-navigation';
+import WorkspaceLayout from '@/components/layout/workspace-layout';
+import DocumentTabs from '@/components/layout/document-tabs';
+import SidebarNavigation from '@/components/layout/sidebar-navigation';
 import type { Document } from '@shared/schema';
 
 interface OptimizedAppProps {
@@ -53,7 +53,7 @@ export const OptimizedApp = withPerformanceOptimization<OptimizedAppProps>(
           sidebar={
             <SidebarNavigation 
               document={memoizedDocument}
-              onSectionSelect={(sectionId) => {
+              onSectionSelect={(sectionId: string) => {
                 // Handle section navigation
                 console.log('Navigate to section:', sectionId);
               }}
@@ -63,7 +63,7 @@ export const OptimizedApp = withPerformanceOptimization<OptimizedAppProps>(
             <DocumentTabs
               documents={[memoizedDocument]}
               activeDocumentId={memoizedDocument.id || 'current'}
-              onTabChange={(documentId) => {
+              onTabChange={(documentId: string) => {
                 // Handle tab change
                 console.log('Switch to document:', documentId);
               }}

@@ -6,8 +6,8 @@ import { ResponsiveDocumentForm } from './responsive-document-form';
 import { ResponsivePreview } from './responsive-preview';
 import { ResponsiveLayout } from '@/components/layout/responsive-layout';
 import { preloadAllNonCriticalComponents } from './lazy-component-manager';
-import { DocumentTabs } from '@/components/layout/document-tabs';
-import { SidebarNavigation } from '@/components/layout/sidebar-navigation';
+import DocumentTabs from '@/components/layout/document-tabs';
+import SidebarNavigation from '@/components/layout/sidebar-navigation';
 import { cn } from '@/lib/utils';
 import type { Document } from '@shared/schema';
 

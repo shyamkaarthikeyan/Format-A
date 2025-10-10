@@ -186,8 +186,8 @@ export default function ApplicationHeader({
                     onSubsectionClick?.(section || state.activeSection || '', subsection);
                   }
                   if (!section && !subsection) {
-                    actions.setActiveSection(null);
-                    actions.setActiveSubsection(null);
+                    actions.setActiveSection(undefined);
+                    actions.setActiveSubsection(undefined);
                   }
                 }}
               />

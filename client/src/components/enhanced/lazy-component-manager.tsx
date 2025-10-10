@@ -8,23 +8,23 @@ const LazySettingsPanel = lazy(() =>
 );
 
 const LazyAuthorManagement = lazy(() => 
-  import('./author-management').then(module => ({ default: module.AuthorManagement }))
+  import('./author-management').then(module => ({ default: module.default }))
 );
 
 const LazySmartReferenceSystem = lazy(() => 
-  import('./smart-reference-system').then(module => ({ default: module.SmartReferenceSystem }))
+  import('./smart-reference-system').then(module => ({ default: module.default }))
 );
 
 const LazyDocumentStructureVisualizer = lazy(() => 
-  import('./document-structure-visualizer').then(module => ({ default: module.DocumentStructureVisualizer }))
+  import('./document-structure-visualizer').then(module => ({ default: module.default }))
 );
 
 const LazyTemplateSelector = lazy(() => 
-  import('./template-selector').then(module => ({ default: module.TemplateSelector }))
+  import('./template-selector').then(module => ({ default: module.default }))
 );
 
 const LazyAnnotationSystem = lazy(() => 
-  import('./annotation-system').then(module => ({ default: module.AnnotationSystem }))
+  import('./annotation-system').then(module => ({ default: module.default }))
 );
 
 // Fallback component for lazy loading
@@ -38,7 +38,7 @@ const LazyLoadingFallback = ({ name }: { name: string }) => (
 );
 
 // Lazy component wrappers with error boundaries
-export const LazySettingsPanelWrapper = React.memo<any>((props) => (
+export const LazySettingsPanelWrapper = React.memo<any>((props: any) => (
   <LazyComponent threshold={0.1} rootMargin="100px">
     <Suspense fallback={<LazyLoadingFallback name="Settings Panel" />}>
       <LazySettingsPanel {...props} />
@@ -46,7 +46,7 @@ export const LazySettingsPanelWrapper = React.memo<any>((props) => (
   </LazyComponent>
 ));
 
-export const LazyAuthorManagementWrapper = React.memo<any>((props) => (
+export const LazyAuthorManagementWrapper = React.memo<any>((props: any) => (
   <LazyComponent threshold={0.1} rootMargin="100px">
     <Suspense fallback={<LazyLoadingFallback name="Author Management" />}>
       <LazyAuthorManagement {...props} />
@@ -54,7 +54,7 @@ export const LazyAuthorManagementWrapper = React.memo<any>((props) => (
   </LazyComponent>
 ));
 
-export const LazySmartReferenceSystemWrapper = React.memo<any>((props) => (
+export const LazySmartReferenceSystemWrapper = React.memo<any>((props: any) => (
   <LazyComponent threshold={0.1} rootMargin="100px">
     <Suspense fallback={<LazyLoadingFallback name="Reference System" />}>
       <LazySmartReferenceSystem {...props} />
@@ -62,7 +62,7 @@ export const LazySmartReferenceSystemWrapper = React.memo<any>((props) => (
   </LazyComponent>
 ));
 
-export const LazyDocumentStructureVisualizerWrapper = React.memo<any>((props) => (
+export const LazyDocumentStructureVisualizerWrapper = React.memo<any>((props: any) => (
   <LazyComponent threshold={0.1} rootMargin="100px">
     <Suspense fallback={<LazyLoadingFallback name="Document Structure" />}>
       <LazyDocumentStructureVisualizer {...props} />
@@ -70,7 +70,7 @@ export const LazyDocumentStructureVisualizerWrapper = React.memo<any>((props) =>
   </LazyComponent>
 ));
 
-export const LazyTemplateSelectorWrapper = React.memo<any>((props) => (
+export const LazyTemplateSelectorWrapper = React.memo<any>((props: any) => (
   <LazyComponent threshold={0.1} rootMargin="100px">
     <Suspense fallback={<LazyLoadingFallback name="Template Selector" />}>
       <LazyTemplateSelector {...props} />
@@ -78,7 +78,7 @@ export const LazyTemplateSelectorWrapper = React.memo<any>((props) => (
   </LazyComponent>
 ));
 
-export const LazyAnnotationSystemWrapper = React.memo<any>((props) => (
+export const LazyAnnotationSystemWrapper = React.memo<any>((props: any) => (
   <LazyComponent threshold={0.1} rootMargin="100px">
     <Suspense fallback={<LazyLoadingFallback name="Annotation System" />}>
       <LazyAnnotationSystem {...props} />

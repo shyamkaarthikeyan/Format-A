@@ -50,7 +50,7 @@ export function withLazyLoading<P extends object>(
 ) {
   const LazyWrappedComponent = React.forwardRef<any, P>((props, ref) => (
     <LazyComponent fallback={fallback}>
-      <Component {...props} ref={ref} />
+      <Component {...(props as P)} />
     </LazyComponent>
   ));
 
