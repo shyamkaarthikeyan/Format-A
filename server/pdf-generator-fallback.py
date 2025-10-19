@@ -128,7 +128,7 @@ def generate_reportlab_pdf(document_data):
             fontSize=12,
             spaceAfter=6,
             spaceBefore=12,
-            alignment=TA_LEFT,
+            alignment=TA_CENTER,  # Center section titles
             fontName='Times-Bold'
         )
         
@@ -147,12 +147,16 @@ def generate_reportlab_pdf(document_data):
         
         # Abstract
         if document_data.get('abstract'):
-            story.append(Paragraph('<b>Abstract—</b>' + document_data['abstract'], ieee_abstract))
+            # Abstract with bold title followed by bold content in same paragraph
+            abstract_text = f"<b>Abstract—{document_data['abstract']}</b>"
+            story.append(Paragraph(abstract_text, ieee_abstract))
             story.append(Spacer(1, 12))
         
         # Keywords
         if document_data.get('keywords'):
-            story.append(Paragraph('<b><i>Index Terms—</i></b>' + document_data['keywords'], ieee_abstract))
+            # Keywords with bold title followed by bold content in same paragraph
+            keywords_text = f"<b>Keywords—{document_data['keywords']}</b>"
+            story.append(Paragraph(keywords_text, ieee_abstract))
             story.append(Spacer(1, 12))
         
         # Sections
@@ -204,22 +208,54 @@ def generate_reportlab_pdf(document_data):
                             except Exception as e:
                                 print(f"Error adding image: {e}", file=sys.stderr)
                 
-                # Subsections
+                # Subsections with multi-level support
                 if section.get('subsections'):
-                    for j, subsection in enumerate(section['subsections']):
-                        if subsection.get('title'):
-                            subsection_title = f"{i+1}.{j+1}. {subsection['title']}"
-                            subsection_style = ParagraphStyle(
-                                'Subsection',
-                                parent=ieee_section,
-                                fontSize=11,
-                                fontName='Times-Bold'
-                            )
-                            story.append(Paragraph(subsection_title, subsection_style))
+                    def add_subsections_recursive(subsections, section_num, parent_numbering="", level=1):
+                        # Get subsections for current level without parent (top-level) or with specific parent
+                        if level == 1:
+                            current_level_subs = [s for s in subsections if s.get('level', 1) == 1 and not s.get('parentId')]
+                        else:
+                            parent_id = parent_numbering.split('_')[-1] if '_' in parent_numbering else None
+                            current_level_subs = [s for s in subsections if s.get('parentId') == parent_id and s.get('level', 1) == level]
                         
-                        if subsection.get('content'):
-                            story.append(Paragraph(subsection['content'], ieee_body))
-                            story.append(Spacer(1, 6))
+                        for j, subsection in enumerate(current_level_subs, 1):
+                            if subsection.get('title'):
+                                if level == 1:
+                                    subsection_number = f"{section_num}.{j}"
+                                else:
+                                    base_number = parent_numbering.split('_')[0] if '_' in parent_numbering else parent_numbering
+                                    subsection_number = f"{base_number}.{j}"
+                                
+                                subsection_title = f"{subsection_number}. {subsection['title']}"
+                                
+                                # Create style based on level
+                                subsection_style = ParagraphStyle(
+                                    f'Subsection_Level_{level}',
+                                    parent=ieee_section,
+                                    fontSize=max(11 - level, 9),  # Decrease font size with level
+                                    fontName='Times-Bold',
+                                    leftIndent=level * 0.2 * inch  # Indent based on level
+                                )
+                                story.append(Paragraph(subsection_title, subsection_style))
+                            
+                            if subsection.get('content'):
+                                # Create body style with appropriate indentation
+                                body_style = ParagraphStyle(
+                                    f'SubsectionBody_Level_{level}',
+                                    parent=ieee_body,
+                                    leftIndent=level * 0.2 * inch,
+                                    rightIndent=0.2 * inch
+                                )
+                                story.append(Paragraph(subsection['content'], body_style))
+                                story.append(Spacer(1, 6))
+                            
+                            # Recursively handle child subsections
+                            child_subsections = [s for s in subsections if s.get('parentId') == subsection['id']]
+                            if child_subsections and level < 5:  # Limit nesting depth
+                                add_subsections_recursive(subsections, section_num, f"{subsection_number}_{subsection['id']}", level + 1)
+                    
+                    # Start recursive subsection processing
+                    add_subsections_recursive(section['subsections'], i+1)
         
         # References
         if document_data.get('references'):

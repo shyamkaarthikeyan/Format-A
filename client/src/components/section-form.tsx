@@ -317,6 +317,14 @@ const SubsectionComponent = ({
               className="text-sm min-h-[80px] resize-none border border-gray-200 p-2 focus-visible:ring-1 focus-visible:ring-purple-200"
             />
             
+            {/* Content creation buttons for subsection */}
+            <div className="flex flex-wrap gap-1 mt-2 p-2 bg-gray-50 rounded-md">
+              <Button onClick={() => onAddSubsection(subsection.id, level + 1)} variant="outline" size="sm" className="h-6 text-xs">
+                <Plus className="w-3 h-3 mr-1" />
+                Subsection
+              </Button>
+            </div>
+            
             {/* Child subsections */}
             {childSubsections.length > 0 && (
               <div className="mt-3 space-y-2">

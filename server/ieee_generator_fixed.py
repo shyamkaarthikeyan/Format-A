@@ -175,18 +175,24 @@ def add_authors(doc, authors):
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
 def add_abstract(doc, abstract):
-    """Add the abstract section with italicized 'Abstract—' - EXACT same as test.py."""
+    """Add the abstract section with bold title followed by content."""
     if abstract:
+        # Add abstract with bold title and content in same paragraph
         para = doc.add_paragraph()
-        run = para.add_run("Abstract—")
-        run.italic = True
-        run.font.name = IEEE_CONFIG['font_name']
-        run.font.size = IEEE_CONFIG['font_size_body']
-        run = para.add_run(sanitize_text(abstract))
-        run.font.name = IEEE_CONFIG['font_name']
-        run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Apply advanced justification controls to abstract - EXACT same as test.py
+        # Bold "Abstract—" title (only bold, not italic)
+        title_run = para.add_run("Abstract—")
+        title_run.bold = True
+        title_run.font.name = IEEE_CONFIG['font_name']
+        title_run.font.size = IEEE_CONFIG['font_size_body']
+        
+        # Add abstract content immediately after (bold text)
+        content_run = para.add_run(sanitize_text(abstract))
+        content_run.bold = True
+        content_run.font.name = IEEE_CONFIG['font_name']
+        content_run.font.size = IEEE_CONFIG['font_size_body']
+        
+        # Apply advanced justification controls to abstract
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -195,7 +201,7 @@ def add_abstract(doc, abstract):
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
         
-        # Add advanced spacing controls to prevent word stretching - EXACT same as test.py
+        # Add advanced spacing controls to prevent word stretching
         para_element = para._element
         pPr = para_element.get_or_add_pPr()
         
@@ -215,11 +221,24 @@ def add_abstract(doc, abstract):
         pPr.append(adjust_right_ind)
 
 def add_keywords(doc, keywords):
-    """Add the keywords section - EXACT same as test.py."""
+    """Add the keywords section with bold title followed by content."""
     if keywords:
-        para = doc.add_paragraph(f"Keywords: {sanitize_text(keywords)}")
+        # Add keywords with bold title and content in same paragraph
+        para = doc.add_paragraph()
         
-        # Apply advanced justification controls to keywords - EXACT same as test.py
+        # Bold "Keywords—" title (only bold, not italic)
+        title_run = para.add_run("Keywords—")
+        title_run.bold = True
+        title_run.font.name = IEEE_CONFIG['font_name']
+        title_run.font.size = IEEE_CONFIG['font_size_body']
+        
+        # Add keywords content immediately after (bold text)
+        content_run = para.add_run(sanitize_text(keywords))
+        content_run.bold = True
+        content_run.font.name = IEEE_CONFIG['font_name']
+        content_run.font.size = IEEE_CONFIG['font_size_body']
+        
+        # Apply advanced justification controls to keywords
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -227,11 +246,8 @@ def add_keywords(doc, keywords):
         para.paragraph_format.keep_with_next = False
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
-        if para.runs:
-            para.runs[0].font.name = IEEE_CONFIG['font_name']
-            para.runs[0].font.size = IEEE_CONFIG['font_size_body']
         
-        # Add advanced spacing controls to prevent word stretching - EXACT same as test.py
+        # Add advanced spacing controls to prevent word stretching
         para_element = para._element
         pPr = para_element.get_or_add_pPr()
         
@@ -250,7 +266,7 @@ def add_keywords(doc, keywords):
         adjust_right_ind.set(qn('w:val'), '0')
         pPr.append(adjust_right_ind)
         
-        # Minimal dummy paragraph to stabilize layout - EXACT same as test.py
+        # Minimal dummy paragraph to stabilize layout
         dummy_para = doc.add_paragraph("")
         dummy_para.paragraph_format.space_before = Pt(0)
         dummy_para.paragraph_format.space_after = Pt(0)
@@ -327,6 +343,7 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
     """Add a section with content blocks, subsections, and figures - EXACT same as test.py."""
     if section_data.get('title'):
         para = doc.add_heading(f"{section_idx}. {sanitize_text(section_data['title']).upper()}", level=1)
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER  # Center section titles
         para.paragraph_format.page_break_before = False
         para.paragraph_format.space_before = IEEE_CONFIG['line_spacing']  # Exactly one line before heading
         para.paragraph_format.space_after = Pt(0)
@@ -474,27 +491,76 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
             space_after=Pt(12)
         )
 
-    # Add subsections - EXACT same as test.py
-    for sub_idx, subsection in enumerate(section_data.get('subsections', []), 1):
-        if subsection.get('title'):
-            para = doc.add_heading(f"{section_idx}.{sub_idx} {sanitize_text(subsection['title'])}", level=2)
-            para.paragraph_format.page_break_before = False
-            para.paragraph_format.space_before = IEEE_CONFIG['line_spacing']  # Exactly one line before heading
-            para.paragraph_format.space_after = Pt(0)
-            para.paragraph_format.keep_with_next = False
-            para.paragraph_format.keep_together = False
-            para.paragraph_format.widow_control = False
+    # Add subsections with multi-level support
+    def add_subsection_recursive(subsections, section_idx, parent_numbering=""):
+        """Recursively add subsections with proper hierarchical numbering."""
+        # Group subsections by level and parent
+        level_1_subsections = [s for s in subsections if s.get('level', 1) == 1 and not s.get('parentId')]
+        
+        for sub_idx, subsection in enumerate(level_1_subsections, 1):
+            if subsection.get('title'):
+                subsection_number = f"{section_idx}.{sub_idx}"
+                para = doc.add_heading(f"{subsection_number} {sanitize_text(subsection['title'])}", level=2)
+                para.paragraph_format.page_break_before = False
+                para.paragraph_format.space_before = IEEE_CONFIG['line_spacing']
+                para.paragraph_format.space_after = Pt(0)
+                para.paragraph_format.keep_with_next = False
+                para.paragraph_format.keep_together = False
+                para.paragraph_format.widow_control = False
 
-        if subsection.get('content'):
-            # Use the new justified paragraph function for better spacing
-            add_justified_paragraph(
-                doc, 
-                sanitize_text(subsection['content']),
-                indent_left=IEEE_CONFIG['column_indent'],
-                indent_right=IEEE_CONFIG['column_indent'],
-                space_before=Pt(1),
-                space_after=Pt(12)
-            )
+            if subsection.get('content'):
+                add_justified_paragraph(
+                    doc, 
+                    sanitize_text(subsection['content']),
+                    indent_left=IEEE_CONFIG['column_indent'],
+                    indent_right=IEEE_CONFIG['column_indent'],
+                    space_before=Pt(1),
+                    space_after=Pt(12)
+                )
+            
+            # Handle nested subsections (level 2 and beyond)
+            add_nested_subsection(subsections, subsection['id'], f"{section_idx}.{sub_idx}", 2)
+    
+    def add_nested_subsection(all_subsections, parent_id, parent_number, level):
+        """Add nested subsections recursively."""
+        child_subsections = [s for s in all_subsections if s.get('parentId') == parent_id and s.get('level', 1) == level]
+        
+        for child_idx, child_sub in enumerate(child_subsections, 1):
+            # Always define child_number, regardless of whether title exists
+            child_number = f"{parent_number}.{child_idx}"
+            
+            if child_sub.get('title'):
+                # Use different heading levels for deeper nesting, but cap at level 6
+                heading_level = min(level + 1, 6)
+                para = doc.add_heading(f"{child_number} {sanitize_text(child_sub['title'])}", level=heading_level)
+                para.paragraph_format.page_break_before = False
+                para.paragraph_format.space_before = Pt(6)
+                para.paragraph_format.space_after = Pt(0)
+                para.paragraph_format.keep_with_next = False
+                para.paragraph_format.keep_together = False
+                para.paragraph_format.widow_control = False
+
+            if child_sub.get('content'):
+                add_justified_paragraph(
+                    doc, 
+                    sanitize_text(child_sub['content']),
+                    indent_left=IEEE_CONFIG['column_indent'] + Inches(0.1 * (level - 1)),  # Progressive indentation
+                    indent_right=IEEE_CONFIG['column_indent'],
+                    space_before=Pt(1),
+                    space_after=Pt(12)
+                )
+            
+            # Process content blocks if they exist
+            if child_sub.get('contentBlocks'):
+                for block in child_sub['contentBlocks']:
+                    process_content_block(doc, block)
+            
+            # Recursively handle even deeper nesting
+            if level < 5:  # Limit depth to prevent excessive nesting
+                add_nested_subsection(all_subsections, child_sub['id'], child_number, level + 1)
+    
+    # Call the recursive function to add all subsections
+    add_subsection_recursive(section_data.get('subsections', []), section_idx)
 
 class HTMLToWordParser(HTMLParser):
     """Parse HTML content and apply formatting to Word document."""
@@ -610,6 +676,7 @@ def add_references(doc, references):
     """Add references section with proper alignment (hanging indent)."""
     if references:
         para = doc.add_heading("REFERENCES", level=1)
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER  # Center references heading
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = Pt(0)
         para.paragraph_format.keep_with_next = False
@@ -732,8 +799,6 @@ def generate_ieee_document(form_data):
     
     add_title(doc, form_data.get('title', ''))
     add_authors(doc, form_data.get('authors', []))
-    add_abstract(doc, form_data.get('abstract', ''))
-    add_keywords(doc, form_data.get('keywords', ''))
 
     # Add continuous section break for two-column layout
     section = doc.add_section(WD_SECTION.CONTINUOUS)
@@ -743,7 +808,7 @@ def generate_ieee_document(form_data):
     section.top_margin = IEEE_CONFIG['margin_top']
     section.bottom_margin = IEEE_CONFIG['margin_bottom']
     
-    # Set up the two-column layout
+    # Set up the two-column layout FIRST before adding content
     sectPr = section._sectPr
     cols = sectPr.xpath('./w:cols')
     if cols:
@@ -757,14 +822,20 @@ def generate_ieee_document(form_data):
     cols.set(qn('w:space'), str(int(IEEE_CONFIG['column_spacing'].pt)))
     cols.set(qn('w:equalWidth'), '1')
     
+    # Add column definitions
     for i in range(IEEE_CONFIG['column_count_body']):
         col = OxmlElement('w:col')
         col.set(qn('w:w'), str(int(IEEE_CONFIG['column_width'].pt)))
         cols.append(col)
     
+    # Prevent column balancing for stable layout
     no_balance = OxmlElement('w:noBalance')
     no_balance.set(qn('w:val'), '1')
     sectPr.append(no_balance)
+    
+    # Now add abstract and keywords in the properly configured 2-column layout
+    add_abstract(doc, form_data.get('abstract', ''))
+    add_keywords(doc, form_data.get('keywords', ''))
     
     for idx, section_data in enumerate(form_data.get('sections', []), 1):
         add_section(doc, section_data, idx, is_first_section=(idx == 1))

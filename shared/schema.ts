@@ -44,6 +44,7 @@ export interface Subsection {
   id: string;
   title: string;
   content: string;
+  contentBlocks?: ContentBlock[]; // Rich content blocks support
   order: number;
   level?: number; // 1 for main subsection, 2 for sub-subsection, etc.
   parentId?: string; // For nested subsections
@@ -142,6 +143,20 @@ export const insertDocumentSchema = z.object({
       id: z.string(),
       title: z.string(),
       content: z.string(),
+      contentBlocks: z.array(z.object({
+        id: z.string(),
+        type: z.enum(["text", "image", "table", "equation"]),
+        content: z.string().optional(),
+        imageId: z.string().optional(),
+        data: z.string().optional(), // base64 encoded image data
+        fileName: z.string().optional(), // original filename for user feedback
+        caption: z.string().optional(),
+        tableName: z.string().optional(), // for table blocks
+        equationNumber: z.number().optional(), // for equation blocks
+        size: z.enum(["very-small", "small", "medium", "large"]).optional(),
+        position: z.enum(["top", "bottom", "here"]).optional(),
+        order: z.number()
+      })).optional(),
       order: z.number(),
       level: z.number().optional(),
       parentId: z.string().optional()

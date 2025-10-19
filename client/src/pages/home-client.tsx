@@ -8,12 +8,11 @@ import { useLocation } from "wouter";
 import DocumentForm from "@/components/document-form";
 import DocumentPreview from "@/components/document-preview";
 import AuthorForm from "@/components/author-form";
-import SectionForm from "@/components/section-form";
+import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
 
 import { clientStorage } from "@/lib/localStorage";
-import { generateSimpleDocx, generateSimplePdf } from "@/lib/simpleGenerator";
 import type { Document, InsertDocument, UpdateDocument } from "@shared/schema";
 
 // Floating particles component
@@ -28,6 +27,7 @@ const FloatingParticle = ({ delay }: { delay: number }) => (
   />
 );
 
+// Main component
 export default function HomeClient() {
   const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -121,23 +121,33 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
-      const result = await generateSimpleDocx(currentDocument);
-      if (result.success) {
-        toast({
-          title: "Word Document Generated",
-          description: "Your IEEE document has been downloaded successfully."
-        });
-      } else {
-        toast({
-          title: "Generation Failed",
-          description: result.error || "Failed to generate Word document.",
-          variant: "destructive"
-        });
-      }
+      // Use proper IEEE generator instead of simple generator
+      const response = await fetch('/api/generate/docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentDocument),
+      });
+
+      if (!response.ok) throw new Error(`Failed to generate document: ${response.statusText}`);
+
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error('Generated document is empty');
+
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = "ieee_paper.docx";
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Word Document Generated",
+        description: "IEEE-formatted Word document has been downloaded successfully."
+      });
     } catch (error) {
       toast({
         title: "Generation Error",
-        description: "An error occurred while generating the document.",
+        description: error instanceof Error ? error.message : "An error occurred while generating the document.",
         variant: "destructive"
       });
     } finally {
@@ -150,23 +160,36 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
-      const result = await generateSimplePdf(currentDocument);
-      if (result.success) {
-        toast({
-          title: "PDF Generated",
-          description: "Your IEEE document has been downloaded successfully."
-        });
-      } else {
-        toast({
-          title: "Generation Failed",
-          description: result.error || "Failed to generate PDF document.",
-          variant: "destructive"
-        });
+      // Use proper IEEE PDF generator instead of simple generator
+      const response = await fetch('/api/generate/docx-to-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentDocument),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate PDF: ${response.statusText} - ${errorText}`);
       }
+
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error('Generated PDF is empty');
+
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = "ieee_paper.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Generated",
+        description: "IEEE-formatted PDF document has been downloaded successfully."
+      });
     } catch (error) {
       toast({
         title: "Generation Error",
-        description: "An error occurred while generating the document.",
+        description: error instanceof Error ? error.message : "An error occurred while generating the document.",
         variant: "destructive"
       });
     } finally {
@@ -229,6 +252,7 @@ export default function HomeClient() {
               </div>
 
               <div className="flex items-center gap-3">
+                
                 <Button 
                   onClick={handleCreateDocument} 
                   size="sm"
@@ -313,7 +337,7 @@ export default function HomeClient() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3">
-                  <SectionForm 
+                  <StreamlinedSectionForm 
                     sections={documentToDisplay.sections} 
                     onUpdate={(sections) => handleUpdateDocument({ sections })} 
                   />

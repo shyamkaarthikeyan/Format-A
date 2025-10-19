@@ -24,6 +24,7 @@ import { VirtualSectionScroll } from '@/components/ui/virtual-scroll';
 import { LazySection } from '@/components/ui/lazy-component';
 import DraggableSection from './draggable-section';
 import ContentBlockEditor from './content-block-editor';
+import NestedSubsectionManager from './nested-subsection-manager';
 import ContentTypeSelector from './content-type-selector';
 import type { Section, ContentBlock, Subsection } from '@shared/schema';
 
@@ -163,21 +164,26 @@ const EnhancedSectionForm = React.memo<EnhancedSectionFormProps>(({
     });
   };
 
-  const addSubsection = (sectionId: string) => {
+  const addSubsection = (sectionId: string, parentId?: string, level: number = 1) => {
     const section = sections.find(s => s.id === sectionId);
     if (!section) return;
 
     const newSubsection: Subsection = {
-      id: `subsection_${Date.now()}`,
+      id: `subsection_${Date.now()}_${Math.random()}`,
       title: '',
       content: '',
       order: section.subsections.length,
-      level: 1,
+      level,
+      parentId,
     };
 
     updateSection(sectionId, {
       subsections: [...section.subsections, newSubsection],
     });
+  };
+
+  const updateSubsections = (sectionId: string, subsections: Subsection[]) => {
+    updateSection(sectionId, { subsections });
   };
 
   const toggleExpandAll = () => {
@@ -374,7 +380,7 @@ const EnhancedSectionForm = React.memo<EnhancedSectionFormProps>(({
                                 key={block.id}
                                 block={block}
                                 index={blockIndex}
-                                onUpdate={(updates) => updateContentBlock(section.id, block.id, updates)}
+                                onUpdate={(updates: Partial<ContentBlock>) => updateContentBlock(section.id, block.id, updates)}
                                 onDelete={() => deleteContentBlock(section.id, block.id)}
                                 onDuplicate={() => duplicateContentBlock(section.id, block.id)}
                               />
@@ -386,19 +392,12 @@ const EnhancedSectionForm = React.memo<EnhancedSectionFormProps>(({
                   )}
 
                   {/* Subsections */}
-                  {section.subsections.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        Subsections
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {section.subsections.length}
-                        </span>
-                      </h4>
-                      <div className="text-sm text-gray-500 italic">
-                        Subsection editor coming in next update
-                      </div>
-                    </div>
-                  )}
+                  <NestedSubsectionManager
+                    subsections={section.subsections}
+                    sectionId={section.id}
+                    sectionIndex={sections.findIndex(s => s.id === section.id)}
+                    onUpdate={(subsections) => updateSubsections(section.id, subsections)}
+                  />
                 </DraggableSection>
               ))}
             </div>

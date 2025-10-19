@@ -99,7 +99,7 @@ def create_ieee_pdf(form_data):
             fontSize=9.5,
             spaceAfter=0*pt,
             spaceBefore=10*pt,
-            alignment=TA_LEFT,
+            alignment=TA_CENTER,  # Center section titles
             fontName='Times-Bold',
             leftIndent=0.2*inch
         )
@@ -174,12 +174,14 @@ def create_ieee_pdf(form_data):
         
         # Abstract
         if form_data.get('abstract'):
-            abstract_text = f"<i>Abstract—</i>{form_data['abstract']}"
+            # Abstract with bold title followed by bold content in same paragraph
+            abstract_text = f"<b>Abstract—{form_data['abstract']}</b>"
             story.append(Paragraph(abstract_text, ieee_abstract))
         
         # Keywords
         if form_data.get('keywords'):
-            keywords_text = f"<i>Index Terms—</i>{form_data['keywords']}"
+            # Keywords with bold title followed by bold content in same paragraph
+            keywords_text = f"<b>Keywords—{form_data['keywords']}</b>"
             story.append(Paragraph(keywords_text, ieee_abstract))
             story.append(Spacer(1, 12*pt))
         

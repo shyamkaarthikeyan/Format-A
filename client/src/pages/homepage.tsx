@@ -22,7 +22,13 @@ import {
   Code,
   Layers,
   Monitor,
-  Workflow
+  Workflow,
+  Shield,
+  Lock,
+  DollarSign,
+  Clock,
+  FileCheck,
+  Award
 } from "lucide-react";
 
 interface FeatureCardProps {
@@ -201,6 +207,10 @@ const Navigation = () => {
               How it Works
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
             </a>
+            <a href="#pricing" className="text-gray-700 hover:text-purple-600 transition-all duration-300 font-medium relative group">
+              Pricing
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
+            </a>
             <Button 
               onClick={() => setLocation("/generator")}
               className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-700 hover:via-violet-700 hover:to-indigo-700 text-white px-8 py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group"
@@ -229,6 +239,7 @@ const Navigation = () => {
             <div className="px-6 py-8 space-y-6">
               <a href="#features" className="block text-gray-700 hover:text-purple-600 transition-colors duration-300 font-medium py-2">Features</a>
               <a href="#how-it-works" className="block text-gray-700 hover:text-purple-600 transition-colors duration-300 font-medium py-2">How it Works</a>
+              <a href="#pricing" className="block text-gray-700 hover:text-purple-600 transition-colors duration-300 font-medium py-2">Pricing</a>
               <Button 
                 onClick={() => setLocation("/generator")}
                 className="w-full bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white font-semibold py-3 rounded-2xl"
@@ -486,6 +497,240 @@ export default function Homepage() {
                 Start Creating Now
               </span>
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 bg-white relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500"></div>
+        <div className="absolute top-20 left-0 w-64 h-64 bg-gradient-to-br from-purple-100 to-violet-100 rounded-full blur-3xl opacity-50"></div>
+        <div className="absolute bottom-20 right-0 w-96 h-96 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-full blur-3xl opacity-30"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-8 font-serif">
+              <span className="bg-gradient-to-r from-gray-900 via-purple-800 to-gray-900 bg-clip-text text-transparent">
+                Simple, Fair Pricing
+              </span>
+            </h2>
+            <p className="text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              Pay only for what you use. No subscriptions, no hidden fees.
+            </p>
+          </div>
+          
+          {/* Pricing Card */}
+          <div className="flex justify-center">
+            <div className="relative group max-w-md w-full">
+              {/* Background with advanced styling */}
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-700"></div>
+              
+              <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl p-12 shadow-2xl border border-white/50 group-hover:shadow-3xl group-hover:shadow-purple-500/25 transition-all duration-700 transform group-hover:scale-105">
+                {/* Popular badge */}
+                <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
+                  <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg">
+                    <Award className="w-4 h-4 inline mr-2" />
+                    Most Popular
+                  </div>
+                </div>
+                
+                {/* Price */}
+                <div className="text-center mb-8 mt-4">
+                  <div className="flex items-center justify-center mb-4">
+                    <span className="text-5xl font-bold text-purple-600 mr-2">₹</span>
+                    <span className="text-6xl font-bold text-gray-900">5</span>
+                    <span className="text-2xl text-gray-600 ml-2">INR</span>
+                  </div>
+                  <p className="text-xl text-gray-600 font-medium">per page processing</p>
+                  <p className="text-sm text-gray-500 mt-2">Instant processing • No setup required</p>
+                </div>
+                
+                {/* Features */}
+                <div className="space-y-4 mb-8">
+                  {[
+                    "Perfect IEEE formatting compliance",
+                    "Word DOCX & PDF export options", 
+                    "Unlimited revisions per document",
+                    "Email delivery included",
+                    "24/7 automated processing",
+                    "No account required"
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* CTA Button */}
+                <Button 
+                  onClick={handleStartGenerating}
+                  className="w-full bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-700 hover:via-violet-700 hover:to-indigo-700 text-white py-4 text-lg font-bold shadow-xl hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 transform hover:scale-105 rounded-2xl"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Start Formatting Now
+                </Button>
+                
+                {/* Trust indicators */}
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-gray-500">
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    Average processing time: 30 seconds
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Additional pricing info */}
+          <div className="mt-16 text-center">
+            <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-indigo-50 rounded-2xl p-8 max-w-4xl mx-auto">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Volume Discounts Available</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-purple-600">10+ pages</div>
+                  <div className="text-gray-600">₹4.50 per page</div>
+                  <div className="text-sm text-green-600 font-medium">Save 10%</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-purple-600">25+ pages</div>
+                  <div className="text-gray-600">₹4.00 per page</div>
+                  <div className="text-sm text-green-600 font-medium">Save 20%</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-purple-600">50+ pages</div>
+                  <div className="text-gray-600">₹3.50 per page</div>
+                  <div className="text-sm text-green-600 font-medium">Save 30%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Privacy & Security Section */}
+      <section id="privacy" className="py-20 bg-gradient-to-br from-gray-50 to-purple-50 relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-purple-200/30 to-violet-200/30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-violet-200/30 to-indigo-200/30 rounded-full blur-3xl"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-8 font-serif">
+              <span className="bg-gradient-to-r from-gray-900 via-purple-800 to-gray-900 bg-clip-text text-transparent">
+                Your Research is Safe
+              </span>
+            </h2>
+            <p className="text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              We take research confidentiality seriously. Your content is processed safely and securely.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {[
+              {
+                icon: <Shield className="w-full h-full" />,
+                title: "Safe Processing",
+                description: "Your research content is processed securely for formatting only. We focus on document structure, not your intellectual content.",
+                gradient: "bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600"
+              },
+              {
+                icon: <Lock className="w-full h-full" />,
+                title: "Secure Transmission",
+                description: "All data is transmitted securely using HTTPS encryption. Your research remains protected during processing.",
+                gradient: "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600"
+              },
+              {
+                icon: <FileCheck className="w-full h-full" />,
+                title: "Format Only Processing",
+                description: "We never copy or analyze your research content. Our system only processes document formatting and structure.",
+                gradient: "bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600"
+              }
+            ].map((feature, index) => (
+              <div 
+                key={index}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${index * 200}ms` }}
+              >
+                <FeatureCard {...feature} />
+              </div>
+            ))}
+          </div>
+          
+          {/* Privacy Guarantees */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-12 shadow-2xl border border-white/50">
+            <h3 className="text-3xl font-bold text-gray-900 mb-8 text-center">How We Keep Your Research Safe</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-4 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-2">We Don't Copy Your Research</h4>
+                    <p className="text-gray-600">Your research content is processed only for formatting. We never copy, store, or reuse your intellectual property.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-4 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-2">Temporary Processing Only</h4>
+                    <p className="text-gray-600">Documents are processed temporarily to generate your formatted output, then processing data is cleared.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-4 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-2">Format-Only Processing</h4>
+                    <p className="text-gray-600">Our system only processes document structure and formatting - not your research content or findings.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-4 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-2">Secure Processing</h4>
+                    <p className="text-gray-600">All document processing happens securely with industry-standard encryption during transmission.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-4 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-2">No Content Analysis</h4>
+                    <p className="text-gray-600">We never read, analyze, or extract information from your research - only format the document structure.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-4 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-2">Instant Processing</h4>
+                    <p className="text-gray-600">Fast processing means your document is formatted and delivered quickly without extended server storage.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Trust badges */}
+            <div className="mt-12 pt-8 border-t border-gray-200">
+              <div className="flex flex-wrap justify-center items-center gap-8 text-gray-500">
+                <div className="flex items-center">
+                  <Shield className="w-6 h-6 mr-2" />
+                  <span className="font-medium">HTTPS Secure</span>
+                </div>
+                <div className="flex items-center">
+                  <Lock className="w-6 h-6 mr-2" />
+                  <span className="font-medium">Encrypted Processing</span>
+                </div>
+                <div className="flex items-center">
+                  <FileCheck className="w-6 h-6 mr-2" />
+                  <span className="font-medium">Format Only</span>
+                </div>
+                <div className="flex items-center">
+                  <Clock className="w-6 h-6 mr-2" />
+                  <span className="font-medium">Instant Processing</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -201,9 +201,8 @@ export default function EnhancedPreviewSystem({
                 {/* Abstract */}
                 {document.abstract && (
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Abstract</h2>
                     <p className="text-sm text-gray-700 leading-relaxed">
-                      {document.abstract}
+                      <strong className="font-bold">Abstract—{document.abstract}</strong>
                     </p>
                   </div>
                 )}
@@ -211,16 +210,17 @@ export default function EnhancedPreviewSystem({
                 {/* Keywords */}
                 {document.keywords && (
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-2">Keywords</h3>
-                    <p className="text-sm text-gray-700">{document.keywords}</p>
+                    <p className="text-sm text-gray-700">
+                      <strong className="font-bold">Keywords—{document.keywords}</strong>
+                    </p>
                   </div>
                 )}
 
                 {/* Sections */}
                 {document.sections.map((section, index) => (
                   <div key={section.id} className="space-y-3">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      {index + 1}. {section.title}
+                    <h2 className="text-lg font-semibold text-gray-900 text-center">
+                      {index + 1}. {section.title.toUpperCase()}
                     </h2>
                     
                     {section.contentBlocks.map(block => (
@@ -304,19 +304,24 @@ export default function EnhancedPreviewSystem({
                     </div>
                   )}
 
-                  {document.abstract && (
-                    <div>
-                      <h2 className="text-sm font-semibold text-gray-900 mb-1">Abstract</h2>
-                      <p className="text-xs text-gray-700 leading-relaxed">
-                        {document.abstract}
-                      </p>
-                    </div>
-                  )}
+                    {document.abstract && (
+                      <div>
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          <strong className="font-bold">Abstract—{document.abstract}</strong>
+                        </p>
+                      </div>
+                    )}
 
-                  {document.sections.map((section, index) => (
+                    {document.keywords && (
+                      <div>
+                        <p className="text-xs text-gray-700">
+                          <strong className="font-bold">Keywords—{document.keywords}</strong>
+                        </p>
+                      </div>
+                    )}                  {document.sections.map((section, index) => (
                     <div key={section.id} className="space-y-2">
-                      <h2 className="text-sm font-semibold text-gray-900">
-                        {index + 1}. {section.title}
+                      <h2 className="text-sm font-semibold text-gray-900 text-center">
+                        {index + 1}. {section.title.toUpperCase()}
                       </h2>
                       {section.contentBlocks.map(block => (
                         <div key={block.id}>
