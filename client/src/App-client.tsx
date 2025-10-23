@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Homepage from "@/pages/homepage";
 import HomeClient from "@/pages/home-client";
+import TermsPage from "@/pages/terms";
+import PrivacyPage from "@/pages/privacy";
 
 function RouterClient() {
   return (
@@ -12,6 +14,8 @@ function RouterClient() {
       <Route path="/" component={Homepage} />
       <Route path="/generator" component={HomeClient} />
       <Route path="/home" component={HomeClient} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
     </Router>
   );
 }

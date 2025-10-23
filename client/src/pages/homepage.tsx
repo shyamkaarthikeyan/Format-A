@@ -257,8 +257,6 @@ export default function Homepage() {
   const [, setLocation] = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [showTermsModal, setShowTermsModal] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
@@ -824,13 +822,13 @@ export default function Homepage() {
           <div className="border-t border-purple-700/50 pt-6 text-center">
             <div className="flex justify-center space-x-6 text-sm">
               <button
-                onClick={() => setShowPrivacyModal(true)}
+                onClick={() => setLocation("/privacy")}
                 className="text-purple-200 hover:text-white transition-colors duration-300 cursor-pointer"
               >
                 Privacy Policy
               </button>
               <button
-                onClick={() => setShowTermsModal(true)}
+                onClick={() => setLocation("/terms")}
                 className="text-purple-200 hover:text-white transition-colors duration-300 cursor-pointer"
               >
                 Terms of Service
@@ -839,82 +837,6 @@ export default function Homepage() {
           </div>
         </div>
       </footer>
-
-      {/* Terms of Service Modal */}
-      {showTermsModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-900">Terms of Service</h2>
-                <button
-                  onClick={() => setShowTermsModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="prose prose-lg max-w-none">
-                <h3 className="text-xl font-semibold mb-4">1. Service Agreement</h3>
-                <p className="mb-4">By using Format A, you agree to these terms and conditions. Our service provides IEEE document formatting for academic and research purposes.</p>
-
-                <h3 className="text-xl font-semibold mb-4">2. Payment Terms</h3>
-                <p className="mb-4">Payment is required per page processed at ₹5 INR per page. Payment is processed securely and charged only for successful document generation.</p>
-
-                <h3 className="text-xl font-semibold mb-4">3. Document Processing</h3>
-                <p className="mb-4">Documents are processed securely and temporarily. We do not store your documents permanently on our servers after processing is complete.</p>
-
-                <h3 className="text-xl font-semibold mb-4">4. User Responsibilities</h3>
-                <p className="mb-4">Users are responsible for content accuracy, originality, and ensuring their documents comply with academic integrity standards.</p>
-
-                <h3 className="text-xl font-semibold mb-4">5. Intended Use</h3>
-                <p className="mb-4">Generated documents are intended for academic and research purposes. Users must comply with their institution's guidelines and IEEE standards.</p>
-
-                <h3 className="text-xl font-semibold mb-4">6. Service Availability</h3>
-                <p className="mb-4">We provide 24/7 automated processing but cannot guarantee 100% uptime. Service interruptions may occur for maintenance.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Privacy Policy Modal */}
-      {showPrivacyModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-900">Privacy Policy</h2>
-                <button
-                  onClick={() => setShowPrivacyModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="prose prose-lg max-w-none">
-                <h3 className="text-xl font-semibold mb-4">1. Data Protection</h3>
-                <p className="mb-4">We respect your privacy and protect your data. All document processing is done securely with industry-standard encryption.</p>
-
-                <h3 className="text-xl font-semibold mb-4">2. Document Handling</h3>
-                <p className="mb-4">Documents are processed temporarily and automatically deleted after generation. We do not retain copies of your academic work.</p>
-
-                <h3 className="text-xl font-semibold mb-4">3. Personal Information</h3>
-                <p className="mb-4">No personal data is stored beyond transaction records required for payment processing. We do not collect unnecessary personal information.</p>
-
-                <h3 className="text-xl font-semibold mb-4">4. Email Usage</h3>
-                <p className="mb-4">Email addresses are used only for document delivery and service notifications. We do not send marketing emails or share your email with third parties.</p>
-
-                <h3 className="text-xl font-semibold mb-4">5. Compliance</h3>
-                <p className="mb-4">We comply with data protection regulations including GDPR and other applicable privacy laws.</p>
-
-                <h3 className="text-xl font-semibold mb-4">6. Data Security</h3>
-                <p className="mb-4">All data transmission is encrypted using SSL/TLS protocols. Our servers are secured and regularly updated with security patches.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Enhanced Custom Styles */}
       <style>{`
