@@ -127,11 +127,7 @@ export default function PrivacyPage() {
             </section>
           </div>
 
-          <div className="mt-12 text-center">
-            <p className="text-gray-600 text-sm">
-              Last updated: December 2024
-            </p>
-          </div>
+
         </div>
       </div>
     </div>
