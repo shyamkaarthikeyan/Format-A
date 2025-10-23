@@ -182,8 +182,8 @@ const Navigation = () => {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
-        ? 'bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-purple-500/10'
-        : 'bg-transparent'
+      ? 'bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-purple-500/10'
+      : 'bg-transparent'
       }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
@@ -832,10 +832,10 @@ export default function Homepage() {
             <div>
               <h4 className="text-lg font-semibold mb-4 text-white">Support</h4>
               <ul className="space-y-2">
-                <li><a href="mailto:support@formata.com" className="text-purple-200 hover:text-white transition-colors duration-300">Contact Support</a></li>
-                <li><a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Documentation</a></li>
-                <li><a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">FAQ</a></li>
-                <li><a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Status</a></li>
+                <li><span className="text-purple-200">Contact Support</span></li>
+                <li><span className="text-purple-200">Documentation</span></li>
+                <li><span className="text-purple-200">FAQ</span></li>
+                <li><span className="text-purple-200">Status</span></li>
               </ul>
             </div>
           </div>
@@ -866,17 +866,12 @@ export default function Homepage() {
             </div>
           </div>
 
-          {/* Copyright and Legal */}
+          {/* Legal Links */}
           <div className="border-t border-purple-700/50 pt-6 text-center">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <div className="text-sm text-purple-300">
-                © 2024 Format A. All rights reserved. IEEE is a trademark of the Institute of Electrical and Electronics Engineers.
-              </div>
-              <div className="flex space-x-6 text-sm">
-                <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Privacy Policy</a>
-                <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Terms of Service</a>
-                <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Refund Policy</a>
-              </div>
+            <div className="flex justify-center space-x-6 text-sm">
+              <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Privacy Policy</a>
+              <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Terms of Service</a>
+              <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Refund Policy</a>
             </div>
           </div>
         </div>
