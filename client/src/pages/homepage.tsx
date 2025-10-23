@@ -257,6 +257,8 @@ export default function Homepage() {
   const [, setLocation] = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
@@ -801,81 +803,118 @@ export default function Homepage() {
         <div className="absolute bottom-10 right-10 w-56 h-56 bg-gradient-to-br from-violet-500/10 to-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+          <div className="text-center mb-12">
             {/* Brand Section */}
-            <div className="md:col-span-2">
+            <div>
               <h3 className="text-3xl font-bold font-serif mb-4">
                 <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
                   Format A
                 </span>
               </h3>
-              <p className="text-purple-200 mb-6 max-w-md text-lg leading-relaxed">
+              <p className="text-purple-200 mb-6 max-w-2xl mx-auto text-lg leading-relaxed">
                 The most advanced IEEE research paper formatting tool, designed for modern researchers and academics.
               </p>
               <p className="text-purple-300 text-sm">
                 Built with precision by the Format A Team
               </p>
             </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">Quick Links</h4>
-              <ul className="space-y-2">
-                <li><a href="#features" className="text-purple-200 hover:text-white transition-colors duration-300">Features</a></li>
-                <li><a href="#how-it-works" className="text-purple-200 hover:text-white transition-colors duration-300">How It Works</a></li>
-                <li><a href="#pricing" className="text-purple-200 hover:text-white transition-colors duration-300">Pricing</a></li>
-                <li><a href="/generator" className="text-purple-200 hover:text-white transition-colors duration-300">Get Started</a></li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">Support</h4>
-              <ul className="space-y-2">
-                <li><span className="text-purple-200">Contact Support</span></li>
-                <li><span className="text-purple-200">Documentation</span></li>
-                <li><span className="text-purple-200">FAQ</span></li>
-                <li><span className="text-purple-200">Status</span></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Terms and Conditions Section */}
-          <div className="border-t border-purple-700/50 pt-8 mb-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-lg font-semibold mb-4 text-white">Terms of Service</h4>
-                <div className="text-sm text-purple-200 space-y-2">
-                  <p>• By using Format A, you agree to our terms and conditions</p>
-                  <p>• Documents are processed securely and not stored permanently</p>
-                  <p>• Payment is required per page processed (₹5 INR per page)</p>
-                  <p>• Generated documents are for academic and research purposes</p>
-                  <p>• Users are responsible for content accuracy and originality</p>
-                </div>
-              </div>
-              <div>
-                <h4 className="text-lg font-semibold mb-4 text-white">Privacy & Data</h4>
-                <div className="text-sm text-purple-200 space-y-2">
-                  <p>• We respect your privacy and protect your data</p>
-                  <p>• Documents are processed temporarily and deleted after generation</p>
-                  <p>• No personal data is stored beyond transaction records</p>
-                  <p>• Email addresses are used only for document delivery</p>
-                  <p>• We comply with data protection regulations</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Legal Links */}
           <div className="border-t border-purple-700/50 pt-6 text-center">
             <div className="flex justify-center space-x-6 text-sm">
-              <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Privacy Policy</a>
-              <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Terms of Service</a>
-              <a href="#" className="text-purple-200 hover:text-white transition-colors duration-300">Refund Policy</a>
+              <button
+                onClick={() => setShowPrivacyModal(true)}
+                className="text-purple-200 hover:text-white transition-colors duration-300 cursor-pointer"
+              >
+                Privacy Policy
+              </button>
+              <button
+                onClick={() => setShowTermsModal(true)}
+                className="text-purple-200 hover:text-white transition-colors duration-300 cursor-pointer"
+              >
+                Terms of Service
+              </button>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Terms of Service Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-900">Terms of Service</h2>
+                <button
+                  onClick={() => setShowTermsModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="prose prose-lg max-w-none">
+                <h3 className="text-xl font-semibold mb-4">1. Service Agreement</h3>
+                <p className="mb-4">By using Format A, you agree to these terms and conditions. Our service provides IEEE document formatting for academic and research purposes.</p>
+
+                <h3 className="text-xl font-semibold mb-4">2. Payment Terms</h3>
+                <p className="mb-4">Payment is required per page processed at ₹5 INR per page. Payment is processed securely and charged only for successful document generation.</p>
+
+                <h3 className="text-xl font-semibold mb-4">3. Document Processing</h3>
+                <p className="mb-4">Documents are processed securely and temporarily. We do not store your documents permanently on our servers after processing is complete.</p>
+
+                <h3 className="text-xl font-semibold mb-4">4. User Responsibilities</h3>
+                <p className="mb-4">Users are responsible for content accuracy, originality, and ensuring their documents comply with academic integrity standards.</p>
+
+                <h3 className="text-xl font-semibold mb-4">5. Intended Use</h3>
+                <p className="mb-4">Generated documents are intended for academic and research purposes. Users must comply with their institution's guidelines and IEEE standards.</p>
+
+                <h3 className="text-xl font-semibold mb-4">6. Service Availability</h3>
+                <p className="mb-4">We provide 24/7 automated processing but cannot guarantee 100% uptime. Service interruptions may occur for maintenance.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-900">Privacy Policy</h2>
+                <button
+                  onClick={() => setShowPrivacyModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="prose prose-lg max-w-none">
+                <h3 className="text-xl font-semibold mb-4">1. Data Protection</h3>
+                <p className="mb-4">We respect your privacy and protect your data. All document processing is done securely with industry-standard encryption.</p>
+
+                <h3 className="text-xl font-semibold mb-4">2. Document Handling</h3>
+                <p className="mb-4">Documents are processed temporarily and automatically deleted after generation. We do not retain copies of your academic work.</p>
+
+                <h3 className="text-xl font-semibold mb-4">3. Personal Information</h3>
+                <p className="mb-4">No personal data is stored beyond transaction records required for payment processing. We do not collect unnecessary personal information.</p>
+
+                <h3 className="text-xl font-semibold mb-4">4. Email Usage</h3>
+                <p className="mb-4">Email addresses are used only for document delivery and service notifications. We do not send marketing emails or share your email with third parties.</p>
+
+                <h3 className="text-xl font-semibold mb-4">5. Compliance</h3>
+                <p className="mb-4">We comply with data protection regulations including GDPR and other applicable privacy laws.</p>
+
+                <h3 className="text-xl font-semibold mb-4">6. Data Security</h3>
+                <p className="mb-4">All data transmission is encrypted using SSL/TLS protocols. Our servers are secured and regularly updated with security patches.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Custom Styles */}
       <style>{`
