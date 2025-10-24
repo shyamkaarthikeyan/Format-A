@@ -100,7 +100,20 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Changes to Terms</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Refund Policy</h2>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                <strong>No refunds are provided for successfully processed documents.</strong> Due to the instant nature of our document processing service, all sales are final.
+              </p>
+              <ul className="list-disc list-inside text-gray-700 space-y-2">
+                <li>No refunds for completed document processing</li>
+                <li>No charges applied for failed processing attempts</li>
+                <li>Technical issues resulting in processing failure will not be charged</li>
+                <li>Contact support for technical problems before processing</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Changes to Terms</h2>
               <p className="text-gray-700 leading-relaxed">
                 We reserve the right to modify these terms at any time. Users will be notified of significant changes, and continued use constitutes acceptance of updated terms.
               </p>
