@@ -17,13 +17,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { credential } = req.body;
+    console.log('Google auth handler called:', {
+      method: req.method,
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : []
+    });
+
+    const { credential } = req.body || {};
     
     if (!credential) {
+      console.log('Missing credential in request body:', req.body);
       return res.status(400).json({ error: 'Missing credential' });
     }
 
     console.log('Google auth attempt with credential:', credential.substring(0, 50) + '...');
+    
+    // Test storage connection
+    console.log('Testing storage connection...');
+    const testUsers = await storage.getAllUsers();
+    console.log('Storage test successful, user count:', testUsers.length);
 
     // In production, verify the Google JWT token here
     // For now, create a real user in our storage system
@@ -32,14 +44,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // In production, use proper JWT verification
     let userInfo;
     try {
-      const payload = JSON.parse(atob(credential.split('.')[1]));
+      // Use Buffer.from instead of atob for Node.js compatibility
+      const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
       userInfo = {
-        googleId: payload.sub,
-        email: payload.email,
-        name: payload.name,
-        picture: payload.picture
+        googleId: payload.sub || 'google_' + Date.now(),
+        email: payload.email || 'user@example.com',
+        name: payload.name || 'Demo User',
+        picture: payload.picture || 'https://via.placeholder.com/150'
       };
     } catch (e) {
+      console.log('JWT decode failed, using fallback:', e);
       // Fallback for demo
       userInfo = {
         googleId: 'google_' + Date.now(),
@@ -81,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       isActive: true,
       lastAccessedAt: new Date().toISOString(),
-      ipAddress: req.headers['x-forwarded-for'] as string || req.connection?.remoteAddress || 'unknown',
+      ipAddress: (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress) || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown'
     });
 
