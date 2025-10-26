@@ -27,11 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Test storage import
     let storageTest = 'not tested';
     try {
-      const { storage } = await import('./_lib/storage');
+      const { storage } = await import('./_lib/storage.js');
       const users = await storage.getAllUsers();
       storageTest = `success - ${users.length} users`;
     } catch (e) {
       storageTest = `failed - ${e instanceof Error ? e.message : 'unknown error'}`;
+      console.error('Storage import error:', e);
     }
 
     return res.json({
