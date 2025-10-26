@@ -146,8 +146,15 @@ export default function SigninPage() {
 
     const handleCredentialResponse = async (response: GoogleCredentialResponse): Promise<void> => {
       try {
+        console.log('🔐 Processing Google credential response...');
+
         // Decode the JWT token to get user info
         const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        console.log('✅ Google payload decoded:', {
+          sub: payload.sub,
+          email: payload.email,
+          name: payload.name
+        });
 
         // Create user object from Google payload
         const userData = {
@@ -162,6 +169,8 @@ export default function SigninPage() {
           }
         };
 
+        console.log('📤 Sending user data to server...');
+
         // Send user data to server to create/update user
         const serverResponse = await fetch('/api/auth/google', {
           method: 'POST',
@@ -171,27 +180,49 @@ export default function SigninPage() {
           body: JSON.stringify(userData),
         });
 
+        console.log('📥 Server response status:', serverResponse.status);
+
         if (!serverResponse.ok) {
-          throw new Error('Failed to authenticate with server');
+          const errorText = await serverResponse.text();
+          console.error('❌ Server error response:', errorText);
+          throw new Error(`Server authentication failed (${serverResponse.status}): ${errorText}`);
         }
 
-        const { user: serverUser, sessionId } = await serverResponse.json();
+        const responseData = await serverResponse.json();
+        console.log('✅ Server response data:', responseData);
+
+        if (!responseData.success) {
+          const errorMsg = responseData.error?.message || 'Unknown server error';
+          console.error('❌ Server returned error:', errorMsg);
+          throw new Error(`Authentication failed: ${errorMsg}`);
+        }
+
+        const { user: serverUser, sessionId } = responseData;
+
+        if (!serverUser || !sessionId) {
+          console.error('❌ Missing user or session data in response');
+          throw new Error('Invalid response from server - missing user or session data');
+        }
+
+        console.log('🍪 Setting session cookie...');
 
         // Store session ID in cookie
-        // Note: Remove 'secure' flag for development (localhost), add it back for production HTTPS
         const isProduction = window.location.protocol === 'https:';
         const cookieOptions = isProduction
           ? `sessionId=${sessionId}; path=/; max-age=${7 * 24 * 60 * 60}; secure; samesite=strict`
           : `sessionId=${sessionId}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
         document.cookie = cookieOptions;
 
+        console.log('🎉 Authentication successful! Redirecting to app...');
+
         // Update auth context
         setUser(serverUser);
         setError('');
         setLocation('/generator');
       } catch (err) {
-        console.error('Authentication error:', err);
-        setError('Failed to process authentication');
+        console.error('❌ Authentication error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to process authentication';
+        setError(`Authentication failed: ${errorMessage}`);
       }
     };
 
