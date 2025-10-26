@@ -249,10 +249,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      const response = await fetch('/api/generate/docx-to-pdf', {
+      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Preview': 'true'
+        },
         body: JSON.stringify(document),
       });
 

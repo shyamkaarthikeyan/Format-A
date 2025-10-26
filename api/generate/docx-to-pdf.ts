@@ -17,30 +17,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Get user from session
-    let sessionId = req.cookies?.sessionId;
-    if (!sessionId) {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        sessionId = authHeader.replace('Bearer ', '');
+    // Check if this is a preview request (no download recording needed)
+    const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
+    
+    let user = null;
+    
+    if (!isPreview) {
+      // Get user from session for actual downloads
+      let sessionId = req.cookies?.sessionId;
+      if (!sessionId) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          sessionId = authHeader.replace('Bearer ', '');
+        }
       }
-    }
 
-    if (!sessionId) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'Authentication required',
-        message: 'Please sign in to download documents'
-      });
-    }
+      if (!sessionId) {
+        return res.status(401).json({ 
+          success: false,
+          error: 'Authentication required',
+          message: 'Please sign in to download documents'
+        });
+      }
 
-    const user = await storage.getUserBySessionId(sessionId);
-    if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'Invalid session',
-        message: 'Please sign in again'
-      });
+      user = await storage.getUserBySessionId(sessionId);
+      if (!user) {
+        return res.status(401).json({ 
+          success: false,
+          error: 'Invalid session',
+          message: 'Please sign in again'
+        });
+      }
     }
 
     const documentData = req.body;
@@ -52,36 +59,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log('Generating PDF for user:', user.email);
+    console.log('Generating PDF for:', isPreview ? 'preview' : `user: ${user?.email}`);
     console.log('Document title:', documentData.title);
 
     // For now, return a simple mock PDF file
     // In production, this would call the Python script or use a PDF generation library
     const mockPdfContent = createMockPdfContent(documentData);
     
-    // Record download in storage
-    const downloadRecord = await storage.recordDownload({
-      userId: user.id,
-      documentId: `doc_${Date.now()}`,
-      documentTitle: documentData.title,
-      fileFormat: 'pdf',
-      fileSize: mockPdfContent.length,
-      downloadedAt: new Date().toISOString(),
-      ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
-      status: 'completed',
-      emailSent: false,
-      documentMetadata: {
-        pageCount: Math.ceil((documentData.sections?.length || 1) / 2), // Estimate pages
-        wordCount: estimateWordCount(documentData),
-        sectionCount: documentData.sections?.length || 1,
-        figureCount: 0,
-        referenceCount: documentData.references?.length || 0,
-        generationTime: 3.2
-      }
-    });
+    // Only record download for actual downloads, not previews
+    if (!isPreview && user) {
+      const downloadRecord = await storage.recordDownload({
+        userId: user.id,
+        documentId: `doc_${Date.now()}`,
+        documentTitle: documentData.title,
+        fileFormat: 'pdf',
+        fileSize: mockPdfContent.length,
+        downloadedAt: new Date().toISOString(),
+        ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
+        userAgent: req.headers['user-agent'] || 'unknown',
+        status: 'completed',
+        emailSent: false,
+        documentMetadata: {
+          pageCount: Math.ceil((documentData.sections?.length || 1) / 2), // Estimate pages
+          wordCount: estimateWordCount(documentData),
+          sectionCount: documentData.sections?.length || 1,
+          figureCount: 0,
+          referenceCount: documentData.references?.length || 0,
+          generationTime: 3.2
+        }
+      });
 
-    console.log('Download recorded:', downloadRecord.id);
+      console.log('Download recorded:', downloadRecord.id);
+    } else {
+      console.log('Preview generated - no download record created');
+    }
 
     // Set response headers for file download
     res.setHeader('Content-Type', 'application/pdf');
