@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!sessionId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
         error: 'Authentication required',
         message: 'Please sign in to download documents'
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const user = await storage.getUserBySessionId(sessionId);
     if (!user) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
         error: 'Invalid session',
         message: 'Please sign in again'
@@ -46,9 +46,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const documentData = req.body;
-    
+
     if (!documentData.title) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Missing document title',
         message: 'Document title is required'
       });
@@ -59,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Generate actual DOCX using Python IEEE generator
     const docxBuffer = await generateIEEEDocx(documentData);
-    
+
     // Record download in storage
     const downloadRecord = await storage.recordDownload({
       userId: user.id,
@@ -87,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Set response headers for file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-    
+
     return res.send(docxBuffer);
 
   } catch (error) {
@@ -104,12 +104,12 @@ async function generateIEEEDocx(documentData: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     // Path to the Python IEEE generator script
     const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
-    
+
     // Try python3 first, fallback to python
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    
+
     console.log(`Using Python generator: ${pythonCmd} ${scriptPath}`);
-    
+
     // Spawn Python process
     const pythonProcess = spawn(pythonCmd, [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe']
@@ -155,11 +155,11 @@ async function generateIEEEDocx(documentData: any): Promise<Buffer> {
 
 function estimateWordCount(documentData: any): number {
   let wordCount = 0;
-  
+
   if (documentData.abstract) {
     wordCount += documentData.abstract.split(' ').length;
   }
-  
+
   if (documentData.sections) {
     documentData.sections.forEach((section: any) => {
       if (section.content) {
@@ -175,6 +175,6 @@ function estimateWordCount(documentData: any): number {
       }
     });
   }
-  
+
   return wordCount;
 }

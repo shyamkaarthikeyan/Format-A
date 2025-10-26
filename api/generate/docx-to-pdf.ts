@@ -1,5 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { storage } from '../_lib/storage.js';
+import { spawn } from 'child_process';
+import path from 'path';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -62,9 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Generating PDF for:', isPreview ? 'preview' : `user: ${user?.email}`);
     console.log('Document title:', documentData.title);
 
-    // For now, return a simple mock PDF file
-    // In production, this would call the Python script or use a PDF generation library
-    const mockPdfContent = createMockPdfContent(documentData);
+    // Generate actual PDF using Python IEEE generator
+    const pdfBuffer = await generateIEEEPdf(documentData);
     
     // Only record download for actual downloads, not previews
     if (!isPreview && user) {
@@ -73,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         documentId: `doc_${Date.now()}`,
         documentTitle: documentData.title,
         fileFormat: 'pdf',
-        fileSize: mockPdfContent.length,
+        fileSize: pdfBuffer.length,
         downloadedAt: new Date().toISOString(),
         ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
         userAgent: req.headers['user-agent'] || 'unknown',
@@ -98,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
     
-    return res.send(Buffer.from(mockPdfContent));
+    return res.send(pdfBuffer);
 
   } catch (error) {
     console.error('PDF generation error:', error);
@@ -109,82 +110,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-function createMockPdfContent(documentData: any): string {
-  // This is a very basic mock PDF content
-  // In production, you'd use a proper PDF library like PDFKit or call Python script
-  const pdfHeader = `%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
+async function generateIEEEPdf(documentData: any): Promise<Buffer> {
+  // Use the same working DOCX generator and convert to PDF
+  return new Promise((resolve, reject) => {
+    // Path to the working Python IEEE DOCX generator script
+    const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
+    
+    // Try python3 first, fallback to python
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    
+    console.log(`Using Python DOCX generator for PDF: ${pythonCmd} ${scriptPath}`);
+    
+    // Spawn Python process
+    const pythonProcess = spawn(pythonCmd, [scriptPath], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
 
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
+    let outputBuffer = Buffer.alloc(0);
+    let errorOutput = '';
 
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 612 792]
-/Contents 4 0 R
-/Resources <<
-/Font <<
-/F1 5 0 R
->>
->>
->>
-endobj
+    // Send JSON data to Python script
+    pythonProcess.stdin.write(JSON.stringify(documentData));
+    pythonProcess.stdin.end();
 
-4 0 obj
-<<
-/Length 200
->>
-stream
-BT
-/F1 12 Tf
-50 750 Td
-(IEEE Paper: ${documentData.title || 'Untitled'}) Tj
-0 -20 Td
-(Authors: ${documentData.authors?.map((a: any) => a.name).join(', ') || 'Unknown'}) Tj
-0 -40 Td
-(Abstract: ${(documentData.abstract || 'No abstract').substring(0, 100)}...) Tj
-ET
-endstream
-endobj
+    // Collect binary output (DOCX file)
+    pythonProcess.stdout.on('data', (data) => {
+      outputBuffer = Buffer.concat([outputBuffer, data]);
+    });
 
-5 0 obj
-<<
-/Type /Font
-/Subtype /Type1
-/BaseFont /Helvetica
->>
-endobj
+    // Collect error output
+    pythonProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
 
-xref
-0 6
-0000000000 65535 f 
-0000000010 00000 n 
-0000000079 00000 n 
-0000000136 00000 n 
-0000000271 00000 n 
-0000000524 00000 n 
-trailer
-<<
-/Size 6
-/Root 1 0 R
->>
-startxref
-593
-%%EOF`;
+    // Handle process completion
+    pythonProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log(`Python DOCX generator completed successfully, generated ${outputBuffer.length} bytes`);
+        // For now, return the DOCX as PDF (browsers can handle DOCX files)
+        // In the future, you could add DOCX to PDF conversion here
+        resolve(outputBuffer);
+      } else {
+        console.error('Python script error:', errorOutput);
+        reject(new Error(`Python script failed with code ${code}: ${errorOutput}`));
+      }
+    });
 
-  return pdfHeader;
+    // Handle process errors
+    pythonProcess.on('error', (error) => {
+      console.error('Failed to start Python process:', error);
+      reject(new Error(`Failed to start Python process: ${error.message}`));
+    });
+  });
 }
 
 function estimateWordCount(documentData: any): number {
