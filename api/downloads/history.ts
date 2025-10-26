@@ -101,100 +101,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     
-    let paginatedDownloads = await storage.getUserDownloads(user.id, {
+    const paginatedDownloads = await storage.getUserDownloads(user.id, {
       page,
       limit,
       sortBy: 'downloadedAt',
       sortOrder: 'desc'
     });
-
-    // If user has no downloads, create some sample data for demonstration
-    if (paginatedDownloads.downloads.length === 0) {
-      console.log('🔍 Creating sample download data for user:', user.id);
-      
-      const sampleDownloads = [
-        {
-          userId: user.id,
-          documentId: 'sample_doc_1',
-          documentTitle: 'Machine Learning in Healthcare Applications',
-          fileFormat: 'pdf' as const,
-          fileSize: 1024 * 1024, // 1MB
-          downloadedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-          ipAddress: '127.0.0.1',
-          userAgent: 'Sample Browser',
-          status: 'completed' as const,
-          emailSent: true,
-          emailSentAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          documentMetadata: {
-            pageCount: 12,
-            wordCount: 3500,
-            sectionCount: 6,
-            figureCount: 3,
-            referenceCount: 25,
-            generationTime: 5000
-          }
-        },
-        {
-          userId: user.id,
-          documentId: 'sample_doc_2',
-          documentTitle: 'Deep Learning Applications in Computer Vision',
-          fileFormat: 'docx' as const,
-          fileSize: 2 * 1024 * 1024, // 2MB
-          downloadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-          ipAddress: '127.0.0.1',
-          userAgent: 'Sample Browser',
-          status: 'completed' as const,
-          emailSent: false,
-          documentMetadata: {
-            pageCount: 18,
-            wordCount: 5200,
-            sectionCount: 8,
-            figureCount: 5,
-            referenceCount: 42,
-            generationTime: 7500
-          }
-        },
-        {
-          userId: user.id,
-          documentId: 'sample_doc_3',
-          documentTitle: 'Neural Networks for Natural Language Processing',
-          fileFormat: 'pdf' as const,
-          fileSize: 1.5 * 1024 * 1024, // 1.5MB
-          downloadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-          ipAddress: '127.0.0.1',
-          userAgent: 'Sample Browser',
-          status: 'completed' as const,
-          emailSent: true,
-          emailSentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          documentMetadata: {
-            pageCount: 15,
-            wordCount: 4200,
-            sectionCount: 7,
-            figureCount: 4,
-            referenceCount: 38,
-            generationTime: 6200
-          }
-        }
-      ];
-      
-      // Create sample downloads
-      for (const download of sampleDownloads) {
-        try {
-          await storage.recordDownload(download);
-          console.log('✅ Created sample download:', download.documentTitle);
-        } catch (error) {
-          console.error('❌ Error creating sample download:', error);
-        }
-      }
-      
-      // Fetch downloads again after creating samples
-      paginatedDownloads = await storage.getUserDownloads(user.id, {
-        page,
-        limit,
-        sortBy: 'downloadedAt',
-        sortOrder: 'desc'
-      });
-    }
 
     res.json({
       success: true,
