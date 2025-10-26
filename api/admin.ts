@@ -37,7 +37,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleUsers(req, res, storage);
       
       case 'auth/session':
-        return await handleAdminSession(req, res);
+        return await handleAdminSession(req, res, storage);
+      
+      case 'auth/verify':
+        return await handleAdminVerify(req, res, storage);
+      
+      case 'auth/signout':
+        return await handleAdminSignout(req, res, storage);
       
       default:
         return res.status(404).json({ error: 'Admin endpoint not found' });
@@ -610,19 +616,122 @@ async function handleUsers(req: VercelRequest, res: VercelResponse, storage: any
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
-// Admin Session (simplified)
-async function handleAdminSession(req: VercelRequest, res: VercelResponse) {
+// Admin Session Management
+async function handleAdminSession(req: VercelRequest, res: VercelResponse, storage: any) {
   if (req.method === 'POST') {
-    // Simplified admin session for development
-    return res.json({
-      success: true,
-      session: {
+    try {
+      const { userId, email } = req.body;
+      
+      // Check if user is admin (simplified check)
+      const ADMIN_EMAIL = 'shyamkaarthikeyan@gmail.com';
+      if (!email || email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+          message: 'Admin privileges required'
+        });
+      }
+
+      // Create admin session
+      const adminSession = {
+        sessionId: 'admin_session_' + Date.now(),
+        userId: userId || 'admin_user',
+        adminPermissions: [
+          'view_analytics',
+          'manage_users', 
+          'system_monitoring',
+          'download_reports',
+          'admin_panel_access'
+        ],
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        lastAccessedAt: new Date().toISOString()
+      };
+
+      const adminToken = 'admin_token_' + Date.now();
+
+      return res.json({
+        success: true,
+        adminSession,
+        adminToken
+      });
+    } catch (error) {
+      console.error('Admin session creation error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create admin session'
+      });
+    }
+  }
+  
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+// Admin Session Verification
+async function handleAdminVerify(req: VercelRequest, res: VercelResponse, storage: any) {
+  if (req.method === 'POST') {
+    try {
+      const adminToken = req.headers['x-admin-token'];
+      
+      if (!adminToken || !adminToken.toString().startsWith('admin_token_')) {
+        return res.status(401).json({
+          success: false,
+          valid: false,
+          error: 'Invalid admin token'
+        });
+      }
+
+      // For demo purposes, consider all admin tokens valid if they have the right format
+      // In production, you'd verify against a database
+      const session = {
         sessionId: 'admin_session_' + Date.now(),
         userId: 'admin_user',
-        permissions: ['view_analytics', 'manage_users', 'system_monitoring'],
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      }
-    });
+        adminPermissions: [
+          'view_analytics',
+          'manage_users', 
+          'system_monitoring',
+          'download_reports',
+          'admin_panel_access'
+        ],
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        lastAccessedAt: new Date().toISOString()
+      };
+
+      return res.json({
+        success: true,
+        valid: true,
+        session
+      });
+    } catch (error) {
+      console.error('Admin verification error:', error);
+      return res.status(500).json({
+        success: false,
+        valid: false,
+        error: 'Verification failed'
+      });
+    }
+  }
+  
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+// Admin Sign Out
+async function handleAdminSignout(req: VercelRequest, res: VercelResponse, storage: any) {
+  if (req.method === 'POST') {
+    try {
+      // In production, you'd invalidate the admin token/session in database
+      return res.json({
+        success: true,
+        message: 'Admin session ended'
+      });
+    } catch (error) {
+      console.error('Admin signout error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Signout failed'
+      });
+    }
   }
   
   return res.status(405).json({ error: 'Method not allowed' });
