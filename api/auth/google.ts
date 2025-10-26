@@ -23,44 +23,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bodyKeys: req.body ? Object.keys(req.body) : []
     });
 
-    const { credential } = req.body || {};
+    // Accept either credential (JWT) or decoded user data
+    const { credential, googleId, email, name, picture } = req.body || {};
     
-    if (!credential) {
-      console.log('Missing credential in request body:', req.body);
-      return res.status(400).json({ error: 'Missing credential' });
-    }
+    console.log('Request body contents:', {
+      hasCredential: !!credential,
+      hasGoogleId: !!googleId,
+      hasEmail: !!email,
+      hasName: !!name
+    });
 
-    console.log('Google auth attempt with credential:', credential.substring(0, 50) + '...');
-    
     // Test storage connection
     console.log('Testing storage connection...');
     const testUsers = await storage.getAllUsers();
     console.log('Storage test successful, user count:', testUsers.length);
 
-    // In production, verify the Google JWT token here
-    // For now, create a real user in our storage system
-    
-    // Decode the JWT to get user info (simplified for demo)
-    // In production, use proper JWT verification
     let userInfo;
-    try {
-      // Use Buffer.from instead of atob for Node.js compatibility
-      const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
+
+    if (credential) {
+      // Handle JWT credential format
+      console.log('Processing JWT credential...');
+      try {
+        // Use Buffer.from instead of atob for Node.js compatibility
+        const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
+        userInfo = {
+          googleId: payload.sub || 'google_' + Date.now(),
+          email: payload.email || 'user@example.com',
+          name: payload.name || 'Demo User',
+          picture: payload.picture || 'https://via.placeholder.com/150'
+        };
+      } catch (e) {
+        console.log('JWT decode failed:', e);
+        return res.status(400).json({ error: 'Invalid credential format' });
+      }
+    } else if (googleId && email) {
+      // Handle decoded user data format (from client)
+      console.log('Processing decoded user data...');
       userInfo = {
-        googleId: payload.sub || 'google_' + Date.now(),
-        email: payload.email || 'user@example.com',
-        name: payload.name || 'Demo User',
-        picture: payload.picture || 'https://via.placeholder.com/150'
+        googleId,
+        email,
+        name: name || 'User',
+        picture: picture || 'https://via.placeholder.com/150'
       };
-    } catch (e) {
-      console.log('JWT decode failed, using fallback:', e);
-      // Fallback for demo
-      userInfo = {
-        googleId: 'google_' + Date.now(),
-        email: 'user@example.com',
-        name: 'Demo User',
-        picture: 'https://via.placeholder.com/150'
-      };
+    } else {
+      console.log('Missing required authentication data:', req.body);
+      return res.status(400).json({ 
+        error: 'Missing authentication data',
+        message: 'Either credential (JWT) or user data (googleId, email) is required'
+      });
     }
 
     console.log('Attempting to find/create user with info:', userInfo);
