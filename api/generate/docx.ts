@@ -161,68 +161,99 @@ async function generateIEEEDocx(documentData: any): Promise<Buffer> {
 async function generateIEEEDocxJS(documentData: any): Promise<Buffer> {
   // JavaScript-based IEEE DOCX generator for serverless environments
   try {
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, SectionType } = await import('docx');
     
+    // Create header section (single column for title, authors, abstract, keywords)
+    const headerChildren = [
+      // Title
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: documentData.title || 'Untitled Paper',
+            bold: true,
+            size: 48, // 24pt
+            font: 'Times New Roman'
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 240 },
+      }),
+      
+      // Authors
+      ...(await createAuthors(documentData.authors || [])),
+      
+      // Abstract
+      ...(documentData.abstract ? [
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Abstract—', bold: true, font: 'Times New Roman', size: 19 }),
+            new TextRun({ text: documentData.abstract, bold: true, font: 'Times New Roman', size: 19 }),
+          ],
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 120 },
+        })
+      ] : []),
+      
+      // Keywords
+      ...(documentData.keywords ? [
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Keywords—', bold: true, font: 'Times New Roman', size: 19 }),
+            new TextRun({ text: documentData.keywords, bold: true, font: 'Times New Roman', size: 19 }),
+          ],
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 240 },
+        })
+      ] : []),
+    ];
+
+    // Create body section (2-column for main content)
+    const bodyChildren = [
+      // Sections
+      ...(await createSections(documentData.sections || [])),
+      
+      // References
+      ...(await createReferences(documentData.references || [])),
+    ];
+
     const doc = new Document({
-      sections: [{
-        properties: {
-          page: {
-            margin: {
-              top: 1080,    // 0.75 inch in twips
-              right: 1080,
-              bottom: 1080,
-              left: 1080,
+      sections: [
+        // Header section (single column)
+        {
+          properties: {
+            page: {
+              margin: {
+                top: 1080,    // 0.75 inch in twips
+                right: 1080,
+                bottom: 1080,
+                left: 1080,
+              },
             },
           },
-          column: {
-            space: 360,     // 0.25 inch spacing
-            count: 2,       // 2 columns for body content
-            separate: true,
-          },
+          children: headerChildren,
         },
-        children: [
-          // Title
-          new Paragraph({
-            text: documentData.title || 'Untitled Paper',
-            heading: HeadingLevel.TITLE,
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 240 },
-          }),
-          
-          // Authors
-          ...(await createAuthors(documentData.authors || [])),
-          
-          // Abstract
-          ...(documentData.abstract ? [
-            new Paragraph({
-              children: [
-                new TextRun({ text: 'Abstract—', bold: true }),
-                new TextRun({ text: documentData.abstract, bold: true }),
-              ],
-              alignment: AlignmentType.JUSTIFIED,
-              spacing: { after: 120 },
-            })
-          ] : []),
-          
-          // Keywords
-          ...(documentData.keywords ? [
-            new Paragraph({
-              children: [
-                new TextRun({ text: 'Keywords—', bold: true }),
-                new TextRun({ text: documentData.keywords, bold: true }),
-              ],
-              alignment: AlignmentType.JUSTIFIED,
-              spacing: { after: 240 },
-            })
-          ] : []),
-          
-          // Sections
-          ...(await createSections(documentData.sections || [])),
-          
-          // References
-          ...(await createReferences(documentData.references || [])),
-        ],
-      }],
+        // Body section (2-column)
+        {
+          properties: {
+            type: SectionType.CONTINUOUS,
+            page: {
+              margin: {
+                top: 1080,
+                right: 1080,
+                bottom: 1080,
+                left: 1080,
+              },
+            },
+            column: {
+              space: 360,     // 0.25 inch spacing
+              count: 2,       // 2 columns
+              separate: true,
+              equalWidth: true,
+            },
+          },
+          children: bodyChildren,
+        }
+      ],
     });
 
     return Buffer.from(await Packer.toBuffer(doc));
@@ -240,10 +271,30 @@ async function createAuthors(authors: any[]): Promise<any[]> {
   return authors.map(author => 
     new Paragraph({
       children: [
-        new TextRun({ text: author.name || '', bold: true }),
-        ...(author.department ? [new TextRun({ text: `\n${author.department}`, italics: true })] : []),
-        ...(author.organization ? [new TextRun({ text: `\n${author.organization}`, italics: true })] : []),
-        ...(author.city && author.state ? [new TextRun({ text: `\n${author.city}, ${author.state}`, italics: true })] : []),
+        new TextRun({ 
+          text: author.name || '', 
+          bold: true, 
+          font: 'Times New Roman', 
+          size: 19 // 9.5pt
+        }),
+        ...(author.department ? [new TextRun({ 
+          text: `\n${author.department}`, 
+          italics: true, 
+          font: 'Times New Roman', 
+          size: 19 
+        })] : []),
+        ...(author.organization ? [new TextRun({ 
+          text: `\n${author.organization}`, 
+          italics: true, 
+          font: 'Times New Roman', 
+          size: 19 
+        })] : []),
+        ...(author.city && author.state ? [new TextRun({ 
+          text: `\n${author.city}, ${author.state}`, 
+          italics: true, 
+          font: 'Times New Roman', 
+          size: 19 
+        })] : []),
       ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 120 },
@@ -260,8 +311,14 @@ async function createSections(sections: any[]): Promise<any[]> {
     // Section title
     if (section.title) {
       result.push(new Paragraph({
-        text: `${index + 1}. ${section.title.toUpperCase()}`,
-        heading: HeadingLevel.HEADING_1,
+        children: [
+          new TextRun({
+            text: `${index + 1}. ${section.title.toUpperCase()}`,
+            font: 'Times New Roman',
+            size: 19, // 9.5pt
+            bold: false, // IEEE sections are not bold
+          })
+        ],
         alignment: AlignmentType.CENTER,
         spacing: { before: 120, after: 60 },
       }));
@@ -272,7 +329,13 @@ async function createSections(sections: any[]): Promise<any[]> {
     contentBlocks.forEach((block: any) => {
       if (block.type === 'text' && block.content) {
         result.push(new Paragraph({
-          text: block.content.replace(/<[^>]*>/g, ''), // Strip HTML tags
+          children: [
+            new TextRun({
+              text: block.content.replace(/<[^>]*>/g, ''), // Strip HTML tags
+              font: 'Times New Roman',
+              size: 19, // 9.5pt
+            })
+          ],
           alignment: AlignmentType.JUSTIFIED,
           spacing: { after: 120 },
           indent: { left: 288 }, // 0.2 inch indent
@@ -283,7 +346,13 @@ async function createSections(sections: any[]): Promise<any[]> {
     // Legacy content support
     if (!contentBlocks.length && section.content) {
       result.push(new Paragraph({
-        text: section.content,
+        children: [
+          new TextRun({
+            text: section.content,
+            font: 'Times New Roman',
+            size: 19, // 9.5pt
+          })
+        ],
         alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 120 },
         indent: { left: 288 },
@@ -297,12 +366,18 @@ async function createSections(sections: any[]): Promise<any[]> {
 async function createReferences(references: any[]): Promise<any[]> {
   if (!references.length) return [];
   
-  const { Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+  const { Paragraph, TextRun, AlignmentType } = await import('docx');
   
   const result = [
     new Paragraph({
-      text: 'REFERENCES',
-      heading: HeadingLevel.HEADING_1,
+      children: [
+        new TextRun({
+          text: 'REFERENCES',
+          font: 'Times New Roman',
+          size: 19, // 9.5pt
+          bold: false, // IEEE references title is not bold
+        })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { before: 240, after: 120 },
     })
@@ -310,7 +385,13 @@ async function createReferences(references: any[]): Promise<any[]> {
   
   references.forEach((ref, index) => {
     result.push(new Paragraph({
-      text: `[${index + 1}] ${ref.text || ref.title || 'Reference'}`,
+      children: [
+        new TextRun({
+          text: `[${index + 1}] ${ref.text || ref.title || 'Reference'}`,
+          font: 'Times New Roman',
+          size: 19, // 9.5pt
+        })
+      ],
       alignment: AlignmentType.JUSTIFIED,
       spacing: { after: 60 },
       indent: { left: 288, hanging: 144 }, // Hanging indent for references
