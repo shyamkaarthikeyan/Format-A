@@ -64,8 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Generating PDF for:', isPreview ? 'preview' : `user: ${user?.email}`);
     console.log('Document title:', documentData.title);
 
-    // Generate actual PDF using Python IEEE generator
-    const pdfBuffer = await generateIEEEPdf(documentData);
+    // Generate actual DOCX using Python IEEE generator
+    const docxBuffer = await generateIEEEDocx(documentData);
     
     // Only record download for actual downloads, not previews
     if (!isPreview && user) {
@@ -73,8 +73,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userId: user.id,
         documentId: `doc_${Date.now()}`,
         documentTitle: documentData.title,
-        fileFormat: 'pdf',
-        fileSize: pdfBuffer.length,
+        fileFormat: 'docx',
+        fileSize: docxBuffer.length,
         downloadedAt: new Date().toISOString(),
         ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
         userAgent: req.headers['user-agent'] || 'unknown',
@@ -96,10 +96,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Set response headers for file download
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+    // Since we're generating DOCX, set correct content type
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', isPreview ? 'inline; filename="ieee_paper_preview.docx"' : 'attachment; filename="ieee_paper.docx"');
     
-    return res.send(pdfBuffer);
+    return res.send(docxBuffer);
 
   } catch (error) {
     console.error('PDF generation error:', error);
@@ -110,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function generateIEEEPdf(documentData: any): Promise<Buffer> {
+async function generateIEEEDocx(documentData: any): Promise<Buffer> {
   // Use the same working DOCX generator and convert to PDF
   return new Promise((resolve, reject) => {
     // Path to the working Python IEEE DOCX generator script
