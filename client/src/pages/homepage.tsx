@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/auth-context";
 import {
   FileText,
   Eye,
@@ -171,6 +172,7 @@ const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [, setLocation] = useLocation();
+  const { isAuthenticated, user, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -210,13 +212,42 @@ const Navigation = () => {
               Pricing
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
             </a>
-            <Button
-              onClick={() => setLocation("/generator")}
-              className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-700 hover:via-violet-700 hover:to-indigo-700 text-white px-8 py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group"
-            >
-              <span className="relative z-10">Get Started</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-            </Button>
+            
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">Welcome, {user?.name}</span>
+                <Button
+                  onClick={() => setLocation("/editor")}
+                  className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-700 hover:via-violet-700 hover:to-indigo-700 text-white px-6 py-2 rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
+                >
+                  Download History
+                </Button>
+                <Button
+                  onClick={signOut}
+                  variant="outline"
+                  className="px-4 py-2 rounded-2xl border-gray-300 hover:border-purple-500 hover:text-purple-600"
+                >
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Button
+                  onClick={() => setLocation("/signin")}
+                  variant="outline"
+                  className="px-6 py-2 rounded-2xl border-purple-500 text-purple-600 hover:bg-purple-50"
+                >
+                  Sign In
+                </Button>
+                <Button
+                  onClick={() => setLocation("/generator")}
+                  className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-700 hover:via-violet-700 hover:to-indigo-700 text-white px-8 py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group"
+                >
+                  <span className="relative z-10">Get Started</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Mobile menu button */}

@@ -3,8 +3,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/auth-context";
+import ProtectedRoute from "@/components/protected-route";
 import Homepage from "@/pages/homepage";
 import HomeClient from "@/pages/home-client";
+import SigninPage from "@/pages/signin";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 
@@ -12,8 +15,22 @@ function RouterClient() {
   return (
     <Router>
       <Route path="/" component={Homepage} />
-      <Route path="/generator" component={HomeClient} />
-      <Route path="/home" component={HomeClient} />
+      <Route path="/generator">
+        <ProtectedRoute>
+          <HomeClient />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/editor">
+        <ProtectedRoute>
+          <HomeClient />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/home">
+        <ProtectedRoute>
+          <HomeClient />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/signin" component={SigninPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
     </Router>
@@ -23,10 +40,12 @@ function RouterClient() {
 function AppClient() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <RouterClient />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <RouterClient />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

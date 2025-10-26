@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link } from "lucide-react";
+import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -11,6 +11,7 @@ import AuthorForm from "@/components/author-form";
 import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
+import DownloadHistory from "@/components/download-history";
 
 import { clientStorage } from "@/lib/localStorage";
 import type { Document, InsertDocument, UpdateDocument } from "@shared/schema";
@@ -34,6 +35,7 @@ export default function HomeClient() {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [showDownloadHistory, setShowDownloadHistory] = useState(false);
   const [, setLocation] = useLocation();
 
   // Load documents from localStorage on mount
@@ -252,6 +254,15 @@ export default function HomeClient() {
               </div>
 
               <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => setShowDownloadHistory(!showDownloadHistory)}
+                  variant="outline"
+                  size="sm"
+                  className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                >
+                  <History className="w-4 h-4 mr-1" />
+                  {showDownloadHistory ? 'Hide History' : 'Download History'}
+                </Button>
                 
                 <Button 
                   onClick={handleCreateDocument} 
@@ -293,9 +304,25 @@ export default function HomeClient() {
             </div>
           </div>
 
-          <div className="flex gap-4 h-[calc(100vh-120px)]">
-            {/* Left Column - Forms (50% width, scrollable) */}
-            <div className="w-[50%] space-y-4 overflow-y-auto pr-4 bg-white/70 backdrop-blur-sm rounded-lg p-5 shadow-lg border border-purple-200">
+          {showDownloadHistory ? (
+            /* Download History View */
+            <div className="h-[calc(100vh-120px)]">
+              <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-white/80">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <History className="w-4 h-4 text-purple-600" />
+                    Download History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="h-[calc(100%-60px)] overflow-hidden p-4">
+                  <DownloadHistory />
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="flex gap-4 h-[calc(100vh-120px)]">
+              {/* Left Column - Forms (50% width, scrollable) */}
+              <div className="w-[50%] space-y-4 overflow-y-auto pr-4 bg-white/70 backdrop-blur-sm rounded-lg p-5 shadow-lg border border-purple-200">
               {/* Document Info - Compact */}
               <Card className="bg-white/90 border border-purple-200 shadow-sm">
                 <CardHeader className="pb-2 pt-3 px-4">
@@ -376,6 +403,7 @@ export default function HomeClient() {
               </Card>
             </div>
           </div>
+          )}
         </div>
       </div>
 

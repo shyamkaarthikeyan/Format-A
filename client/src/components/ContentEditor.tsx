@@ -24,8 +24,6 @@ const ContentEditor = () => {
   const [currentContent, setCurrentContent] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
 
-  console.log('ContentEditor rendering with activeTab:', activeTab);
-
   const tabs = [
     { id: 'text', icon: FileText, label: 'Text', color: 'text-blue-600' },
     { id: 'image', icon: Image, label: 'Image', color: 'text-green-600' },
@@ -164,8 +162,7 @@ const ContentEditor = () => {
 
   return (
     <div className="flex h-96 border border-gray-200 rounded-lg overflow-hidden bg-white">
-      {/* Vertical Sidebar */}
-      <div className="w-20 bg-gray-100 border-r-2 border-gray-300 flex flex-col shadow-sm">
+      <div className="w-24 bg-gray-50 border-r border-gray-200 flex flex-col shadow-sm">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

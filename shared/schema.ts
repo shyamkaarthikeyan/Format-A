@@ -1,5 +1,85 @@
 import { z } from "zod";
 
+// User authentication and profile interfaces
+export interface User {
+  id: string;
+  googleId: string;
+  email: string;
+  name: string;
+  picture: string;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string;
+  isActive: boolean;
+  preferences: UserPreferences;
+}
+
+export interface UserPreferences {
+  emailNotifications: boolean;
+  defaultExportFormat: 'docx' | 'pdf';
+  theme: 'light' | 'dark';
+}
+
+// Download tracking interfaces
+export interface DownloadRecord {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentTitle: string;
+  fileFormat: 'docx' | 'pdf';
+  fileSize: number;
+  downloadedAt: string;
+  ipAddress: string;
+  userAgent: string;
+  status: DownloadStatus;
+  emailSent: boolean;
+  emailSentAt?: string;
+  emailError?: string;
+  documentMetadata: DocumentMetadata;
+}
+
+export type DownloadStatus = 'pending' | 'completed' | 'failed' | 'expired';
+
+export interface DocumentMetadata {
+  pageCount: number;
+  wordCount: number;
+  sectionCount: number;
+  figureCount: number;
+  referenceCount: number;
+  generationTime: number;
+}
+
+// Session management interface
+export interface UserSession {
+  sessionId: string;
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
+  isActive: boolean;
+  lastAccessedAt: string;
+  ipAddress: string;
+  userAgent: string;
+}
+
+// Pagination interfaces
+export interface PaginationOptions {
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedDownloads {
+  downloads: DownloadRecord[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export interface Author {
   id: string;
   name: string;

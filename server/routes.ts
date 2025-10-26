@@ -4,6 +4,7 @@ import { spawn, exec } from "child_process";
 import { storage } from "./storage";
 import { insertDocumentSchema, updateDocumentSchema } from "@shared/schema";
 import { sendIEEEPaper } from "./emailService";
+import { requireAuth, optionalAuth, getClientIP, getUserAgent, AuthenticatedRequest } from "./middleware/auth";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -478,6 +479,341 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Google OAuth authentication endpoint
+  app.post('/api/auth/google', async (req, res) => {
+    try {
+      const { googleId, email, name, picture, preferences } = req.body;
+
+      if (!googleId || !email || !name) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_USER_DATA',
+            message: 'Missing required user data from Google OAuth'
+          }
+        });
+      }
+
+      // Check if user already exists
+      let user = await storage.getUserByGoogleId(googleId);
+      
+      if (user) {
+        // Update existing user's last login
+        user = await storage.updateUser(user.id, {
+          lastLoginAt: new Date().toISOString(),
+          name, // Update name in case it changed
+          picture // Update picture in case it changed
+        });
+      } else {
+        // Create new user
+        user = await storage.createUser({
+          googleId,
+          email,
+          name,
+          picture,
+          lastLoginAt: new Date().toISOString(),
+          isActive: true,
+          preferences: preferences || {
+            emailNotifications: true,
+            defaultExportFormat: 'pdf',
+            theme: 'light'
+          }
+        });
+      }
+
+      if (!user) {
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'USER_CREATION_FAILED',
+            message: 'Failed to create or update user'
+          }
+        });
+      }
+
+      // Create session
+      const session = await storage.createSession({
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+        isActive: true,
+        lastAccessedAt: new Date().toISOString(),
+        ipAddress: getClientIP(req),
+        userAgent: getUserAgent(req)
+      });
+
+      res.json({
+        success: true,
+        user,
+        sessionId: session.sessionId
+      });
+    } catch (error) {
+      console.error('Google auth error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Internal authentication error'
+        }
+      });
+    }
+  });
+
+  // Verify session endpoint
+  app.get('/api/auth/verify', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      // If we reach here, the requireAuth middleware has already validated the session
+      res.json({
+        success: true,
+        user: req.user
+      });
+    } catch (error) {
+      console.error('Session verification error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'VERIFICATION_ERROR',
+          message: 'Failed to verify session'
+        }
+      });
+    }
+  });
+
+  // Sign-out endpoint
+  app.post('/api/auth/signout', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get session ID from cookie or header
+      let sessionId = req.headers.authorization?.replace('Bearer ', '');
+      if (!sessionId && req.cookies?.sessionId) {
+        sessionId = req.cookies.sessionId;
+      }
+
+      if (sessionId) {
+        // Delete the session from storage
+        await storage.deleteSession(sessionId);
+      }
+
+      // Clear the session cookie
+      res.clearCookie('sessionId');
+
+      res.json({
+        success: true,
+        message: 'Successfully signed out'
+      });
+    } catch (error) {
+      console.error('Sign-out error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SIGNOUT_ERROR',
+          message: 'Failed to sign out'
+        }
+      });
+    }
+  });
+
+  // Download history endpoints
+  app.get('/api/downloads/history', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const paginatedDownloads = await storage.getUserDownloads(req.user!.id, {
+        page,
+        limit,
+        sortBy: 'downloadedAt',
+        sortOrder: 'desc'
+      });
+
+      res.json({
+        success: true,
+        data: paginatedDownloads
+      });
+    } catch (error) {
+      console.error('Error fetching download history:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DOWNLOAD_HISTORY_ERROR',
+          message: 'Failed to fetch download history'
+        }
+      });
+    }
+  });
+
+  app.get('/api/downloads/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const downloadId = req.params.id;
+      const download = await storage.getDownloadById(downloadId);
+
+      if (!download) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'DOWNLOAD_NOT_FOUND',
+            message: 'Download record not found'
+          }
+        });
+      }
+
+      // Check if user owns this download
+      if (download.userId !== req.user!.id) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'ACCESS_DENIED',
+            message: 'You do not have access to this download'
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        data: download
+      });
+    } catch (error) {
+      console.error('Error fetching download:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DOWNLOAD_FETCH_ERROR',
+          message: 'Failed to fetch download'
+        }
+      });
+    }
+  });
+
+  // Re-download endpoint
+  app.get('/api/downloads/:id/redownload', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const downloadId = req.params.id;
+      const download = await storage.getDownloadById(downloadId);
+
+      if (!download) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'DOWNLOAD_NOT_FOUND',
+            message: 'Download record not found'
+          }
+        });
+      }
+
+      // Check if user owns this download
+      if (download.userId !== req.user!.id) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'ACCESS_DENIED',
+            message: 'You do not have access to this download'
+          }
+        });
+      }
+
+      // For now, we'll redirect to regenerate the document
+      // In a production system, you might want to store the actual files
+      const regenerateEndpoint = download.fileFormat === 'pdf' ? '/api/generate/pdf' : '/api/generate/docx';
+      
+      res.json({
+        success: true,
+        message: 'Please regenerate the document',
+        regenerateEndpoint,
+        download
+      });
+    } catch (error) {
+      console.error('Error re-downloading:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'REDOWNLOAD_ERROR',
+          message: 'Failed to process re-download request'
+        }
+      });
+    }
+  });
+
+  // Debug endpoint to check authentication and create sample data
+  app.get('/api/debug/auth', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      // Create some sample download records for testing if none exist
+      const existingDownloads = await storage.getUserDownloads(user.id);
+      
+      if (existingDownloads.downloads.length === 0) {
+        console.log('Creating sample download records for user:', user.id);
+        
+        // Create sample downloads
+        const sampleDownloads = [
+          {
+            userId: user.id,
+            documentId: 'sample_doc_1',
+            documentTitle: 'Machine Learning in Healthcare',
+            fileFormat: 'pdf' as const,
+            fileSize: 1024 * 1024, // 1MB
+            downloadedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+            ipAddress: '127.0.0.1',
+            userAgent: 'Test Browser',
+            status: 'completed' as const,
+            emailSent: true,
+            emailSentAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            documentMetadata: {
+              pageCount: 12,
+              wordCount: 3500,
+              sectionCount: 6,
+              figureCount: 3,
+              referenceCount: 25,
+              generationTime: 5000
+            }
+          },
+          {
+            userId: user.id,
+            documentId: 'sample_doc_2',
+            documentTitle: 'Deep Learning Applications',
+            fileFormat: 'docx' as const,
+            fileSize: 2 * 1024 * 1024, // 2MB
+            downloadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+            ipAddress: '127.0.0.1',
+            userAgent: 'Test Browser',
+            status: 'completed' as const,
+            emailSent: false,
+            documentMetadata: {
+              pageCount: 18,
+              wordCount: 5200,
+              sectionCount: 8,
+              figureCount: 5,
+              referenceCount: 42,
+              generationTime: 7500
+            }
+          }
+        ];
+        
+        for (const download of sampleDownloads) {
+          await storage.recordDownload(download);
+        }
+      }
+      
+      const downloads = await storage.getUserDownloads(user.id);
+      
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        },
+        downloads: downloads.downloads.length,
+        sampleData: downloads.downloads
+      });
+    } catch (error) {
+      console.error('Debug auth error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to debug auth', 
+        details: (error as Error).message 
+      });
+    }
+  });
+
   // Debug endpoint to check Python environment
   app.get('/api/debug/python', async (req, res) => {
     try {
@@ -512,7 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document generation routes
-  app.post('/api/generate/docx', async (req, res) => {
+  app.post('/api/generate/docx', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       console.log('=== DOCX Generation Debug Info ===');
       console.log('Request body keys:', Object.keys(req.body));
@@ -593,7 +929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Python stderr:', data.toString());
         });
         
-        python.on('close', (code: number) => {
+        python.on('close', async (code: number) => {
           console.log('Python script finished with code:', code);
           console.log('Output buffer length:', outputBuffer.length);
           console.log('Error output:', errorOutput);
@@ -622,6 +958,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           console.log('✓ Document generated successfully');
+          
+          // Record download tracking
+          try {
+            const documentId = `doc_${Date.now()}`;
+            const generationStartTime = Date.now();
+            
+            const downloadRecord = await storage.recordDownload({
+              userId: req.user!.id,
+              documentId, // Generate unique document ID
+              documentTitle: documentData.title || 'IEEE Paper',
+              fileFormat: 'docx',
+              fileSize: outputBuffer.length,
+              downloadedAt: new Date().toISOString(),
+              ipAddress: getClientIP(req),
+              userAgent: getUserAgent(req),
+              status: 'completed',
+              emailSent: false,
+              documentMetadata: {
+                pageCount: Math.ceil((documentData.sections?.length || 1) * 1.5), // Estimate
+                wordCount: JSON.stringify(documentData).length / 5, // Rough estimate
+                sectionCount: documentData.sections?.length || 0,
+                figureCount: documentData.figures?.length || 0,
+                referenceCount: documentData.references?.length || 0,
+                generationTime: Date.now() - generationStartTime
+              }
+            });
+
+            // Send email with document attachment
+            if (req.user.preferences.emailNotifications) {
+              try {
+                await sendIEEEPaper(req.user.email, outputBuffer, 'ieee_paper.docx');
+                await storage.updateDownloadStatus(downloadRecord.id, 'completed', true);
+                console.log('✓ Email sent successfully to:', req.user.email);
+              } catch (emailError) {
+                console.error('Email sending failed:', emailError);
+                await storage.updateDownloadStatus(downloadRecord.id, 'completed', false, (emailError as Error).message);
+              }
+            }
+          } catch (trackingError) {
+            console.error('Download tracking failed:', trackingError);
+            // Continue with download even if tracking fails
+          }
+
           res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
           res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
           res.send(outputBuffer);
@@ -658,7 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Word to PDF conversion route with hosting platform compatibility
-  app.post('/api/generate/docx-to-pdf', async (req, res) => {
+  app.post('/api/generate/docx-to-pdf', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       console.log('=== Word to PDF Conversion Debug Info ===');
       console.log('Request body keys:', Object.keys(req.body));
@@ -1594,7 +1973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Primary PDF generation endpoint - using ReportLab directly
-  app.post('/api/generate/pdf', async (req, res) => {
+  app.post('/api/generate/pdf', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       console.log('=== PDF Generation Request ===');
       console.log('Document data received:', !!req.body);
