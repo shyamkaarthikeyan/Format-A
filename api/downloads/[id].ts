@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { storage } from '../../server/storage.js';
+import { RestrictionMiddleware, RESTRICTION_CONFIGS } from '../_lib/restriction-middleware';
 
 // Extract user from session token in Authorization header or cookie
 async function extractUser(req: VercelRequest) {
@@ -60,55 +61,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  try {
-    const user = await extractUser(req);
-    
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTHENTICATION_REQUIRED',
-          message: 'Authentication required to access this resource'
+  // Apply restriction middleware
+  return RestrictionMiddleware.enforce(
+    req,
+    res,
+    RESTRICTION_CONFIGS.download,
+    async () => {
+      try {
+        // Log the download attempt
+        await RestrictionMiddleware.logRestrictedAttempt(req, 'download', true);
+
+        const user = (req as any).user; // User attached by middleware
+        const downloadId = req.query.id as string;
+        const download = await storage.getDownloadById(downloadId);
+
+        if (!download) {
+          return res.status(404).json({
+            success: false,
+            error: {
+              code: 'DOWNLOAD_NOT_FOUND',
+              message: 'Download record not found'
+            }
+          });
         }
-      });
-    }
 
-    const downloadId = req.query.id as string;
-    const download = await storage.getDownloadById(downloadId);
-
-    if (!download) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'DOWNLOAD_NOT_FOUND',
-          message: 'Download record not found'
+        // Check if user owns this download
+        if (download.userId !== user.id) {
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'ACCESS_DENIED',
+              message: 'You do not have access to this download'
+            }
+          });
         }
-      });
-    }
 
-    // Check if user owns this download
-    if (download.userId !== user.id) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'ACCESS_DENIED',
-          message: 'You do not have access to this download'
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      data: download
-    });
-  } catch (error) {
-    console.error('Error fetching download:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'DOWNLOAD_FETCH_ERROR',
-        message: 'Failed to fetch download'
+        res.json({
+          success: true,
+          data: download
+        });
+      } catch (error) {
+        console.error('Error fetching download:', error);
+        await RestrictionMiddleware.logRestrictedAttempt(req, 'download', false, 'Internal error');
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'DOWNLOAD_FETCH_ERROR',
+            message: 'Failed to fetch download'
+          }
+        });
       }
-    });
-  }
+    }
+  );
 }

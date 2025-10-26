@@ -2127,6 +2127,400 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin routes - Inline implementations for local development
+  // These are normally handled by Vercel serverless functions in production
+  
+  // Admin auth session route
+  app.post('/api/admin/auth/session', async (req, res) => {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    try {
+      const ADMIN_EMAIL = 'shyamkaarthikeyan@gmail.com';
+      
+      // Verify user is authenticated
+      const sessionId = req.cookies?.sessionId;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const user = await storage.getUserBySessionId(sessionId);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid session' });
+      }
+
+      // Verify user is admin
+      if (user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        console.log(`❌ Admin access denied for ${user.email}`);
+        return res.status(403).json({ 
+          error: 'Admin access denied',
+          message: 'You do not have administrative privileges'
+        });
+      }
+
+      // Create admin session (simplified for local dev)
+      const adminSession = {
+        sessionId: `admin_${Date.now()}`,
+        userId: user.id,
+        adminPermissions: [
+          'view_analytics',
+          'manage_users',
+          'system_monitoring',
+          'download_reports',
+          'admin_panel_access'
+        ],
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        lastAccessedAt: new Date().toISOString()
+      };
+
+      console.log(`✅ Admin session created for ${user.email}`);
+
+      return res.status(201).json({
+        success: true,
+        adminSession,
+        adminToken: 'local-dev-token',
+        message: 'Admin session created successfully'
+      });
+
+    } catch (error) {
+      console.error('Admin session creation error:', error);
+      return res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to create admin session'
+      });
+    }
+  });
+
+  // Admin auth verify route
+  app.post('/api/admin/auth/verify', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Token');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    try {
+      // For local development, just return valid
+      return res.json({
+        valid: true,
+        session: {
+          sessionId: 'admin_local',
+          userId: 'local-user',
+          adminPermissions: ['view_analytics', 'manage_users', 'system_monitoring', 'download_reports', 'admin_panel_access'],
+          lastAccessedAt: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Admin verify error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Admin auth signout route
+  app.post('/api/admin/auth/signout', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Token');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    try {
+      return res.json({
+        success: true,
+        message: 'Admin signed out successfully'
+      });
+    } catch (error) {
+      console.error('Admin signout error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Real admin analytics routes
+  app.get('/api/admin/analytics/users', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const users = await storage.getAllUsers();
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+      const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+      
+      const totalUsers = users.length;
+      const activeUsers = users.filter(user => 
+        user.lastLoginAt && new Date(user.lastLoginAt) > sevenDaysAgo
+      ).length;
+      const newUsers = users.filter(user => 
+        user.createdAt && new Date(user.createdAt) > thirtyDaysAgo
+      ).length;
+      
+      // Calculate growth rate
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const thisMonthUsers = users.filter(user => 
+        user.createdAt && new Date(user.createdAt) >= thisMonthStart
+      ).length;
+      const lastMonthUsers = users.filter(user => {
+        if (!user.createdAt) return false;
+        const createdAt = new Date(user.createdAt);
+        return createdAt >= lastMonthStart && createdAt < thisMonthStart;
+      }).length;
+      
+      const userGrowth = lastMonthUsers > 0 ? ((thisMonthUsers - lastMonthUsers) / lastMonthUsers) * 100 : 0;
+
+      return res.json({
+        success: true,
+        data: {
+          totalUsers,
+          activeUsers: { last7d: activeUsers, last30d: activeUsers },
+          newUsers: { thisMonth: newUsers },
+          userGrowth: { growthRate: userGrowth },
+          topUsers: users.slice(0, 5).map(user => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            documentsCreated: 0,
+            downloadsCount: 0,
+            lastActive: user.lastLoginAt || user.createdAt
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('User analytics error:', error);
+      return res.status(500).json({ error: 'Failed to fetch user analytics' });
+    }
+  });
+
+  app.get('/api/admin/analytics/documents', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const documents = await storage.getAllDocuments();
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const totalDocuments = documents.length;
+      const documentsThisMonth = documents.filter(doc => 
+        doc.createdAt && new Date(doc.createdAt) >= thisMonthStart
+      ).length;
+      
+      // Calculate average section count as a proxy for length
+      const averageLength = documents.length > 0 
+        ? documents.reduce((sum, doc) => sum + (doc.sections?.length || 0), 0) / documents.length
+        : 0;
+      
+      // Extract popular topics from titles
+      const allTitles = documents.map(doc => doc.title || '').join(' ').toLowerCase();
+      const topicCounts: { [key: string]: number } = {};
+      const commonTopics = ['machine learning', 'ai', 'quantum', 'blockchain', 'data science', 'neural network', 'algorithm'];
+      
+      commonTopics.forEach(topic => {
+        const count = (allTitles.match(new RegExp(topic, 'g')) || []).length;
+        if (count > 0) topicCounts[topic] = count;
+      });
+      
+      const popularTopics = Object.entries(topicCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
+        .map(([topic]) => topic);
+
+      return res.json({
+        success: true,
+        data: {
+          totalDocuments,
+          documentsThisMonth,
+          averageLength: Math.round(averageLength * 10) / 10,
+          popularTopics: popularTopics.length > 0 ? popularTopics : ['Machine Learning', 'Healthcare', 'Technology'],
+          recentDocuments: documents.slice(0, 5).map(doc => ({
+            id: doc.id,
+            title: doc.title,
+            createdAt: doc.createdAt,
+            sections: doc.sections?.length || 0
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('Document analytics error:', error);
+      return res.status(500).json({ error: 'Failed to fetch document analytics' });
+    }
+  });
+
+  app.get('/api/admin/analytics/downloads', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      // Get all users to access their download data
+      const users = await storage.getAllUsers();
+      let allDownloads: any[] = [];
+      
+      // Collect downloads from all users
+      for (const user of users) {
+        const userDownloads = await storage.getUserDownloads(user.id);
+        allDownloads = allDownloads.concat(userDownloads.downloads);
+      }
+      
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const totalDownloads = allDownloads.length;
+      const downloadsThisMonth = allDownloads.filter(download => 
+        new Date(download.downloadedAt) >= thisMonthStart
+      ).length;
+      
+      const pdfDownloads = allDownloads.filter(download => 
+        download.fileFormat === 'pdf'
+      ).length;
+      const docxDownloads = allDownloads.filter(download => 
+        download.fileFormat === 'docx'
+      ).length;
+      
+      // Calculate average file size
+      const totalSize = allDownloads.reduce((sum, download) => sum + (download.fileSize || 0), 0);
+      const averageSize = allDownloads.length > 0 ? totalSize / allDownloads.length : 0;
+      
+      // Get recent downloads
+      const recentDownloads = allDownloads
+        .sort((a, b) => new Date(b.downloadedAt).getTime() - new Date(a.downloadedAt).getTime())
+        .slice(0, 5)
+        .map(download => ({
+          id: download.id,
+          documentTitle: download.documentTitle,
+          fileFormat: download.fileFormat,
+          downloadedAt: download.downloadedAt,
+          status: download.status
+        }));
+
+      return res.json({
+        success: true,
+        data: {
+          totalDownloads,
+          downloadsThisMonth,
+          pdfDownloads,
+          docxDownloads,
+          averageFileSize: Math.round(averageSize / 1024), // KB
+          recentDownloads,
+          downloadTrends: {
+            daily: allDownloads.slice(0, 7).length,
+            weekly: allDownloads.slice(0, 30).length
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Download analytics error:', error);
+      return res.status(500).json({ error: 'Failed to fetch download analytics' });
+    }
+  });
+
+  app.get('/api/admin/analytics/system', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const memUsage = process.memoryUsage();
+      const uptime = process.uptime();
+      
+      // Get system statistics
+      const users = await storage.getAllUsers();
+      const documents = await storage.getAllDocuments();
+      
+      // Calculate system health metrics
+      const totalMemoryMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+      const usedMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+      const memoryUsagePercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
+      
+      // System status based on memory usage and uptime
+      let systemStatus = 'healthy';
+      if (memoryUsagePercent > 80) {
+        systemStatus = 'warning';
+      }
+      if (memoryUsagePercent > 95 || uptime < 60) {
+        systemStatus = 'critical';
+      }
+      
+      return res.json({
+        success: true,
+        data: {
+          uptime: Math.round(uptime),
+          uptimeFormatted: formatUptime(uptime),
+          memoryUsage: {
+            total: totalMemoryMB,
+            used: usedMemoryMB,
+            percentage: memoryUsagePercent,
+            rss: Math.round(memUsage.rss / 1024 / 1024),
+            external: Math.round(memUsage.external / 1024 / 1024)
+          },
+          systemStatus,
+          nodeVersion: process.version,
+          platform: process.platform,
+          architecture: process.arch,
+          environment: process.env.NODE_ENV || 'development',
+          activeConnections: users.filter(u => 
+            u.lastLoginAt && new Date(u.lastLoginAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+          ).length,
+          totalDocuments: documents.length,
+          totalUsers: users.length,
+          serverStartTime: new Date(Date.now() - uptime * 1000).toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('System analytics error:', error);
+      return res.status(500).json({ error: 'Failed to fetch system analytics' });
+    }
+  });
+
+  // Helper function to format uptime
+  function formatUptime(seconds: number): string {
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+    
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  }
+
+  // Placeholder admin user management routes
+  app.get('/api/admin/users', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const users = await storage.getAllUsers?.() || [];
+      return res.json({
+        success: true,
+        data: users.slice(0, 10) // Return first 10 users
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/admin/users/:id', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const user = await storage.getUserById?.(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      return res.json({
+        success: true,
+        data: user
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

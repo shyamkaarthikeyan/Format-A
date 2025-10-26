@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Unauthorized Download Flow</title>
+</head>
+<body>
+    <h1>Testing Unauthorized Download Flow</h1>
+    <p>Open the app at <a href="http://localhost:5000" target="_blank">http://localhost:5000</a></p>
+    
+    <h2>Test Steps:</h2>
+    <ol>
+        <li>Make sure you're NOT signed in (sign out if needed)</li>
+        <li>Go to the editor/generator page</li>
+        <li>Add a title and author to your document</li>
+        <li>Look for download buttons - they should show "Sign in to Download" with lock icons</li>
+        <li>Click a download button</li>
+        <li>Verify the "Sign In Required" modal appears</li>
+        <li>Click "Sign In" to test the redirect</li>
+    </ol>
+    
+    <h2>Expected Behavior:</h2>
+    <ul>
+        <li>✅ Download buttons show lock icons when not authenticated</li>
+        <li>✅ Button text changes to "Sign in to Download Word/PDF"</li>
+        <li>✅ Clicking download shows modal instead of attempting download</li>
+        <li>✅ Modal has clear "Sign In Required" message</li>
+        <li>✅ "Sign In" button redirects to /signin page</li>
+        <li>✅ "Cancel" button closes the modal</li>
+    </ul>
+</body>
+</html>
+</text>

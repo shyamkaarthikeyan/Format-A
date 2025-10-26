@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User } from '@shared/schema';
 import { AuthenticationError, getUserFriendlyErrorMessage, handleApiResponse } from '@/lib/error-handling';
 import { authenticatedFetch } from '@/lib/api-client';
+import DocumentMigrationService from '@/lib/document-migration';
+import AdminAuthService, { AdminUser, AdminSession } from '@/lib/admin-auth';
 
 interface AuthContextType {
   user: User | null;
@@ -9,6 +11,17 @@ interface AuthContextType {
   signOut: () => void;
   isAuthenticated: boolean;
   loading: boolean;
+  isGuestMode: boolean;
+  hasGuestDocument: boolean;
+  preserveGuestDocument: () => string | null;
+  migrateGuestDocument: (userId: string) => Promise<boolean>;
+  clearGuestDocument: () => void;
+  getGuestDocumentPreview: () => { title: string; lastModified: string } | null;
+  // Admin functionality
+  isAdmin: boolean;
+  adminSession: AdminSession | null;
+  initializeAdminAccess: () => Promise<boolean>;
+  signOutAdmin: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +33,22 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasGuestDocument, setHasGuestDocument] = useState(false);
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
+
+  // Check for guest document on mount and when localStorage changes
+  useEffect(() => {
+    const checkGuestDocument = () => {
+      const guestDoc = localStorage.getItem('guest-document');
+      setHasGuestDocument(!!guestDoc);
+    };
+
+    checkGuestDocument();
+    
+    // Listen for localStorage changes
+    window.addEventListener('storage', checkGuestDocument);
+    return () => window.removeEventListener('storage', checkGuestDocument);
+  }, []);
 
   // Load user from localStorage on mount and verify with server
   useEffect(() => {
@@ -68,6 +97,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (newUser) {
       // Store user in localStorage for quick access
       localStorage.setItem('format-a-user', JSON.stringify(newUser));
+      
+      // Auto-migrate guest document if it exists
+      if (DocumentMigrationService.hasGuestDocument()) {
+        DocumentMigrationService.autoMigrateOnSignIn(newUser.id)
+          .then(() => {
+            // Update hasGuestDocument state after migration
+            setHasGuestDocument(DocumentMigrationService.hasGuestDocument());
+          })
+          .catch(error => {
+            console.error('Failed to auto-migrate guest document:', error);
+          });
+      }
     } else {
       // Clear user from localStorage
       localStorage.removeItem('format-a-user');
@@ -85,13 +126,86 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const isAuthenticated = user !== null;
+  const isGuestMode = !isAuthenticated;
+  const isAdmin = user ? AdminAuthService.isCurrentUserAdmin(user) : false;
+
+  // Guest document management functions
+  const preserveGuestDocument = () => {
+    return DocumentMigrationService.preserveGuestDocument();
+  };
+
+  const migrateGuestDocument = async (userId: string) => {
+    const success = await DocumentMigrationService.migrateGuestDocument(userId);
+    if (success) {
+      setHasGuestDocument(false);
+    }
+    return success;
+  };
+
+  const clearGuestDocument = () => {
+    DocumentMigrationService.clearGuestDocument();
+    setHasGuestDocument(false);
+  };
+
+  const getGuestDocumentPreview = () => {
+    return DocumentMigrationService.getGuestDocumentPreview();
+  };
+
+  // Admin functions
+  const initializeAdminAccess = async (): Promise<boolean> => {
+    if (!user || !isAdmin) {
+      return false;
+    }
+
+    try {
+      const success = await AdminAuthService.initializeAdminAccess(user);
+      if (success) {
+        const session = AdminAuthService.getCurrentAdminSession();
+        setAdminSession(session);
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to initialize admin access:', error);
+      return false;
+    }
+  };
+
+  const signOutAdmin = async (): Promise<void> => {
+    try {
+      await AdminAuthService.signOutAdmin();
+    } catch (error) {
+      console.error('Error during admin sign out:', error);
+    } finally {
+      setAdminSession(null);
+    }
+  };
+
+  // Initialize admin access when user changes and is admin
+  useEffect(() => {
+    if (!user || !isAdmin) {
+      setAdminSession(null);
+    }
+    // Note: Removed automatic admin session initialization to prevent infinite loops
+    // Admin session will be created on-demand when accessing admin features
+  }, [user, isAdmin]);
 
   const value: AuthContextType = {
     user,
     setUser,
     signOut,
     isAuthenticated,
-    loading
+    loading,
+    isGuestMode,
+    hasGuestDocument,
+    preserveGuestDocument,
+    migrateGuestDocument,
+    clearGuestDocument,
+    getGuestDocumentPreview,
+    // Admin functionality
+    isAdmin,
+    adminSession,
+    initializeAdminAccess,
+    signOutAdmin
   };
 
   return (

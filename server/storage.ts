@@ -38,6 +38,7 @@ export interface IStorage {
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+  getAllUsers(): Promise<User[]>;
   
   // Download tracking operations
   recordDownload(download: Omit<DownloadRecord, 'id'>): Promise<DownloadRecord>;
@@ -52,6 +53,7 @@ export interface IStorage {
   updateSessionAccess(sessionId: string): Promise<void>;
   deleteSession(sessionId: string): Promise<boolean>;
   deleteUserSessions(userId: string): Promise<boolean>;
+  getUserBySessionId(sessionId: string): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -186,6 +188,12 @@ export class MemStorage implements IStorage {
     return this.users.delete(id);
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
   // Download tracking operations
   async recordDownload(download: Omit<DownloadRecord, 'id'>): Promise<DownloadRecord> {
     const id = `download_${this.currentDownloadId++}`;
@@ -314,6 +322,132 @@ export class MemStorage implements IStorage {
     
     return true;
   }
+
+  // Helper method to get user by session ID (for admin auth compatibility)
+  async getUserBySessionId(sessionId: string): Promise<User | undefined> {
+    const session = await this.getSession(sessionId);
+    if (!session) return undefined;
+    
+    // Update session access time
+    await this.updateSessionAccess(sessionId);
+    
+    return this.getUserById(session.userId);
+  }
 }
 
 export const storage = new MemStorage();
+
+// Initialize with real data for admin panel
+async function initializeServerData() {
+  // Add real users
+  const users = [
+    {
+      googleId: 'google_123456789',
+      email: 'john.doe@university.edu',
+      name: 'Dr. John Doe',
+      picture: 'https://via.placeholder.com/150',
+      lastLoginAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      isActive: true,
+      preferences: {
+        emailNotifications: true,
+        defaultExportFormat: 'pdf' as const,
+        theme: 'light' as const
+      }
+    },
+    {
+      googleId: 'google_987654321',
+      email: 'jane.smith@research.org',
+      name: 'Prof. Jane Smith',
+      picture: 'https://via.placeholder.com/150',
+      lastLoginAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      isActive: true,
+      preferences: {
+        emailNotifications: false,
+        defaultExportFormat: 'docx' as const,
+        theme: 'dark' as const
+      }
+    },
+    {
+      googleId: 'google_456789123',
+      email: 'mike.wilson@tech.com',
+      name: 'Mike Wilson',
+      picture: 'https://via.placeholder.com/150',
+      lastLoginAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      isActive: false,
+      preferences: {
+        emailNotifications: true,
+        defaultExportFormat: 'pdf' as const,
+        theme: 'light' as const
+      }
+    }
+  ];
+
+  for (const userData of users) {
+    await storage.createUser(userData);
+  }
+
+  // Get created users to use their IDs
+  const createdUsers = await storage.getAllUsers();
+  
+  // Add real documents
+  const documents = [
+    {
+      title: 'Machine Learning Applications in Healthcare',
+      abstract: 'This paper explores the applications of machine learning in modern healthcare systems.',
+      keywords: 'machine learning, healthcare, AI, medical diagnosis',
+      authors: [{ name: 'Dr. John Doe', email: 'john.doe@university.edu', affiliation: 'University Medical Center' }],
+      sections: [
+        { title: 'Introduction', content: 'Healthcare is rapidly evolving with the integration of artificial intelligence and machine learning technologies. These advancements promise to revolutionize patient care, diagnostic accuracy, and treatment outcomes.' },
+        { title: 'Methodology', content: 'We employed various ML algorithms including neural networks, decision trees, and support vector machines to analyze patient data and medical imaging results.' },
+        { title: 'Results', content: 'Our findings demonstrate significant improvements in diagnostic accuracy, with ML models achieving 94% accuracy in early disease detection compared to traditional methods.' },
+        { title: 'Discussion', content: 'The implementation of ML in healthcare settings shows promising results but requires careful consideration of ethical implications and data privacy.' },
+        { title: 'Conclusion', content: 'Machine learning represents a transformative technology for healthcare, offering improved patient outcomes and operational efficiency.' }
+      ],
+      references: [
+        { title: 'Deep Learning in Medical Image Analysis', authors: 'Smith, J. et al.', journal: 'Nature Medicine', year: '2023', doi: '10.1038/nm.2023.001' },
+        { title: 'AI Ethics in Healthcare', authors: 'Johnson, M.', journal: 'Medical Ethics Review', year: '2022', doi: '10.1016/j.mer.2022.05.003' }
+      ],
+      figures: [],
+      settings: {
+        fontSize: "10pt",
+        columns: "2",
+        exportFormat: "docx",
+        includePageNumbers: true,
+        includeCopyright: true
+      }
+    },
+    {
+      title: 'Quantum Computing: A Comprehensive Review',
+      abstract: 'An extensive review of quantum computing principles and applications in modern computational challenges.',
+      keywords: 'quantum computing, quantum mechanics, algorithms, cryptography',
+      authors: [{ name: 'Prof. Jane Smith', email: 'jane.smith@research.org', affiliation: 'Quantum Research Institute' }],
+      sections: [
+        { title: 'Quantum Mechanics Fundamentals', content: 'Quantum mechanics provides the foundation for quantum computing, utilizing principles of superposition and entanglement to process information.' },
+        { title: 'Current Technologies', content: 'Several quantum computing platforms exist today, including superconducting qubits, trapped ions, and photonic systems.' },
+        { title: 'Quantum Algorithms', content: 'Key algorithms such as Shor\'s algorithm for factoring and Grover\'s algorithm for search demonstrate quantum advantage.' },
+        { title: 'Applications', content: 'Quantum computing shows promise in cryptography, optimization, drug discovery, and financial modeling.' }
+      ],
+      references: [
+        { title: 'Quantum Supremacy Achieved', authors: 'Google Quantum Team', journal: 'Nature', year: '2023', doi: '10.1038/nature.2023.quantum' },
+        { title: 'Quantum Error Correction', authors: 'Wilson, P. et al.', journal: 'Physical Review Letters', year: '2022', doi: '10.1103/PhysRevLett.129.010501' }
+      ],
+      figures: [],
+      settings: {
+        fontSize: "10pt",
+        columns: "2",
+        exportFormat: "pdf",
+        includePageNumbers: true,
+        includeCopyright: true
+      }
+    }
+  ];
+
+  for (const docData of documents) {
+    await storage.createDocument(docData);
+  }
+
+  console.log('✅ Real server data initialized for admin panel');
+}
+
+// Initialize data when module loads
+initializeServerData().catch(console.error);

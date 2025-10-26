@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History } from "lucide-react";
+import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History, Download, Mail, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/auth-context";
 
 import DocumentForm from "@/components/document-form";
 import DocumentPreview from "@/components/document-preview";
@@ -28,14 +29,61 @@ const FloatingParticle = ({ delay }: { delay: number }) => (
   />
 );
 
+// Authentication prompt component
+const AuthPrompt = ({ isOpen, onClose, onSignIn, action }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSignIn: () => void;
+  action: 'download' | 'email';
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        <div className="flex items-center gap-3 mb-4">
+          <Lock className="w-6 h-6 text-purple-600" />
+          <h3 className="text-lg font-semibold">Sign In Required</h3>
+        </div>
+        
+        <p className="text-gray-600 mb-4">
+          To {action} your document, please sign in to your account.
+        </p>
+        
+        <div className="space-y-2 mb-6">
+          <h4 className="font-medium text-gray-900">Benefits of signing in:</h4>
+          <ul className="text-sm text-gray-600 space-y-1">
+            <li>• Download PDF and DOCX files</li>
+            <li>• Email documents to yourself or collaborators</li>
+            <li>• Save document history</li>
+            <li>• Access advanced features</li>
+          </ul>
+        </div>
+        
+        <div className="flex gap-3">
+          <Button onClick={onSignIn} className="flex-1 bg-purple-600 hover:bg-purple-700">
+            Sign In
+          </Button>
+          <Button onClick={onClose} variant="outline" className="flex-1">
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Main component
 export default function HomeClient() {
   const { toast } = useToast();
+  const { isAuthenticated, user, isAdmin } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [showDownloadHistory, setShowDownloadHistory] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const [, setLocation] = useLocation();
 
   // Load documents from localStorage on mount
@@ -118,8 +166,28 @@ export default function HomeClient() {
     }
   };
 
+  const handleAuthRequired = (action: 'download' | 'email') => {
+    setPendingAction(action);
+    setShowAuthPrompt(true);
+  };
+
+  const handleSignIn = () => {
+    setLocation('/signin');
+  };
+
+  const handleCancelAuth = () => {
+    setShowAuthPrompt(false);
+    setPendingAction(null);
+  };
+
   const handleGenerateDocx = async () => {
     if (!currentDocument) return;
+    
+    // Check authentication for download
+    if (!isAuthenticated) {
+      handleAuthRequired('download');
+      return;
+    }
     
     setIsGenerating(true);
     try {
@@ -160,6 +228,12 @@ export default function HomeClient() {
   const handleGeneratePdf = async () => {
     if (!currentDocument) return;
     
+    // Check authentication for download
+    if (!isAuthenticated) {
+      handleAuthRequired('download');
+      return;
+    }
+    
     setIsGenerating(true);
     try {
       // Use proper IEEE PDF generator instead of simple generator
@@ -197,6 +271,19 @@ export default function HomeClient() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleEmailDocument = () => {
+    if (!isAuthenticated) {
+      handleAuthRequired('email');
+      return;
+    }
+    
+    // TODO: Implement email functionality for authenticated users
+    toast({
+      title: "Email Feature",
+      description: "Email functionality will be implemented for authenticated users."
+    });
   };
 
   const documentToDisplay: Document = currentDocument || {
@@ -254,6 +341,19 @@ export default function HomeClient() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Admin Panel Button - Only visible for admin users */}
+                {isAdmin && (
+                  <Button
+                    onClick={() => setLocation('/admin')}
+                    variant="outline"
+                    size="sm"
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                  >
+                    <Users className="w-4 h-4 mr-1" />
+                    Admin Panel
+                  </Button>
+                )}
+
                 <Button
                   onClick={() => setShowDownloadHistory(!showDownloadHistory)}
                   variant="outline"
@@ -406,6 +506,14 @@ export default function HomeClient() {
           )}
         </div>
       </div>
+
+      {/* Authentication Prompt Modal */}
+      <AuthPrompt
+        isOpen={showAuthPrompt}
+        action={pendingAction || 'download'}
+        onSignIn={handleSignIn}
+        onClose={handleCancelAuth}
+      />
 
       {/* Custom Styles */}
       <style>{`

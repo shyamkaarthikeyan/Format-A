@@ -240,7 +240,7 @@ const Navigation = () => {
                   Sign In
                 </Button>
                 <Button
-                  onClick={() => setLocation("/generator")}
+                  onClick={() => setLocation("/try")}
                   className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-700 hover:via-violet-700 hover:to-indigo-700 text-white px-8 py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group"
                 >
                   <span className="relative z-10">Get Started</span>
@@ -271,7 +271,7 @@ const Navigation = () => {
               <a href="#how-it-works" className="block text-gray-700 hover:text-purple-600 transition-colors duration-300 font-medium py-2">How it Works</a>
               <a href="#pricing" className="block text-gray-700 hover:text-purple-600 transition-colors duration-300 font-medium py-2">Pricing</a>
               <Button
-                onClick={() => setLocation("/generator")}
+                onClick={() => setLocation("/try")}
                 className="w-full bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white font-semibold py-3 rounded-2xl"
               >
                 Get Started
@@ -301,7 +301,7 @@ export default function Homepage() {
   }, []);
 
   const handleStartGenerating = () => {
-    setLocation("/generator");
+    setLocation("/try");
   };
 
   const handleTryDemo = () => {

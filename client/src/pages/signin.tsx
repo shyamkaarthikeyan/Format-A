@@ -215,6 +215,54 @@ export default function SigninPage() {
 
         console.log('🎉 Authentication successful! Redirecting to app...');
 
+        // Check for guest document to migrate
+        const guestDocument = localStorage.getItem('guest-document');
+        if (guestDocument) {
+          try {
+            console.log('📄 Guest document found, attempting migration...');
+            
+            // Parse guest document
+            const parsedDoc = JSON.parse(guestDocument);
+            
+            // Prepare migration data
+            const migrationData = {
+              userId: serverUser.id,
+              title: parsedDoc.title || 'Migrated Document',
+              content: JSON.stringify(parsedDoc.blocks || []),
+              metadata: {
+                migratedFrom: 'guest',
+                originalLastModified: parsedDoc.lastModified || new Date().toISOString(),
+                migrationDate: new Date().toISOString()
+              }
+            };
+
+            // Attempt to migrate document
+            const migrationResponse = await fetch('/api/documents/migrate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify(migrationData)
+            });
+
+            if (migrationResponse.ok) {
+              const migrationResult = await migrationResponse.json();
+              console.log('✅ Guest document successfully migrated:', migrationResult.documentId);
+              
+              // Create backup before clearing
+              const backupKey = `guest-document-backup-${Date.now()}`;
+              localStorage.setItem(backupKey, guestDocument);
+              localStorage.removeItem('guest-document');
+            } else {
+              console.warn('⚠️ Migration failed, keeping document in localStorage for manual recovery');
+            }
+          } catch (error) {
+            console.error('❌ Error during document migration:', error);
+            console.log('📄 Keeping guest document in localStorage for safety');
+          }
+        }
+
         // Update auth context
         setUser(serverUser);
         setError('');

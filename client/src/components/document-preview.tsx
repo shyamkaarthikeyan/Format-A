@@ -3,8 +3,9 @@ import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import type { Document } from "@shared/schema";
 
 interface DocumentPreviewProps {
@@ -18,7 +19,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
   // Debugging to verify document data
   console.log("IEEE Word preview rendering with:", {
@@ -178,7 +182,43 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     },
   });
 
+  // Auth handlers
+  const handleAuthRequired = (action: 'download' | 'email') => {
+    setPendingAction(action);
+    setShowAuthPrompt(true);
+  };
+
+  const handleSignIn = () => {
+    window.location.href = '/signin';
+  };
+
+  const handleCancelAuth = () => {
+    setShowAuthPrompt(false);
+    setPendingAction(null);
+  };
+
+  // Download handlers with auth check
+  const handleDownloadWord = () => {
+    if (!isAuthenticated) {
+      handleAuthRequired('download');
+      return;
+    }
+    generateDocxMutation.mutate();
+  };
+
+  const handleDownloadPdf = () => {
+    if (!isAuthenticated) {
+      handleAuthRequired('download');
+      return;
+    }
+    generatePdfMutation.mutate();
+  };
+
   const handleSendEmail = () => {
+    if (!isAuthenticated) {
+      handleAuthRequired('email');
+      return;
+    }
     if (!email.trim()) {
       toast({
         title: "Email Required",
@@ -273,21 +313,23 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4 items-center justify-center">
             <Button
-              onClick={() => generateDocxMutation.mutate()}
+              onClick={handleDownloadWord}
               disabled={generateDocxMutation.isPending || !document.title}
               className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              <Download className="w-4 h-4 mr-2" />
-              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
+              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
+              {isAuthenticated && <Download className="w-4 h-4 mr-2" />}
+              {generateDocxMutation.isPending ? "Generating..." : !isAuthenticated ? "Sign in to Download Word" : "Download Word"}
             </Button>
             <Button
-              onClick={() => generatePdfMutation.mutate()}
+              onClick={handleDownloadPdf}
               disabled={generatePdfMutation.isPending || !document.title}
               variant="outline"
               className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50 hover:border-purple-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              <FileText className="w-4 h-4 mr-2" />
-              {generatePdfMutation.isPending ? "Generating..." : "Download PDF"}
+              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
+              {isAuthenticated && <FileText className="w-4 h-4 mr-2" />}
+              {generatePdfMutation.isPending ? "Generating..." : !isAuthenticated ? "Sign in to Download PDF" : "Download PDF"}
             </Button>
           </div>
         </CardContent>
@@ -323,11 +365,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             </div>
             <Button
               onClick={handleSendEmail}
-              disabled={sendEmailMutation.isPending || !email.trim() || !document.title}
+              disabled={sendEmailMutation.isPending || (!isAuthenticated && !email.trim()) || !document.title}
               className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              <Mail className="w-4 h-4 mr-2" />
-              {sendEmailMutation.isPending ? "Sending..." : "Send to Email"}
+              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
+              {isAuthenticated && <Mail className="w-4 h-4 mr-2" />}
+              {sendEmailMutation.isPending ? "Sending..." : !isAuthenticated ? "Sign in to Email" : "Send to Email"}
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
@@ -438,6 +481,41 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         </CardContent>
       </Card>
+
+      {/* Authentication Prompt Modal */}
+      {showAuthPrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <Lock className="w-6 h-6 text-purple-600" />
+              <h3 className="text-lg font-semibold">Sign In Required</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-4">
+              To {pendingAction} your document, please sign in to your account.
+            </p>
+            
+            <div className="space-y-2 mb-6">
+              <h4 className="font-medium text-gray-900">Benefits of signing in:</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>• Download PDF and DOCX files</li>
+                <li>• Email documents to yourself or collaborators</li>
+                <li>• Save document history</li>
+                <li>• Access advanced features</li>
+              </ul>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button onClick={handleSignIn} className="flex-1 bg-purple-600 hover:bg-purple-700">
+                Sign In
+              </Button>
+              <Button onClick={handleCancelAuth} variant="outline" className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
