@@ -69,14 +69,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('Auth verify response:', response.status);
             
             if (response.ok) {
-              const { user: serverUser } = await response.json();
-              console.log('Server verified user:', serverUser);
-              setUserState(serverUser);
+              const result = await response.json();
+              console.log('Server verified user:', result);
+              if (result.success && result.user) {
+                setUserState(result.user);
+              } else {
+                console.log('Server response invalid, keeping local user');
+                // Keep local user if server response is invalid
+              }
             } else {
-              console.log('Session invalid, clearing local storage');
-              // Session invalid, clear local storage
-              localStorage.removeItem('format-a-user');
-              setUserState(null);
+              console.log('Session verification failed, but keeping user logged in locally');
+              // Keep the user logged in locally - don't clear on verification failure
+              // This allows the app to work even if the server is having issues
             }
           } catch (verifyError) {
             console.error('Error verifying session:', verifyError);

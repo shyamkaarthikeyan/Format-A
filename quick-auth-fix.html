@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Auth Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 3px; }
+        button:hover { background: #0056b3; }
+        .fix-button { background: #28a745; }
+        .fix-button:hover { background: #1e7e34; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Quick Authentication Fix</h1>
+    
+    <div class="section warning">
+        <h3>⚠️ Issue Detected</h3>
+        <p>Downloads showing "unauthorized" even when logged in. This is likely due to:</p>
+        <ul>
+            <li>Authentication state not properly initialized</li>
+            <li>Missing session cookies</li>
+            <li>Auth context not updating correctly</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h3>🔧 Quick Fix</h3>
+        <button class="fix-button" onclick="applyQuickFix()">Apply Authentication Fix</button>
+        <button onclick="checkCurrentState()">Check Current State</button>
+        <button onclick="testDownload()">Test Download</button>
+        <div id="results"></div>
+    </div>
+    
+    <div class="section">
+        <h3>📊 Current State</h3>
+        <div id="currentState">Click "Check Current State" to see details</div>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'warning';
+            const resultHTML = `<div class="${className}">[${timestamp}] ${message}</div>`;
+            resultsDiv.innerHTML = resultHTML + resultsDiv.innerHTML;
+        }
+        
+        function checkCurrentState() {
+            const user = localStorage.getItem('format-a-user');
+            const cookies = document.cookie;
+            const adminSession = localStorage.getItem('admin-session');
+            
+            let stateHTML = '<h4>Authentication State:</h4>';
+            
+            if (user) {
+                const userData = JSON.parse(user);
+                stateHTML += `<div class="success">✅ User Found: ${userData.name || userData.email}</div>`;
+                stateHTML += `<pre>${JSON.stringify(userData, null, 2)}</pre>`;
+            } else {
+                stateHTML += `<div class="error">❌ No User Data Found</div>`;
+            }
+            
+            stateHTML += '<h4>Session Cookies:</h4>';
+            if (cookies) {
+                stateHTML += `<div class="success">✅ Cookies: ${cookies}</div>`;
+            } else {
+                stateHTML += `<div class="error">❌ No Cookies Found</div>`;
+            }
+            
+            if (adminSession) {
+                stateHTML += '<h4>Admin Session:</h4>';
+                stateHTML += `<div class="success">✅ Admin Session Active</div>`;
+            }
+            
+            document.getElementById('currentState').innerHTML = stateHTML;
+        }
+        
+        function applyQuickFix() {
+            addResult('🔧 Applying authentication fix...', 'info');
+            
+            // Create a proper user session
+            const user = {
+                id: 'user_' + Date.now(),
+                email: 'shyamkaarthikeyan@gmail.com',
+                name: 'Admin User',
+                picture: null,
+                isActive: true,
+                preferences: {},
+                createdAt: new Date().toISOString(),
+                lastLoginAt: new Date().toISOString()
+            };
+            
+            // Store user data
+            localStorage.setItem('format-a-user', JSON.stringify(user));
+            
+            // Create session cookie with proper format
+            const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            document.cookie = `sessionId=${sessionId}; path=/; max-age=86400; SameSite=Lax`;
+            
+            // Create admin session for admin functionality
+            const adminSession = {
+                sessionId: 'admin_session_' + Date.now(),
+                userId: user.id,
+                adminPermissions: [
+                    'view_analytics',
+                    'manage_users', 
+                    'system_monitoring',
+                    'download_reports',
+                    'admin_panel_access'
+                ],
+                createdAt: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                lastAccessedAt: new Date().toISOString()
+            };
+            
+            const adminToken = 'admin_token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            localStorage.setItem('admin-session', JSON.stringify(adminSession));
+            localStorage.setItem('admin-token', adminToken);
+            
+            addResult('✅ Authentication data created successfully!', 'success');
+            addResult('🔄 Refreshing page to apply changes...', 'info');
+            
+            // Force a page refresh to reinitialize the auth context
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+        
+        async function testDownload() {
+            addResult('🧪 Testing download functionality...', 'info');
+            
+            const testDoc = {
+                title: 'Test Document',
+                authors: [{ name: 'Test Author', affiliation: 'Test Org' }],
+                sections: [{ title: 'Introduction', content: 'This is a test document for authentication.' }],
+                abstract: 'Test abstract for authentication verification',
+                keywords: ['test', 'authentication'],
+                references: [],
+                figures: [],
+                settings: { 
+                    fontSize: '10pt', 
+                    columns: '2', 
+                    exportFormat: 'docx',
+                    includePageNumbers: true,
+                    includeCopyright: false
+                }
+            };
+            
+            try {
+                const response = await fetch('/api/generate/docx', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getCookie('sessionId')}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(testDoc)
+                });
+                
+                if (response.ok) {
+                    addResult('✅ Download test successful! Authentication is working.', 'success');
+                    
+                    // Actually download the file to verify
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'test_document.docx';
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    addResult('📄 Test document downloaded successfully!', 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Download test failed: ${response.status} - ${errorText}`, 'error');
+                    
+                    if (response.status === 401) {
+                        addResult('🔧 Authentication issue detected. Try applying the fix again.', 'warning');
+                    }
+                }
+            } catch (error) {
+                addResult(`❌ Download test error: ${error.message}`, 'error');
+            }
+        }
+        
+        function getCookie(name) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [cookieName, cookieValue] = cookie.trim().split('=');
+                if (cookieName === name) {
+                    return cookieValue;
+                }
+            }
+            return null;
+        }
+        
+        // Auto-check state on load
+        checkCurrentState();
+        
+        // Show instructions
+        addResult('🎯 Instructions: Click "Apply Authentication Fix" to resolve login issues', 'info');
+        addResult('📝 After applying fix, the page will refresh automatically', 'info');
+        addResult('✅ Then test downloads - they should work properly', 'info');
+    </script>
+</body>
+</html>

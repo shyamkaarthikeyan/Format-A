@@ -13,6 +13,7 @@ import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-fo
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
 import DownloadHistory from "@/components/download-history";
+import AuthDebug from "@/components/auth-debug";
 
 import { clientStorage } from "@/lib/localStorage";
 import type { Document, InsertDocument, UpdateDocument } from "@shared/schema";
@@ -83,6 +84,7 @@ export default function HomeClient() {
   const [isVisible, setIsVisible] = useState(false);
   const [showDownloadHistory, setShowDownloadHistory] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [showAuthDebug, setShowAuthDebug] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const [, setLocation] = useLocation();
 
@@ -364,6 +366,15 @@ export default function HomeClient() {
                   {showDownloadHistory ? 'Hide History' : 'Download History'}
                 </Button>
                 
+                <Button
+                  onClick={() => setShowAuthDebug(!showAuthDebug)}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  🔍 Debug Auth
+                </Button>
+                
                 <Button 
                   onClick={handleCreateDocument} 
                   size="sm"
@@ -404,7 +415,12 @@ export default function HomeClient() {
             </div>
           </div>
 
-          {showDownloadHistory ? (
+          {showAuthDebug ? (
+            /* Auth Debug View */
+            <div className="h-[calc(100vh-120px)]">
+              <AuthDebug />
+            </div>
+          ) : showDownloadHistory ? (
             /* Download History View */
             <div className="h-[calc(100vh-120px)]">
               <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
