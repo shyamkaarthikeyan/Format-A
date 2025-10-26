@@ -315,11 +315,11 @@ export default function SigninPage() {
                 </div>
 
                 <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
-                  Create beautiful <span className="bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">academic documents</span> in minutes
+                  IEEE Document <span className="bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">Formatting</span> Tool
                 </h2>
 
                 <p className="text-lg text-gray-600 max-w-lg mx-auto lg:mx-0">
-                  Professional IEEE-formatted papers with real-time preview, smart templates, and seamless collaboration.
+                  Professional IEEE formatting for academic papers.
                 </p>
               </div>
 
@@ -387,8 +387,8 @@ export default function SigninPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Welcome back</h3>
-                    <p className="text-gray-600">Sign in to continue creating amazing documents</p>
+                    <h3 className="text-2xl font-bold text-gray-900">Sign In</h3>
+                    <p className="text-gray-600">Access IEEE formatting tools</p>
                   </div>
 
                   {/* Error Message */}

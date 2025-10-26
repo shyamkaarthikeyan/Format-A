@@ -613,29 +613,7 @@ export default function Homepage() {
             </div>
           </div>
 
-          {/* Additional pricing info */}
-          <div className="mt-16 text-center">
-            <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-indigo-50 rounded-2xl p-8 max-w-4xl mx-auto">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Volume Discounts Available</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-purple-600">10+ pages</div>
-                  <div className="text-gray-600">₹4.50 per page</div>
-                  <div className="text-sm text-green-600 font-medium">Save 10%</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-purple-600">25+ pages</div>
-                  <div className="text-gray-600">₹4.00 per page</div>
-                  <div className="text-sm text-green-600 font-medium">Save 20%</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-purple-600">50+ pages</div>
-                  <div className="text-gray-600">₹3.50 per page</div>
-                  <div className="text-sm text-green-600 font-medium">Save 30%</div>
-                </div>
-              </div>
-            </div>
-          </div>
+
         </div>
       </section>
 
