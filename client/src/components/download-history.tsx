@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { apiGet } from '@/lib/api-client';
 
 interface DownloadHistoryProps {
   className?: string;
@@ -48,30 +49,15 @@ export default function DownloadHistory({ className }: DownloadHistoryProps) {
       console.log('User authenticated:', isAuthenticated);
       console.log('User:', user);
 
-      const response = await fetch(`/api/downloads/history?page=${page}&limit=10`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Download history response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Download history error response:', errorText);
-        throw new Error(`Failed to fetch download history: ${response.status}`);
-      }
-
-      const data: { success: boolean; data: PaginatedDownloads } = await response.json();
-      console.log('Download history data:', data);
+      const result = await apiGet<PaginatedDownloads>(`/api/downloads/history?page=${page}&limit=10`);
+      console.log('Download history result:', result);
       
-      if (data.success) {
-        setDownloads(data.data.downloads);
-        setPagination(data.data.pagination);
+      if (result.success && result.data) {
+        setDownloads(result.data.downloads);
+        setPagination(result.data.pagination);
         setCurrentPage(page);
       } else {
-        throw new Error('Failed to fetch download history');
+        throw new Error(result.error?.message || 'Failed to fetch download history');
       }
     } catch (err) {
       console.error('Error fetching downloads:', err);

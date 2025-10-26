@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@shared/schema';
 import { AuthenticationError, getUserFriendlyErrorMessage, handleApiResponse } from '@/lib/error-handling';
+import { authenticatedFetch } from '@/lib/api-client';
 
 interface AuthContextType {
   user: User | null;
@@ -31,12 +32,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           // Verify the session is still valid with the server
           try {
-            const response = await fetch('/api/auth/verify', {
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
+            const response = await authenticatedFetch('/api/auth/verify');
             
             if (response.ok) {
               const { user: serverUser } = await response.json();
