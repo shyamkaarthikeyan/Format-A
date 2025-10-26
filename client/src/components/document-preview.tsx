@@ -45,6 +45,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const response = await fetch('/api/generate/docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(document),
       });
 
@@ -87,6 +88,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const response = await fetch('/api/generate/docx-to-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(document),
       });
 
@@ -250,6 +252,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const response = await fetch('/api/generate/docx-to-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(document),
       });
 
