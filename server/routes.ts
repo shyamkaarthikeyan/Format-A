@@ -470,6 +470,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Debug endpoint to test API connectivity
+  app.get('/api/test', (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'API is working correctly',
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      headers: req.headers
+    });
+  });
+
   // API status endpoint (moved from root to /api)
   app.get('/api', (req, res) => {
     res.status(200).json({ 
