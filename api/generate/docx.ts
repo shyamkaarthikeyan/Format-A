@@ -100,21 +100,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function generateIEEEDocx(documentData: any): Promise<Buffer> {
-  // Check if we're in a serverless environment (Vercel)
-  const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
-  
-  if (isServerless) {
-    console.log('Serverless environment detected, using JavaScript fallback');
-    return generateIEEEDocxJS(documentData);
-  }
-  
-  // Local environment - use Python generator
+  // Always use Python generator - it works perfectly for IEEE format
   return new Promise((resolve, reject) => {
     // Path to the Python IEEE generator script
     const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
     
     // Try python3 first, fallback to python
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    
+    console.log(`Using Python generator: ${pythonCmd} ${scriptPath}`);
     
     // Spawn Python process
     const pythonProcess = spawn(pythonCmd, [scriptPath], {
@@ -141,6 +135,7 @@ async function generateIEEEDocx(documentData: any): Promise<Buffer> {
     // Handle process completion
     pythonProcess.on('close', (code) => {
       if (code === 0) {
+        console.log(`Python generator completed successfully, generated ${outputBuffer.length} bytes`);
         resolve(outputBuffer);
       } else {
         console.error('Python script error:', errorOutput);
@@ -151,255 +146,12 @@ async function generateIEEEDocx(documentData: any): Promise<Buffer> {
     // Handle process errors
     pythonProcess.on('error', (error) => {
       console.error('Failed to start Python process:', error);
-      // Fallback to JS version if Python fails
-      console.log('Falling back to JavaScript generator');
-      generateIEEEDocxJS(documentData).then(resolve).catch(reject);
+      reject(new Error(`Failed to start Python process: ${error.message}`));
     });
   });
 }
 
-async function generateIEEEDocxJS(documentData: any): Promise<Buffer> {
-  // JavaScript-based IEEE DOCX generator for serverless environments
-  try {
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, SectionType } = await import('docx');
-    
-    // Create header section (single column for title, authors, abstract, keywords)
-    const headerChildren = [
-      // Title
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: documentData.title || 'Untitled Paper',
-            bold: true,
-            size: 48, // 24pt
-            font: 'Times New Roman'
-          })
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 240 },
-      }),
-      
-      // Authors
-      ...(await createAuthors(documentData.authors || [])),
-      
-      // Abstract
-      ...(documentData.abstract ? [
-        new Paragraph({
-          children: [
-            new TextRun({ text: 'Abstract—', bold: true, font: 'Times New Roman', size: 19 }),
-            new TextRun({ text: documentData.abstract, bold: true, font: 'Times New Roman', size: 19 }),
-          ],
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { after: 120 },
-        })
-      ] : []),
-      
-      // Keywords
-      ...(documentData.keywords ? [
-        new Paragraph({
-          children: [
-            new TextRun({ text: 'Keywords—', bold: true, font: 'Times New Roman', size: 19 }),
-            new TextRun({ text: documentData.keywords, bold: true, font: 'Times New Roman', size: 19 }),
-          ],
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { after: 240 },
-        })
-      ] : []),
-    ];
 
-    // Create body section (2-column for main content)
-    const bodyChildren = [
-      // Sections
-      ...(await createSections(documentData.sections || [])),
-      
-      // References
-      ...(await createReferences(documentData.references || [])),
-    ];
-
-    const doc = new Document({
-      sections: [
-        // Header section (single column)
-        {
-          properties: {
-            page: {
-              margin: {
-                top: 1080,    // 0.75 inch in twips
-                right: 1080,
-                bottom: 1080,
-                left: 1080,
-              },
-            },
-          },
-          children: headerChildren,
-        },
-        // Body section (2-column)
-        {
-          properties: {
-            type: SectionType.CONTINUOUS,
-            page: {
-              margin: {
-                top: 1080,
-                right: 1080,
-                bottom: 1080,
-                left: 1080,
-              },
-            },
-            column: {
-              space: 360,     // 0.25 inch spacing
-              count: 2,       // 2 columns
-              separate: true,
-              equalWidth: true,
-            },
-          },
-          children: bodyChildren,
-        }
-      ],
-    });
-
-    return Buffer.from(await Packer.toBuffer(doc));
-  } catch (error) {
-    console.error('JavaScript DOCX generation failed:', error);
-    throw new Error(`DOCX generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-async function createAuthors(authors: any[]): Promise<any[]> {
-  if (!authors.length) return [];
-  
-  const { Paragraph, TextRun, AlignmentType } = await import('docx');
-  
-  return authors.map(author => 
-    new Paragraph({
-      children: [
-        new TextRun({ 
-          text: author.name || '', 
-          bold: true, 
-          font: 'Times New Roman', 
-          size: 19 // 9.5pt
-        }),
-        ...(author.department ? [new TextRun({ 
-          text: `\n${author.department}`, 
-          italics: true, 
-          font: 'Times New Roman', 
-          size: 19 
-        })] : []),
-        ...(author.organization ? [new TextRun({ 
-          text: `\n${author.organization}`, 
-          italics: true, 
-          font: 'Times New Roman', 
-          size: 19 
-        })] : []),
-        ...(author.city && author.state ? [new TextRun({ 
-          text: `\n${author.city}, ${author.state}`, 
-          italics: true, 
-          font: 'Times New Roman', 
-          size: 19 
-        })] : []),
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 120 },
-    })
-  );
-}
-
-async function createSections(sections: any[]): Promise<any[]> {
-  const { Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
-  
-  const result: any[] = [];
-  
-  sections.forEach((section, index) => {
-    // Section title
-    if (section.title) {
-      result.push(new Paragraph({
-        children: [
-          new TextRun({
-            text: `${index + 1}. ${section.title.toUpperCase()}`,
-            font: 'Times New Roman',
-            size: 19, // 9.5pt
-            bold: false, // IEEE sections are not bold
-          })
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 120, after: 60 },
-      }));
-    }
-    
-    // Section content blocks
-    const contentBlocks = section.contentBlocks || [];
-    contentBlocks.forEach((block: any) => {
-      if (block.type === 'text' && block.content) {
-        result.push(new Paragraph({
-          children: [
-            new TextRun({
-              text: block.content.replace(/<[^>]*>/g, ''), // Strip HTML tags
-              font: 'Times New Roman',
-              size: 19, // 9.5pt
-            })
-          ],
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { after: 120 },
-          indent: { left: 288 }, // 0.2 inch indent
-        }));
-      }
-    });
-    
-    // Legacy content support
-    if (!contentBlocks.length && section.content) {
-      result.push(new Paragraph({
-        children: [
-          new TextRun({
-            text: section.content,
-            font: 'Times New Roman',
-            size: 19, // 9.5pt
-          })
-        ],
-        alignment: AlignmentType.JUSTIFIED,
-        spacing: { after: 120 },
-        indent: { left: 288 },
-      }));
-    }
-  });
-  
-  return result;
-}
-
-async function createReferences(references: any[]): Promise<any[]> {
-  if (!references.length) return [];
-  
-  const { Paragraph, TextRun, AlignmentType } = await import('docx');
-  
-  const result = [
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: 'REFERENCES',
-          font: 'Times New Roman',
-          size: 19, // 9.5pt
-          bold: false, // IEEE references title is not bold
-        })
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 240, after: 120 },
-    })
-  ];
-  
-  references.forEach((ref, index) => {
-    result.push(new Paragraph({
-      children: [
-        new TextRun({
-          text: `[${index + 1}] ${ref.text || ref.title || 'Reference'}`,
-          font: 'Times New Roman',
-          size: 19, // 9.5pt
-        })
-      ],
-      alignment: AlignmentType.JUSTIFIED,
-      spacing: { after: 60 },
-      indent: { left: 288, hanging: 144 }, // Hanging indent for references
-    }));
-  });
-  
-  return result;
-}
 
 function estimateWordCount(documentData: any): number {
   let wordCount = 0;
