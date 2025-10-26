@@ -100,6 +100,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function generateIEEEDocx(documentData: any): Promise<Buffer> {
+  // Check if we're in a serverless environment (Vercel)
+  const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  
+  if (isServerless) {
+    console.log('Serverless environment detected, using JavaScript fallback');
+    return generateIEEEDocxJS(documentData);
+  }
+  
+  // Local environment - use Python generator
   return new Promise((resolve, reject) => {
     // Path to the Python IEEE generator script
     const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
@@ -142,9 +151,173 @@ async function generateIEEEDocx(documentData: any): Promise<Buffer> {
     // Handle process errors
     pythonProcess.on('error', (error) => {
       console.error('Failed to start Python process:', error);
-      reject(new Error(`Failed to start Python process: ${error.message}`));
+      // Fallback to JS version if Python fails
+      console.log('Falling back to JavaScript generator');
+      generateIEEEDocxJS(documentData).then(resolve).catch(reject);
     });
   });
+}
+
+async function generateIEEEDocxJS(documentData: any): Promise<Buffer> {
+  // JavaScript-based IEEE DOCX generator for serverless environments
+  try {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+    
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            margin: {
+              top: 1080,    // 0.75 inch in twips
+              right: 1080,
+              bottom: 1080,
+              left: 1080,
+            },
+          },
+          column: {
+            space: 360,     // 0.25 inch spacing
+            count: 2,       // 2 columns for body content
+            separate: true,
+          },
+        },
+        children: [
+          // Title
+          new Paragraph({
+            text: documentData.title || 'Untitled Paper',
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 240 },
+          }),
+          
+          // Authors
+          ...(await createAuthors(documentData.authors || [])),
+          
+          // Abstract
+          ...(documentData.abstract ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Abstract—', bold: true }),
+                new TextRun({ text: documentData.abstract, bold: true }),
+              ],
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: { after: 120 },
+            })
+          ] : []),
+          
+          // Keywords
+          ...(documentData.keywords ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Keywords—', bold: true }),
+                new TextRun({ text: documentData.keywords, bold: true }),
+              ],
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: { after: 240 },
+            })
+          ] : []),
+          
+          // Sections
+          ...(await createSections(documentData.sections || [])),
+          
+          // References
+          ...(await createReferences(documentData.references || [])),
+        ],
+      }],
+    });
+
+    return Buffer.from(await Packer.toBuffer(doc));
+  } catch (error) {
+    console.error('JavaScript DOCX generation failed:', error);
+    throw new Error(`DOCX generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+async function createAuthors(authors: any[]): Promise<any[]> {
+  if (!authors.length) return [];
+  
+  const { Paragraph, TextRun, AlignmentType } = await import('docx');
+  
+  return authors.map(author => 
+    new Paragraph({
+      children: [
+        new TextRun({ text: author.name || '', bold: true }),
+        ...(author.department ? [new TextRun({ text: `\n${author.department}`, italics: true })] : []),
+        ...(author.organization ? [new TextRun({ text: `\n${author.organization}`, italics: true })] : []),
+        ...(author.city && author.state ? [new TextRun({ text: `\n${author.city}, ${author.state}`, italics: true })] : []),
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 120 },
+    })
+  );
+}
+
+async function createSections(sections: any[]): Promise<any[]> {
+  const { Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+  
+  const result: any[] = [];
+  
+  sections.forEach((section, index) => {
+    // Section title
+    if (section.title) {
+      result.push(new Paragraph({
+        text: `${index + 1}. ${section.title.toUpperCase()}`,
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 120, after: 60 },
+      }));
+    }
+    
+    // Section content blocks
+    const contentBlocks = section.contentBlocks || [];
+    contentBlocks.forEach((block: any) => {
+      if (block.type === 'text' && block.content) {
+        result.push(new Paragraph({
+          text: block.content.replace(/<[^>]*>/g, ''), // Strip HTML tags
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 120 },
+          indent: { left: 288 }, // 0.2 inch indent
+        }));
+      }
+    });
+    
+    // Legacy content support
+    if (!contentBlocks.length && section.content) {
+      result.push(new Paragraph({
+        text: section.content,
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 120 },
+        indent: { left: 288 },
+      }));
+    }
+  });
+  
+  return result;
+}
+
+async function createReferences(references: any[]): Promise<any[]> {
+  if (!references.length) return [];
+  
+  const { Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+  
+  const result = [
+    new Paragraph({
+      text: 'REFERENCES',
+      heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 240, after: 120 },
+    })
+  ];
+  
+  references.forEach((ref, index) => {
+    result.push(new Paragraph({
+      text: `[${index + 1}] ${ref.text || ref.title || 'Reference'}`,
+      alignment: AlignmentType.JUSTIFIED,
+      spacing: { after: 60 },
+      indent: { left: 288, hanging: 144 }, // Hanging indent for references
+    }));
+  });
+  
+  return result;
 }
 
 function estimateWordCount(documentData: any): number {
