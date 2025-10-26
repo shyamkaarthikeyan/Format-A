@@ -4,15 +4,40 @@ import { storage } from '../../server/storage.js';
 // Extract user from session token in Authorization header or cookie
 async function extractUser(req: VercelRequest) {
   try {
+    console.log('🔍 Debug - extractUser called');
+    console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('🔍 Cookies object:', req.cookies);
+    console.log('🔍 Cookie header:', req.headers.cookie);
+    
     // Try to get session ID from Authorization header first
     let sessionId = req.headers.authorization?.toString().replace('Bearer ', '');
+    console.log('🔍 Session ID from Authorization header:', sessionId);
     
-    // If not in header, try cookie
-    if (!sessionId && req.cookies?.sessionId) {
-      sessionId = req.cookies.sessionId;
+    // If not in header, try cookie - manual parsing since req.cookies might not work
+    if (!sessionId) {
+      const cookieHeader = req.headers.cookie;
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc: any, cookie) => {
+          const [name, value] = cookie.trim().split('=');
+          acc[name] = value;
+          return acc;
+        }, {});
+        sessionId = cookies.sessionId;
+        console.log('🔍 Parsed cookies:', cookies);
+        console.log('🔍 Session ID from parsed cookies:', sessionId);
+      }
+      
+      // Also try req.cookies as fallback
+      if (!sessionId && req.cookies?.sessionId) {
+        sessionId = req.cookies.sessionId;
+        console.log('🔍 Session ID from req.cookies:', sessionId);
+      }
     }
 
+    console.log('🔍 Final session ID:', sessionId);
+
     if (!sessionId) {
+      console.log('❌ No session ID found');
       return null;
     }
 
