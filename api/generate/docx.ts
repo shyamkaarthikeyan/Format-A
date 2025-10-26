@@ -1,5 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { storage } from '../_lib/storage.js';
+import { spawn } from 'child_process';
+import path from 'path';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -55,9 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Generating DOCX for user:', user.email);
     console.log('Document title:', documentData.title);
 
-    // For now, return a simple mock DOCX file
-    // In production, this would call the Python script or use a document generation library
-    const mockDocxContent = createMockDocxContent(documentData);
+    // Generate actual DOCX using Python IEEE generator
+    const docxBuffer = await generateIEEEDocx(documentData);
     
     // Record download in storage
     const downloadRecord = await storage.recordDownload({
@@ -65,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       documentId: `doc_${Date.now()}`,
       documentTitle: documentData.title,
       fileFormat: 'docx',
-      fileSize: mockDocxContent.length,
+      fileSize: docxBuffer.length,
       downloadedAt: new Date().toISOString(),
       ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown',
@@ -87,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
     
-    return res.send(Buffer.from(mockDocxContent));
+    return res.send(docxBuffer);
 
   } catch (error) {
     console.error('DOCX generation error:', error);
@@ -98,29 +99,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-function createMockDocxContent(documentData: any): string {
-  // This is a simplified mock. In production, you'd use a proper DOCX library
-  // or call the Python script to generate the actual document
-  const content = `
-IEEE Paper: ${documentData.title}
+async function generateIEEEDocx(documentData: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    // Path to the Python IEEE generator script
+    const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
+    
+    // Try python3 first, fallback to python
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    
+    // Spawn Python process
+    const pythonProcess = spawn(pythonCmd, [scriptPath], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
 
-Authors: ${documentData.authors?.map((a: any) => a.name).join(', ') || 'Unknown'}
+    let outputBuffer = Buffer.alloc(0);
+    let errorOutput = '';
 
-Abstract:
-${documentData.abstract || 'No abstract provided.'}
+    // Send JSON data to Python script
+    pythonProcess.stdin.write(JSON.stringify(documentData));
+    pythonProcess.stdin.end();
 
-${documentData.sections?.map((section: any, index: number) => `
-${index + 1}. ${section.title || `Section ${index + 1}`}
-${section.content || 'No content provided.'}
-`).join('\n') || ''}
+    // Collect binary output (DOCX file)
+    pythonProcess.stdout.on('data', (data) => {
+      outputBuffer = Buffer.concat([outputBuffer, data]);
+    });
 
-References:
-${documentData.references?.map((ref: any, index: number) => `
-[${index + 1}] ${ref.text || ref.title || 'Reference'}
-`).join('\n') || 'No references provided.'}
-`;
+    // Collect error output
+    pythonProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
 
-  return content;
+    // Handle process completion
+    pythonProcess.on('close', (code) => {
+      if (code === 0) {
+        resolve(outputBuffer);
+      } else {
+        console.error('Python script error:', errorOutput);
+        reject(new Error(`Python script failed with code ${code}: ${errorOutput}`));
+      }
+    });
+
+    // Handle process errors
+    pythonProcess.on('error', (error) => {
+      console.error('Failed to start Python process:', error);
+      reject(new Error(`Failed to start Python process: ${error.message}`));
+    });
+  });
 }
 
 function estimateWordCount(documentData: any): number {
@@ -134,6 +158,14 @@ function estimateWordCount(documentData: any): number {
     documentData.sections.forEach((section: any) => {
       if (section.content) {
         wordCount += section.content.split(' ').length;
+      }
+      // Count words in content blocks
+      if (section.contentBlocks) {
+        section.contentBlocks.forEach((block: any) => {
+          if (block.type === 'text' && block.content) {
+            wordCount += block.content.split(' ').length;
+          }
+        });
       }
     });
   }
