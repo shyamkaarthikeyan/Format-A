@@ -49,7 +49,7 @@ export default function DownloadHistory({ className }: DownloadHistoryProps) {
       console.log('User authenticated:', isAuthenticated);
       console.log('User:', user);
 
-      const result = await apiGet<PaginatedDownloads>(`/api/downloads/history?page=${page}&limit=10`);
+      const result = await apiGet<PaginatedDownloads>(`/api/downloads/history-simple?page=${page}&limit=10`);
       console.log('Download history result:', result);
       
       if (result.success && result.data) {
