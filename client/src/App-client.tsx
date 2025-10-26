@@ -10,6 +10,7 @@ import HomeClient from "@/pages/home-client";
 import SigninPage from "@/pages/signin";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
+import DebugPage from "@/pages/debug";
 
 function RouterClient() {
   return (
@@ -31,6 +32,7 @@ function RouterClient() {
         </ProtectedRoute>
       </Route>
       <Route path="/signin" component={SigninPage} />
+      <Route path="/debug" component={DebugPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
     </Router>
