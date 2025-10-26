@@ -199,18 +199,24 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
   // Download handlers with auth check
   const handleDownloadWord = () => {
+    console.log('Download Word clicked, isAuthenticated:', isAuthenticated);
     if (!isAuthenticated) {
+      console.log('User not authenticated, showing auth prompt');
       handleAuthRequired('download');
       return;
     }
+    console.log('User authenticated, generating DOCX');
     generateDocxMutation.mutate();
   };
 
   const handleDownloadPdf = () => {
+    console.log('Download PDF clicked, isAuthenticated:', isAuthenticated);
     if (!isAuthenticated) {
+      console.log('User not authenticated, showing auth prompt');
       handleAuthRequired('download');
       return;
     }
+    console.log('User authenticated, generating PDF');
     generatePdfMutation.mutate();
   };
 

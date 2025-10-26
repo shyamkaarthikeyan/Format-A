@@ -56,7 +56,7 @@ export async function authenticatedFetch(
 
   // Add admin token for admin requests
   if (url.includes('/admin/')) {
-    const adminToken = localStorage.getItem('adminToken');
+    const adminToken = localStorage.getItem('admin-token');
     if (adminToken) {
       (headers as any)['X-Admin-Token'] = adminToken;
     }

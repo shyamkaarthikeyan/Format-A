@@ -30,12 +30,15 @@ export class RestrictionEnforcement {
    * Check if an action is allowed for the current user with enhanced state management
    */
   static checkAction(action: RestrictedAction, isAuthenticated: boolean): RestrictionResult {
+    console.log(`Checking action: ${action}, isAuthenticated: ${isAuthenticated}`);
+    
     // Define which actions require authentication
     const authRequiredActions: RestrictedAction[] = ['download', 'email', 'export', 'share'];
     
     const isRestricted = authRequiredActions.includes(action) && !isAuthenticated;
     
     if (isRestricted) {
+      console.log(`Action ${action} is restricted - user not authenticated`);
       return {
         allowed: false,
         reason: `Sign in required to ${action} documents`,
@@ -52,6 +55,7 @@ export class RestrictionEnforcement {
       };
     }
 
+    console.log(`Action ${action} is allowed - user is authenticated`);
     return {
       allowed: true,
       requiresAuth: false,

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Auth State</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Authentication State Debug</h1>
+    
+    <div class="section">
+        <h3>Current State</h3>
+        <div id="currentState">Loading...</div>
+    </div>
+    
+    <div class="section">
+        <h3>Local Storage</h3>
+        <div id="localStorage">Loading...</div>
+    </div>
+    
+    <div class="section">
+        <h3>Cookies</h3>
+        <div id="cookies">Loading...</div>
+    </div>
+    
+    <div class="section">
+        <h3>API Tests</h3>
+        <button onclick="testAuthVerify()">Test Auth Verify</button>
+        <button onclick="testDownloadAPI()">Test Download API</button>
+        <button onclick="testAdminAPI()">Test Admin API</button>
+        <div id="apiResults"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Actions</h3>
+        <button onclick="clearAllAuth()">Clear All Auth Data</button>
+        <button onclick="refreshPage()">Refresh Page</button>
+    </div>
+
+    <script>
+        function displayCurrentState() {
+            const user = localStorage.getItem('format-a-user');
+            const adminSession = localStorage.getItem('admin-session');
+            const adminToken = localStorage.getItem('admin-token');
+            
+            let html = '<h4>User Data:</h4>';
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    html += `<pre>${JSON.stringify(userData, null, 2)}</pre>`;
+                } catch (e) {
+                    html += `<div class="error">Invalid JSON: ${user}</div>`;
+                }
+            } else {
+                html += '<div class="info">No user data found</div>';
+            }
+            
+            html += '<h4>Admin Session:</h4>';
+            if (adminSession) {
+                try {
+                    const sessionData = JSON.parse(adminSession);
+                    html += `<pre>${JSON.stringify(sessionData, null, 2)}</pre>`;
+                } catch (e) {
+                    html += `<div class="error">Invalid JSON: ${adminSession}</div>`;
+                }
+            } else {
+                html += '<div class="info">No admin session found</div>';
+            }
+            
+            html += '<h4>Admin Token:</h4>';
+            html += adminToken ? `<div class="success">${adminToken}</div>` : '<div class="info">No admin token found</div>';
+            
+            document.getElementById('currentState').innerHTML = html;
+        }
+        
+        function displayLocalStorage() {
+            let html = '<h4>All Local Storage Items:</h4>';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                html += `<div><strong>${key}:</strong> ${value}</div>`;
+            }
+            document.getElementById('localStorage').innerHTML = html;
+        }
+        
+        function displayCookies() {
+            const cookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            let html = '<h4>All Cookies:</h4>';
+            if (cookies.length === 0) {
+                html += '<div class="info">No cookies found</div>';
+            } else {
+                cookies.forEach(cookie => {
+                    html += `<div>${cookie}</div>`;
+                });
+            }
+            document.getElementById('cookies').innerHTML = html;
+        }
+        
+        async function testAuthVerify() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML += '<h4>Testing Auth Verify:</h4>';
+            
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                const className = response.ok ? 'success' : 'error';
+                resultsDiv.innerHTML += `<div class="${className}">Status: ${response.status}<br>Response: <pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testDownloadAPI() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML += '<h4>Testing Download API:</h4>';
+            
+            try {
+                const response = await fetch('/api/downloads', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                const className = response.ok ? 'success' : 'error';
+                resultsDiv.innerHTML += `<div class="${className}">Status: ${response.status}<br>Response: <pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testAdminAPI() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML += '<h4>Testing Admin API:</h4>';
+            
+            try {
+                const response = await fetch('/api/admin/analytics/users', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                const className = response.ok ? 'success' : 'error';
+                resultsDiv.innerHTML += `<div class="${className}">Status: ${response.status}<br>Response: <pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function clearAllAuth() {
+            localStorage.removeItem('format-a-user');
+            localStorage.removeItem('admin-session');
+            localStorage.removeItem('admin-token');
+            document.cookie = 'sessionId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            alert('All auth data cleared');
+            displayCurrentState();
+            displayLocalStorage();
+            displayCookies();
+        }
+        
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        // Initialize
+        displayCurrentState();
+        displayLocalStorage();
+        displayCookies();
+    </script>
+</body>
+</html>

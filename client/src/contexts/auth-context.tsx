@@ -58,25 +58,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         if (storedUser) {
           const userData = JSON.parse(storedUser);
+          console.log('Found stored user:', userData);
+          
+          // Set user immediately for better UX, then verify
+          setUserState(userData);
           
           // Verify the session is still valid with the server
           try {
             const response = await authenticatedFetch('/api/auth/verify');
+            console.log('Auth verify response:', response.status);
             
             if (response.ok) {
               const { user: serverUser } = await response.json();
+              console.log('Server verified user:', serverUser);
               setUserState(serverUser);
             } else {
+              console.log('Session invalid, clearing local storage');
               // Session invalid, clear local storage
               localStorage.removeItem('format-a-user');
               setUserState(null);
             }
           } catch (verifyError) {
             console.error('Error verifying session:', verifyError);
-            // If verification fails, clear local storage
-            localStorage.removeItem('format-a-user');
-            setUserState(null);
+            // Keep the user logged in locally if verification fails (offline mode)
+            console.log('Keeping user logged in locally due to verification error');
           }
+        } else {
+          console.log('No stored user found');
         }
       } catch (error) {
         console.error('Error loading user from localStorage:', error);

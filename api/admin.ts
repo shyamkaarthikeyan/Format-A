@@ -46,7 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleAdminSignout(req, res, storage);
       
       default:
-        return res.status(404).json({ error: 'Admin endpoint not found' });
+        console.log('Unknown admin endpoint:', endpoint);
+        return res.status(404).json({ error: 'Admin endpoint not found', endpoint });
     }
   } catch (error) {
     console.error('Admin API error:', error);

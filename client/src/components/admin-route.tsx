@@ -23,17 +23,21 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
 
   useEffect(() => {
     const handleAdminAccess = async () => {
+      console.log('Admin route check:', { loading, user: !!user, isAdmin, adminSession: !!adminSession });
+      
       // Wait for auth to finish loading
       if (loading) return;
 
       // If not authenticated, redirect to sign-in
       if (!user) {
+        console.log('No user, redirecting to signin');
         setLocation('/signin');
         return;
       }
 
       // If not admin, redirect or show unauthorized
       if (!isAdmin) {
+        console.log('User is not admin');
         if (showUnauthorized) {
           setInitializationError('You do not have administrative privileges');
         } else {
@@ -44,11 +48,13 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
 
       // If admin but no admin session, try to initialize
       if (!adminSession && !isInitializing) {
+        console.log('Admin user but no session, initializing...');
         setIsInitializing(true);
         setInitializationError(null);
 
         try {
           const success = await initializeAdminAccess();
+          console.log('Admin access initialization result:', success);
           if (!success) {
             setInitializationError('Failed to initialize admin access');
           }
@@ -62,7 +68,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
     };
 
     handleAdminAccess();
-  }, [user, isAdmin, adminSession, loading, isInitializing]);
+  }, [user, isAdmin, adminSession, loading, isInitializing, initializeAdminAccess, setLocation, showUnauthorized, fallbackPath]);
 
   // Check if user has required permissions
   const hasRequiredPermissions = () => {
