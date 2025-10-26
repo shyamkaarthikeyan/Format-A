@@ -63,10 +63,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
     }
 
+    console.log('Attempting to find/create user with info:', userInfo);
+
     // Check if user exists
     let user = await storage.getUserByGoogleId(userInfo.googleId);
+    console.log('Existing user found:', !!user);
     
     if (!user) {
+      console.log('Creating new user...');
       // Create new user
       user = await storage.createUser({
         googleId: userInfo.googleId,
@@ -81,14 +85,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           theme: 'light'
         }
       });
+      console.log('New user created:', user.id);
     } else {
+      console.log('Updating existing user login time...');
       // Update last login
       user = await storage.updateUser(user.id, {
         lastLoginAt: new Date().toISOString(),
         isActive: true
       });
+      console.log('User updated:', user?.id);
     }
 
+    if (!user) {
+      throw new Error('Failed to create or update user');
+    }
+
+    console.log('Creating session for user:', user.id);
     // Create session
     const session = await storage.createSession({
       userId: user.id,
@@ -98,10 +110,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ipAddress: (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress) || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown'
     });
+    console.log('Session created:', session.sessionId);
 
     // Set session cookie
     res.setHeader('Set-Cookie', `sessionId=${session.sessionId}; Path=/; Max-Age=${7 * 24 * 60 * 60}; HttpOnly; SameSite=Lax`);
 
+    console.log('Returning successful auth response');
     return res.json({
       success: true,
       user: {
