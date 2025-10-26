@@ -23,14 +23,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         signout: '/api/auth/signout'
       },
       downloads: {
-        history: '/api/downloads/history',
-        byId: '/api/downloads/[id]'
+        history: '/api/downloads?action=history',
+        byId: '/api/downloads?id={id}'
       },
-      debug: {
-        auth: '/api/debug/auth'
-      },
-      health: '/api/health',
-      test: '/api/test'
+      admin: '/api/admin',
+      health: '/api/health'
     }
   });
 }

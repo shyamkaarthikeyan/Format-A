@@ -94,23 +94,38 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // For now, we'll use mock data since the analytics endpoints aren't implemented yet
-      // In the future, this will call the actual API endpoints
-      const mockStats: DashboardStats = {
-        totalUsers: 1247,
-        totalDocuments: 3892,
-        totalDownloads: 2156,
-        activeUsers: 89,
-        newUsersToday: 12,
-        documentsToday: 45,
-        downloadsToday: 78,
-        systemHealth: 'healthy'
-      };
+      // Fetch real data from admin API endpoints
+      const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.all([
+        fetch('/api/admin/analytics/users'),
+        fetch('/api/admin/analytics/documents'),
+        fetch('/api/admin/analytics/downloads'),
+        fetch('/api/admin/analytics/system')
+      ]);
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setStats(mockStats);
+      const [userData, documentData, downloadData, systemData] = await Promise.all([
+        userResponse.json(),
+        documentResponse.json(),
+        downloadResponse.json(),
+        systemResponse.json()
+      ]);
+
+      if (userData.success && documentData.success && downloadData.success && systemData.success) {
+        const realStats: DashboardStats = {
+          totalUsers: userData.data.totalUsers,
+          totalDocuments: documentData.data.totalDocuments,
+          totalDownloads: downloadData.data.totalDownloads,
+          activeUsers: userData.data.activeUsers.last30d,
+          newUsersToday: userData.data.userGrowth.thisMonth,
+          documentsToday: documentData.data.documentsThisMonth,
+          downloadsToday: downloadData.data.downloadTrends.daily.slice(-1)[0]?.count || 0,
+          systemHealth: systemData.data.systemStatus === 'healthy' ? 'healthy' : 
+                       systemData.data.systemStatus === 'warning' ? 'warning' : 'error'
+        };
+        
+        setStats(realStats);
+      } else {
+        throw new Error('Failed to fetch one or more analytics endpoints');
+      }
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
       setError('Failed to load dashboard statistics');
@@ -275,27 +290,77 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   ))
                 ) : (
-                  // Mock activity data
-                  [
-                    { action: 'New user registration', time: '2 minutes ago', type: 'user' },
-                    { action: 'Document downloaded', time: '5 minutes ago', type: 'download' },
-                    { action: 'Document created', time: '8 minutes ago', type: 'document' },
-                    { action: 'User signed in', time: '12 minutes ago', type: 'user' },
-                    { action: 'System backup completed', time: '1 hour ago', type: 'system' }
-                  ].map((activity, i) => (
-                    <div key={i} className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        {activity.type === 'user' && <Users className="w-4 h-4 text-purple-600" />}
-                        {activity.type === 'download' && <Download className="w-4 h-4 text-purple-600" />}
-                        {activity.type === 'document' && <FileText className="w-4 h-4 text-purple-600" />}
-                        {activity.type === 'system' && <Activity className="w-4 h-4 text-purple-600" />}
+                  // Real activity data from API responses
+                  (() => {
+                    const activities = [];
+                    
+                    // Add recent user registrations
+                    if (stats?.newUsersToday > 0) {
+                      activities.push({
+                        action: `${stats.newUsersToday} new user${stats.newUsersToday > 1 ? 's' : ''} registered`,
+                        time: 'Today',
+                        type: 'user'
+                      });
+                    }
+                    
+                    // Add recent downloads
+                    if (stats?.downloadsToday > 0) {
+                      activities.push({
+                        action: `${stats.downloadsToday} document${stats.downloadsToday > 1 ? 's' : ''} downloaded`,
+                        time: 'Today',
+                        type: 'download'
+                      });
+                    }
+                    
+                    // Add recent documents
+                    if (stats?.documentsToday > 0) {
+                      activities.push({
+                        action: `${stats.documentsToday} document${stats.documentsToday > 1 ? 's' : ''} created`,
+                        time: 'This month',
+                        type: 'document'
+                      });
+                    }
+                    
+                    // Add system status
+                    activities.push({
+                      action: `System status: ${healthStatus.text}`,
+                      time: 'Current',
+                      type: 'system'
+                    });
+                    
+                    // Add active users info
+                    if (stats?.activeUsers > 0) {
+                      activities.push({
+                        action: `${stats.activeUsers} active user${stats.activeUsers > 1 ? 's' : ''} in last 30 days`,
+                        time: 'Last 30 days',
+                        type: 'user'
+                      });
+                    }
+                    
+                    // If no activities, show placeholder
+                    if (activities.length === 0) {
+                      activities.push({
+                        action: 'No recent activity',
+                        time: 'System ready',
+                        type: 'system'
+                      });
+                    }
+                    
+                    return activities.slice(0, 5).map((activity, i) => (
+                      <div key={i} className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          {activity.type === 'user' && <Users className="w-4 h-4 text-purple-600" />}
+                          {activity.type === 'download' && <Download className="w-4 h-4 text-purple-600" />}
+                          {activity.type === 'document' && <FileText className="w-4 h-4 text-purple-600" />}
+                          {activity.type === 'system' && <Activity className="w-4 h-4 text-purple-600" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                          <p className="text-xs text-gray-500">{activity.time}</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                        <p className="text-xs text-gray-500">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))
+                    ));
+                  })()
                 )}
               </div>
             </div>

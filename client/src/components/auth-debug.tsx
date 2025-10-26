@@ -57,8 +57,8 @@ export default function AuthDebug() {
     }
 
     try {
-      // Test download history endpoint
-      const historyResult = await apiGet('/api/downloads/history?page=1&limit=5');
+      // Test download history endpoint (consolidated)
+      const historyResult = await apiGet('/api/downloads?action=history&page=1&limit=5');
       results.apiTests.downloadHistory = historyResult;
     } catch (error) {
       results.apiTests.downloadHistory = { error: (error as Error).message };
