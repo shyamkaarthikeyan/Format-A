@@ -238,7 +238,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview
+  // Generate PDF preview (for display only, no download)
   const generatePdfPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -291,7 +291,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
-      console.log('PDF blob size:', blob.size);
+      console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
       
       if (blob.size === 0) throw new Error('Generated PDF is empty');
 
@@ -300,10 +300,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         URL.revokeObjectURL(pdfUrl);
       }
 
-      // Create new blob URL for preview
+      // Create new blob URL for preview (this won't trigger download)
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
-      console.log('PDF preview generated successfully');
+      console.log('PDF preview generated successfully, URL:', url);
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
@@ -318,27 +318,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     }
   };
 
-  // Auto-generate preview when document changes (debounced) - DISABLED to prevent auto-downloads
-  // TODO: Fix preview generation to not trigger downloads
-  // useEffect(() => {
-  //   console.log('Document changed, checking for preview generation:', {
-  //     hasTitle: !!document.title,
-  //     hasAuthors: document.authors?.some(author => author.name),
-  //     title: document.title,
-  //     authors: document.authors
-  //   });
+  // Auto-generate preview when document changes (debounced)
+  useEffect(() => {
+    console.log('Document changed, checking for preview generation:', {
+      hasTitle: !!document.title,
+      hasAuthors: document.authors?.some(author => author.name),
+      title: document.title,
+      authors: document.authors
+    });
 
-  //   const timer = setTimeout(() => {
-  //     if (document.title && document.authors?.some(author => author.name)) {
-  //       console.log('Triggering PDF preview generation...');
-  //       generatePdfPreview();
-  //     } else {
-  //       console.log('Skipping PDF generation - missing title or authors');
-  //     }
-  //   }, 1000); // 1 second debounce
+    const timer = setTimeout(() => {
+      if (document.title && document.authors?.some(author => author.name)) {
+        console.log('Triggering PDF preview generation...');
+        generatePdfPreview();
+      } else {
+        console.log('Skipping PDF generation - missing title or authors');
+        setPdfUrl(null);
+        setPreviewError(null);
+      }
+    }, 1000); // 1 second debounce
 
-  //   return () => clearTimeout(timer);
-  // }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+    return () => clearTimeout(timer);
+  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
