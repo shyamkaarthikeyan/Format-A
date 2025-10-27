@@ -192,13 +192,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Initialize admin access when user changes and is admin
+  // Initialize admin session from localStorage when user changes
   useEffect(() => {
     if (!user || !isAdmin) {
       setAdminSession(null);
+      return;
     }
-    // Note: Removed automatic admin session initialization to prevent infinite loops
-    // Admin session will be created on-demand when accessing admin features
+
+    // Check for existing admin session in localStorage
+    try {
+      const storedSession = localStorage.getItem('admin-session');
+      if (storedSession) {
+        const session = JSON.parse(storedSession);
+        
+        // Check if session is not expired
+        if (new Date(session.expiresAt) > new Date()) {
+          console.log('Found valid admin session in localStorage');
+          setAdminSession(session);
+        } else {
+          console.log('Admin session expired, clearing');
+          localStorage.removeItem('admin-session');
+          localStorage.removeItem('admin-token');
+          setAdminSession(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading admin session from localStorage:', error);
+      localStorage.removeItem('admin-session');
+      localStorage.removeItem('admin-token');
+      setAdminSession(null);
+    }
   }, [user, isAdmin]);
 
   const value: AuthContextType = {

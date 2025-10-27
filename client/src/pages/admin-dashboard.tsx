@@ -94,12 +94,45 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch real data from admin API endpoints
+      // Debug: Log current state
+      console.log('Loading dashboard stats...');
+      console.log('Admin token:', localStorage.getItem('admin-token'));
+      console.log('Admin session:', localStorage.getItem('admin-session'));
+
+      // Get admin token for authenticated requests
+      const adminToken = localStorage.getItem('admin-token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (adminToken) {
+        headers['X-Admin-Token'] = adminToken;
+      }
+
+      console.log('Request headers:', headers);
+
+      // Fetch real data from admin API endpoints with authentication
       const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.all([
-        fetch('/api/admin/analytics/users'),
-        fetch('/api/admin/analytics/documents'),
-        fetch('/api/admin/analytics/downloads'),
-        fetch('/api/admin/analytics/system')
+        fetch('/api/admin/analytics/users', { 
+          method: 'GET',
+          headers,
+          credentials: 'include'
+        }),
+        fetch('/api/admin/analytics/documents', { 
+          method: 'GET',
+          headers,
+          credentials: 'include'
+        }),
+        fetch('/api/admin/analytics/downloads', { 
+          method: 'GET',
+          headers,
+          credentials: 'include'
+        }),
+        fetch('/api/admin/analytics/system', { 
+          method: 'GET',
+          headers,
+          credentials: 'include'
+        })
       ]);
 
       const [userData, documentData, downloadData, systemData] = await Promise.all([
@@ -109,26 +142,65 @@ const AdminDashboard: React.FC = () => {
         systemResponse.json()
       ]);
 
+      // Check individual responses and provide detailed error info
+      const errors = [];
+      if (!userResponse.ok) errors.push(`Users API: ${userResponse.status} ${userResponse.statusText}`);
+      if (!documentResponse.ok) errors.push(`Documents API: ${documentResponse.status} ${documentResponse.statusText}`);
+      if (!downloadResponse.ok) errors.push(`Downloads API: ${downloadResponse.status} ${downloadResponse.statusText}`);
+      if (!systemResponse.ok) errors.push(`System API: ${systemResponse.status} ${systemResponse.statusText}`);
+      
+      if (errors.length > 0) {
+        throw new Error(`API Errors: ${errors.join(', ')}`);
+      }
+
       if (userData.success && documentData.success && downloadData.success && systemData.success) {
+        // Safely extract data with fallbacks
+        const safeGetValue = (obj: any, path: string, fallback: any = 0) => {
+          try {
+            return path.split('.').reduce((current, key) => current?.[key], obj) ?? fallback;
+          } catch {
+            return fallback;
+          }
+        };
+
+        // Get downloads today with safe array handling
+        const getDownloadsToday = () => {
+          try {
+            const dailyTrends = downloadData.data?.downloadTrends?.daily;
+            if (Array.isArray(dailyTrends) && dailyTrends.length > 0) {
+              return dailyTrends[dailyTrends.length - 1]?.count || 0;
+            }
+            return 0;
+          } catch {
+            return 0;
+          }
+        };
+
         const realStats: DashboardStats = {
-          totalUsers: userData.data.totalUsers,
-          totalDocuments: documentData.data.totalDocuments,
-          totalDownloads: downloadData.data.totalDownloads,
-          activeUsers: userData.data.activeUsers.last30d,
-          newUsersToday: userData.data.userGrowth.thisMonth,
-          documentsToday: documentData.data.documentsThisMonth,
-          downloadsToday: downloadData.data.downloadTrends.daily.slice(-1)[0]?.count || 0,
-          systemHealth: systemData.data.systemStatus === 'healthy' ? 'healthy' : 
-                       systemData.data.systemStatus === 'warning' ? 'warning' : 'error'
+          totalUsers: safeGetValue(userData, 'data.totalUsers', 0),
+          totalDocuments: safeGetValue(documentData, 'data.totalDocuments', 0),
+          totalDownloads: safeGetValue(downloadData, 'data.totalDownloads', 0),
+          activeUsers: safeGetValue(userData, 'data.activeUsers.last30d', 0),
+          newUsersToday: safeGetValue(userData, 'data.userGrowth.thisMonth', 0),
+          documentsToday: safeGetValue(documentData, 'data.documentsThisMonth', 0),
+          downloadsToday: getDownloadsToday(),
+          systemHealth: safeGetValue(systemData, 'data.systemStatus', 'healthy') === 'healthy' ? 'healthy' : 
+                       safeGetValue(systemData, 'data.systemStatus', 'healthy') === 'warning' ? 'warning' : 'error'
         };
         
         setStats(realStats);
       } else {
-        throw new Error('Failed to fetch one or more analytics endpoints');
+        const dataErrors = [];
+        if (!userData.success) dataErrors.push(`Users: ${userData.error || 'Unknown error'}`);
+        if (!documentData.success) dataErrors.push(`Documents: ${documentData.error || 'Unknown error'}`);
+        if (!downloadData.success) dataErrors.push(`Downloads: ${downloadData.error || 'Unknown error'}`);
+        if (!systemData.success) dataErrors.push(`System: ${systemData.error || 'Unknown error'}`);
+        
+        throw new Error(`Data Errors: ${dataErrors.join(', ')}`);
       }
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
-      setError('Failed to load dashboard statistics');
+      setError(`Failed to load analytics data: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -295,7 +367,7 @@ const AdminDashboard: React.FC = () => {
                     const activities = [];
                     
                     // Add recent user registrations
-                    if (stats?.newUsersToday > 0) {
+                    if (stats && stats.newUsersToday > 0) {
                       activities.push({
                         action: `${stats.newUsersToday} new user${stats.newUsersToday > 1 ? 's' : ''} registered`,
                         time: 'Today',
@@ -304,7 +376,7 @@ const AdminDashboard: React.FC = () => {
                     }
                     
                     // Add recent downloads
-                    if (stats?.downloadsToday > 0) {
+                    if (stats && stats.downloadsToday > 0) {
                       activities.push({
                         action: `${stats.downloadsToday} document${stats.downloadsToday > 1 ? 's' : ''} downloaded`,
                         time: 'Today',
@@ -313,7 +385,7 @@ const AdminDashboard: React.FC = () => {
                     }
                     
                     // Add recent documents
-                    if (stats?.documentsToday > 0) {
+                    if (stats && stats.documentsToday > 0) {
                       activities.push({
                         action: `${stats.documentsToday} document${stats.documentsToday > 1 ? 's' : ''} created`,
                         time: 'This month',
@@ -329,7 +401,7 @@ const AdminDashboard: React.FC = () => {
                     });
                     
                     // Add active users info
-                    if (stats?.activeUsers > 0) {
+                    if (stats && stats.activeUsers > 0) {
                       activities.push({
                         action: `${stats.activeUsers} active user${stats.activeUsers > 1 ? 's' : ''} in last 30 days`,
                         time: 'Last 30 days',
@@ -337,13 +409,15 @@ const AdminDashboard: React.FC = () => {
                       });
                     }
                     
-                    // If no activities, show placeholder
-                    if (activities.length === 0) {
-                      activities.push({
-                        action: 'No recent activity',
-                        time: 'System ready',
-                        type: 'system'
-                      });
+                    // If no real activity, show appropriate message
+                    if (activities.length <= 1) { // Only system status
+                      return (
+                        <div className="text-center py-8">
+                          <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-500 text-sm">No user activity yet</p>
+                          <p className="text-gray-400 text-xs mt-1">Activity will appear here as users sign up and use the platform</p>
+                        </div>
+                      );
                     }
                     
                     return activities.slice(0, 5).map((activity, i) => (

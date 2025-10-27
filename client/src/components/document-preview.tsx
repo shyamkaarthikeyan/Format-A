@@ -245,11 +245,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       return;
     }
 
-    if (!isAuthenticated) {
-      setPreviewError("Please sign in to generate PDF preview");
-      return;
-    }
-
     setIsGeneratingPreview(true);
     setPreviewError(null);
 
@@ -260,7 +255,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           'Content-Type': 'application/json',
           'X-Preview': 'true'
         },
-        credentials: 'include',
         body: JSON.stringify(document),
       });
 

@@ -1049,7 +1049,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Word to PDF conversion route with hosting platform compatibility
-  app.post('/api/generate/docx-to-pdf', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/generate/docx-to-pdf', (req, res, next) => {
+    // Allow preview requests without authentication
+    const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
+    if (isPreview) {
+      return next();
+    }
+    // Require auth for actual downloads
+    return requireAuth(req, res, next);
+  }, async (req: any, res) => {
     try {
       console.log('=== Word to PDF Conversion Debug Info ===');
       console.log('Request body keys:', Object.keys(req.body));
