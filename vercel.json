@@ -45,10 +45,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "api/generate/docx-to-pdf.py": {
-      "runtime": "@vercel/python"
-    }
-  }
+  ]
 }
