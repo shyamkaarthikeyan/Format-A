@@ -26,8 +26,14 @@ export default defineConfig({
         assetFileNames: "assets/[name].[hash][extname]",
         chunkFileNames: "assets/[name].[hash].js",
         entryFileNames: "assets/[name].[hash].js"
+      },
+      external: (id) => {
+        // Don't bundle Node.js built-ins
+        return id.startsWith('node:') || ['fs', 'path', 'crypto', 'stream', 'util'].includes(id);
       }
-    }
+    },
+    target: 'esnext',
+    minify: 'esbuild'
   },
   base: "/",
   server: {
