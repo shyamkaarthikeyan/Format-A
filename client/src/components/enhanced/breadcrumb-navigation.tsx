@@ -184,8 +184,8 @@ function QuickNavigationDropdown({
     };
 
     if (typeof document !== 'undefined') {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      (document as any).addEventListener('mousedown', handleClickOutside);
+      return () => (document as any).removeEventListener('mousedown', handleClickOutside);
     }
   }, []);
 

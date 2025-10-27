@@ -135,12 +135,20 @@ export const OptimizedDocumentForm = withPerformanceOptimization<OptimizedDocume
     }, [document, onDocumentChange]);
 
     const handleAddSection = useCallback(() => {
+      const currentSections = document.sections || [];
       const newSection: Section = {
         id: `section-${Date.now()}`,
         title: '',
-        contentBlocks: [{ type: 'text', content: '' }],
+        contentBlocks: [{ 
+          id: `block-${Date.now()}`,
+          type: 'text', 
+          content: '',
+          order: 0
+        }],
+        order: currentSections.length,
+        subsections: []
       };
-      const newSections = [...(document.sections || []), newSection];
+      const newSections = [...currentSections, newSection];
       const updatedDocument = { ...document, sections: newSections };
       onDocumentChange(updatedDocument);
     }, [document, onDocumentChange]);

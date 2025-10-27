@@ -66,9 +66,12 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
       const response = await apiClient.get(`/api/admin/analytics/documents?timeRange=${selectedTimeRange}`);
       
       if (response.success) {
-        setAnalytics(response.data);
+        setAnalytics(response.data as DocumentAnalytics);
       } else {
-        throw new Error(response.error || 'Failed to fetch document analytics');
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || 'Failed to fetch document analytics';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching document analytics:', err);

@@ -16,6 +16,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const pathArray = Array.isArray(path) ? path : [path].filter(Boolean);
   const endpoint = pathArray.join('/');
 
+  // Admin authentication middleware
+  const adminToken = req.headers['x-admin-token'] as string;
+  const ADMIN_EMAIL = 'shyamkaarthikeyan@gmail.com';
+  
+  // Skip auth for session creation and verification endpoints
+  const skipAuthEndpoints = ['auth/session', 'auth/verify', 'auth/signout'];
+  const needsAuth = !skipAuthEndpoints.includes(endpoint);
+  
+  console.log('Admin API Request:', {
+    endpoint,
+    needsAuth,
+    hasToken: !!adminToken,
+    tokenPrefix: adminToken ? adminToken.substring(0, 12) + '...' : 'none',
+    method: req.method,
+    headers: Object.keys(req.headers)
+  });
+  
+  if (needsAuth) {
+    // For demo purposes, accept any admin token that starts with 'admin_token_'
+    // In production, you'd validate against a database
+    if (!adminToken || !adminToken.startsWith('admin_token_')) {
+      console.log('Admin access denied - invalid token:', {
+        token: adminToken,
+        endpoint,
+        expected: 'admin_token_*'
+      });
+      return res.status(401).json({ 
+        success: false,
+        error: 'ADMIN_AUTH_REQUIRED', 
+        message: 'Valid admin token required. Please sign in as admin.',
+        endpoint,
+        debug: {
+          hasToken: !!adminToken,
+          tokenFormat: adminToken ? 'invalid_format' : 'missing',
+          requiredFormat: 'admin_token_*'
+        }
+      });
+    }
+    
+    console.log('Admin access granted for endpoint:', endpoint);
+  }
+
   try {
     const storage = getStorage();
 

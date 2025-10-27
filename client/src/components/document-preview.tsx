@@ -249,6 +249,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
+      console.log('Attempting to generate PDF preview...');
+      
       const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
@@ -258,11 +260,39 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         body: JSON.stringify(document),
       });
 
+      console.log('PDF preview response:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error(`Failed to generate PDF preview: ${response.statusText}`);
+        // Try to get error details
+        const contentType = response.headers.get('content-type');
+        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            console.warn('Could not parse error JSON');
+          }
+        } else {
+          try {
+            const errorText = await response.text();
+            if (errorText.includes('Python') || errorText.includes('python')) {
+              errorMessage = 'PDF generation is not available on this deployment. Please download Word format instead.';
+            } else if (errorText.length < 200) {
+              errorMessage = errorText;
+            }
+          } catch (e) {
+            console.warn('Could not read error text');
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
+      console.log('PDF blob size:', blob.size);
+      
       if (blob.size === 0) throw new Error('Generated PDF is empty');
 
       // Clean up previous URL
@@ -273,9 +303,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       // Create new blob URL for preview
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
+      console.log('PDF preview generated successfully');
     } catch (error) {
       console.error('PDF preview generation failed:', error);
-      setPreviewError(error instanceof Error ? error.message : 'Failed to generate PDF preview');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
+      setPreviewError(errorMessage);
+      
+      // If PDF generation fails, suggest alternatives
+      if (errorMessage.includes('Python') || errorMessage.includes('not available')) {
+        setPreviewError('PDF preview is not available on this deployment. You can still download Word documents which work perfectly for IEEE formatting.');
+      }
     } finally {
       setIsGeneratingPreview(false);
     }

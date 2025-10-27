@@ -49,27 +49,45 @@ export const OptimizedApp = withPerformanceOptimization<OptimizedAppProps>(
         )}
 
         {/* Main Application Layout */}
-        <WorkspaceLayout
-          sidebar={
+        <div className="flex h-screen bg-gray-50">
+          {/* Sidebar */}
+          <div className="w-64 bg-white border-r border-gray-200">
             <SidebarNavigation 
               document={memoizedDocument}
-              onSectionSelect={(sectionId: string) => {
-                // Handle section navigation
+              isCollapsed={false}
+              onToggleCollapse={() => {}}
+              onSectionClick={(sectionId: string) => {
                 console.log('Navigate to section:', sectionId);
               }}
-            />
-          }
-          tabs={
-            <DocumentTabs
-              documents={[memoizedDocument]}
-              activeDocumentId={memoizedDocument.id || 'current'}
-              onTabChange={(documentId: string) => {
-                // Handle tab change
-                console.log('Switch to document:', documentId);
+              onSubsectionClick={(sectionId: string, subsectionId: string) => {
+                console.log('Navigate to subsection:', sectionId, subsectionId);
+              }}
+              onSectionDelete={(sectionId: string) => {
+                console.log('Delete section:', sectionId);
               }}
             />
-          }
-          main={
+          </div>
+          
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col">
+            {/* Tabs */}
+            <div className="bg-white border-b border-gray-200">
+              <DocumentTabs
+                documents={[memoizedDocument]}
+                activeDocumentId={memoizedDocument.id || 'current'}
+                onTabClick={(documentId: string) => {
+                  console.log('Tab clicked:', documentId);
+                }}
+                onTabClose={(documentId: string) => {
+                  console.log('Tab closed:', documentId);
+                }}
+                onNewDocument={() => {
+                  console.log('New document requested');
+                }}
+              />
+            </div>
+            
+            {/* Document Content */}
             <div className="flex h-full">
               {/* Document Editor */}
               <div className="flex-1 p-6 overflow-auto">
@@ -92,9 +110,8 @@ export const OptimizedApp = withPerformanceOptimization<OptimizedAppProps>(
                 />
               </div>
             </div>
-          }
-          config={layoutConfig}
-        />
+          </div>
+        </div>
       </div>
     );
   },

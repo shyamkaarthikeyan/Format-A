@@ -42,9 +42,12 @@ const SystemHealth: React.FC = () => {
       const response = await apiClient.get('/api/admin/analytics/system');
       
       if (response.success) {
-        setHealth(response.data);
+        setHealth(response.data as SystemHealth);
       } else {
-        throw new Error(response.error || 'Failed to fetch system health');
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || 'Failed to fetch system health';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching system health:', err);

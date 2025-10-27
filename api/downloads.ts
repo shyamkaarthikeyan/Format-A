@@ -54,7 +54,7 @@ async function extractUser(req: VercelRequest) {
 
 // Handle individual download by ID
 async function handleDownloadById(req: VercelRequest, res: VercelResponse) {
-  return RestrictionMiddleware.enforce(
+  await RestrictionMiddleware.enforce(
     req,
     res,
     RESTRICTION_CONFIGS.download,
@@ -67,24 +67,26 @@ async function handleDownloadById(req: VercelRequest, res: VercelResponse) {
         const download = await storage.getDownloadById(downloadId);
 
         if (!download) {
-          return res.status(404).json({
+          res.status(404).json({
             success: false,
             error: {
               code: 'DOWNLOAD_NOT_FOUND',
               message: 'Download record not found'
             }
           });
+          return;
         }
 
         // Check if user owns this download
         if (download.userId !== user.id) {
-          return res.status(403).json({
+          res.status(403).json({
             success: false,
             error: {
               code: 'ACCESS_DENIED',
               message: 'You do not have access to this download'
             }
           });
+          return;
         }
 
         res.json({

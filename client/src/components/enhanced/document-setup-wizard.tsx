@@ -69,40 +69,40 @@ export default function DocumentSetupWizard({
       label: 'Choose Template',
       description: 'Select a document template',
       icon: Sparkles,
-      status: state.completedSteps.has('template') ? 'completed' : 
-              state.currentStep === 'template' ? 'current' : 'pending',
+      status: (state.completedSteps.has('template') ? 'completed' : 
+              state.currentStep === 'template' ? 'current' : 'pending') as 'current' | 'error' | 'completed' | 'pending',
     },
     {
       id: 'basic-info' as WizardStep,
       label: 'Basic Information',
       description: 'Title, abstract, and keywords',
       icon: FileText,
-      status: state.completedSteps.has('basic-info') ? 'completed' : 
-              state.currentStep === 'basic-info' ? 'current' : 'pending',
+      status: (state.completedSteps.has('basic-info') ? 'completed' : 
+              state.currentStep === 'basic-info' ? 'current' : 'pending') as 'current' | 'error' | 'completed' | 'pending',
     },
     {
       id: 'authors' as WizardStep,
       label: 'Authors',
       description: 'Add document authors',
       icon: Users,
-      status: state.completedSteps.has('authors') ? 'completed' : 
-              state.currentStep === 'authors' ? 'current' : 'pending',
+      status: (state.completedSteps.has('authors') ? 'completed' : 
+              state.currentStep === 'authors' ? 'current' : 'pending') as 'current' | 'error' | 'completed' | 'pending',
     },
     {
       id: 'structure' as WizardStep,
       label: 'Document Structure',
       description: 'Configure sections and settings',
       icon: BookOpen,
-      status: state.completedSteps.has('structure') ? 'completed' : 
-              state.currentStep === 'structure' ? 'current' : 'pending',
+      status: (state.completedSteps.has('structure') ? 'completed' : 
+              state.currentStep === 'structure' ? 'current' : 'pending') as 'current' | 'error' | 'completed' | 'pending',
     },
     {
       id: 'review' as WizardStep,
       label: 'Review & Create',
       description: 'Review and finalize',
       icon: Target,
-      status: state.completedSteps.has('review') ? 'completed' : 
-              state.currentStep === 'review' ? 'current' : 'pending',
+      status: (state.completedSteps.has('review') ? 'completed' : 
+              state.currentStep === 'review' ? 'current' : 'pending') as 'current' | 'error' | 'completed' | 'pending',
     },
   ];
 

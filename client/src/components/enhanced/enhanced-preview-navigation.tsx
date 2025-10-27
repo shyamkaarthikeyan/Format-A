@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { EnhancedCard } from '@/components/ui/enhanced-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ToastSystem } from '@/components/ui/toast-system';
+// ToastSystem import removed - using useToast hook instead
 import PreviewControls, { type ExportFormat } from './preview-controls';
 import AnnotationSystem, { type Annotation } from './annotation-system';
 import DocumentStructureVisualizer from './document-structure-visualizer';
@@ -543,11 +543,22 @@ export default function EnhancedPreviewNavigation({
 
       {/* Toast System */}
       {showToast && (
-        <ToastSystem
-          message={showToast.message}
-          type={showToast.type}
-          onClose={() => setShowToast(null)}
-        />
+        <div className={cn(
+          "fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm",
+          showToast.type === 'success' && "bg-green-100 text-green-800 border border-green-200",
+          showToast.type === 'error' && "bg-red-100 text-red-800 border border-red-200",
+          showToast.type === 'info' && "bg-blue-100 text-blue-800 border border-blue-200"
+        )}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{showToast.message}</span>
+            <button
+              onClick={() => setShowToast(null)}
+              className="ml-2 text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

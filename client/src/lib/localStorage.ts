@@ -49,16 +49,46 @@ export class LocalStorage implements IClientStorage {
       title: insertDocument.title || '',
       abstract: insertDocument.abstract || null,
       keywords: insertDocument.keywords || null,
-      authors: insertDocument.authors || [],
-      sections: insertDocument.sections || [],
-      references: insertDocument.references || [],
-      figures: insertDocument.figures || [],
-      settings: insertDocument.settings || {
-        fontSize: "10pt",
-        columns: "2",
-        exportFormat: "docx",
-        includePageNumbers: true,
-        includeCopyright: false
+      authors: (insertDocument.authors || []).map((author: any) => ({
+        id: author.id || `author-${Date.now()}-${Math.random()}`,
+        name: author.name || '',
+        email: author.email || '',
+        state: author.state || '',
+        department: author.department || '',
+        organization: author.organization || '',
+        city: author.city || '',
+        customFields: author.customFields || []
+      })),
+      sections: (insertDocument.sections || []).map((section: any) => ({
+        id: section.id || `section-${Date.now()}-${Math.random()}`,
+        title: section.title || '',
+        order: section.order || 0,
+        contentBlocks: section.contentBlocks || [],
+        subsections: section.subsections || []
+      })),
+      references: (insertDocument.references || []).map((ref: any) => ({
+        id: ref.id || `ref-${Date.now()}-${Math.random()}`,
+        text: ref.text || '',
+        order: ref.order || 0
+      })),
+      figures: (insertDocument.figures || []).map((figure: any) => ({
+        id: figure.id || `figure-${Date.now()}-${Math.random()}`,
+        caption: figure.caption || '',
+        data: figure.data || '',
+        order: figure.order || 0,
+        size: figure.size || 'medium',
+        fileName: figure.fileName || '',
+        position: figure.position || 'here',
+        originalName: figure.originalName || '',
+        sectionId: figure.sectionId || '',
+        mimeType: figure.mimeType || ''
+      })),
+      settings: {
+        fontSize: insertDocument.settings?.fontSize || "10pt",
+        columns: insertDocument.settings?.columns || "2",
+        exportFormat: (insertDocument.settings?.exportFormat as "docx" | "latex") || "docx",
+        includePageNumbers: insertDocument.settings?.includePageNumbers ?? true,
+        includeCopyright: insertDocument.settings?.includeCopyright ?? false
       }
     };
 
@@ -75,7 +105,56 @@ export class LocalStorage implements IClientStorage {
 
     const updatedDocument: Document = {
       ...documents[docIndex],
-      ...updateDocument
+      ...updateDocument,
+      // Ensure required fields are properly typed
+      authors: updateDocument.authors ? updateDocument.authors.map((author: any) => ({
+        id: author.id || `author-${Date.now()}-${Math.random()}`,
+        name: author.name || '',
+        email: author.email || '',
+        state: author.state || '',
+        department: author.department || '',
+        organization: author.organization || '',
+        city: author.city || '',
+        customFields: author.customFields || []
+      })) : documents[docIndex].authors,
+      sections: updateDocument.sections ? updateDocument.sections.map((section: any) => ({
+        ...section,
+        id: section.id || `section-${Date.now()}-${Math.random()}`,
+        title: section.title || '',
+        order: section.order || 0,
+        contentBlocks: section.contentBlocks || [],
+        subsections: section.subsections || []
+      })) : documents[docIndex].sections,
+      references: updateDocument.references ? updateDocument.references.map((ref: any) => ({
+        ...ref,
+        id: ref.id || `ref-${Date.now()}-${Math.random()}`,
+        text: ref.text || '',
+        order: ref.order || 0
+      })) : documents[docIndex].references,
+      figures: updateDocument.figures ? updateDocument.figures.map((fig: any) => ({
+        ...fig,
+        id: fig.id || `fig-${Date.now()}-${Math.random()}`,
+        caption: fig.caption || '',
+        order: fig.order || 0
+      })) : documents[docIndex].figures,
+      settings: updateDocument.settings ? {
+        fontSize: updateDocument.settings.fontSize || '12pt',
+        columns: updateDocument.settings.columns || '1',
+        exportFormat: updateDocument.settings.exportFormat || 'docx' as const,
+        includePageNumbers: updateDocument.settings.includePageNumbers ?? true,
+        includeCopyright: updateDocument.settings.includeCopyright ?? true
+      } : documents[docIndex].settings,
+      iteration: updateDocument.iteration ? {
+        version: updateDocument.iteration.version || 1,
+        history: updateDocument.iteration.history ? updateDocument.iteration.history.map((item: any) => ({
+          type: item.type || 'update',
+          version: item.version || 1,
+          timestamp: item.timestamp || new Date().toISOString(),
+          feedback: item.feedback || '',
+          changes: item.changes || []
+        })) : [],
+        lastModified: updateDocument.iteration.lastModified || new Date().toISOString()
+      } : documents[docIndex].iteration
     };
 
     documents[docIndex] = updatedDocument;

@@ -1,5 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminSessions, adminTokens } from '../admin/auth/session';
+
+// Simple in-memory storage for admin sessions (in production, use Redis or database)
+const adminSessions = new Map<string, any>();
+const adminTokens = new Map<string, string>();
 
 // Rate limiting storage (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();

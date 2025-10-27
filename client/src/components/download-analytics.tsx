@@ -79,9 +79,12 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
       const response = await apiClient.get(`/api/admin/analytics/downloads?timeRange=${selectedTimeRange}&format=${selectedFormat}`);
       
       if (response.success) {
-        setAnalytics(response.data);
+        setAnalytics(response.data as DownloadAnalytics);
       } else {
-        throw new Error(response.error || 'Failed to fetch download analytics');
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || 'Failed to fetch download analytics';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching download analytics:', err);

@@ -62,9 +62,12 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
       const response = await apiClient.get(`/api/admin/analytics/users?timeRange=${selectedTimeRange}`);
       
       if (response.success) {
-        setAnalytics(response.data);
+        setAnalytics(response.data as UserAnalytics);
       } else {
-        throw new Error(response.error || 'Failed to fetch user analytics');
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || 'Failed to fetch user analytics';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching user analytics:', err);

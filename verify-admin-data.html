@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Data Verification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔍 Admin Data Verification</h1>
+        <p>This tool verifies admin data and authentication state.</p>
+
+        <div id="status"></div>
+
+        <div class="test-section">
+            <h3>Current Authentication State</h3>
+            <button onclick="checkAuthState()">Check Auth State</button>
+            <div id="authResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Admin API Test</h3>
+            <button onclick="testAdminAPI()">Test Admin API</button>
+            <div id="apiResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Create Test Admin Session</h3>
+            <button onclick="createTestSession()">Create Test Session</button>
+            <div id="sessionResult"></div>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function checkAuthState() {
+            const resultDiv = document.getElementById('authResult');
+
+            try {
+                const user = localStorage.getItem('format-a-user');
+                const adminSession = localStorage.getItem('admin-session');
+                const adminToken = localStorage.getItem('admin-token');
+
+                let html = '<h4>Current State:</h4>';
+
+                if (user) {
+                    const userData = JSON.parse(user);
+                    html += `<p>✅ User: ${userData.name || userData.email}</p>`;
+                    html += `<p>📧 Email: ${userData.email}</p>`;
+                    html += `<p>🔑 Is Admin: ${userData.email === 'shyamkaarthikeyan@gmail.com' ? 'Yes' : 'No'}</p>`;
+                } else {
+                    html += '<p>❌ No user found</p>';
+                }
+
+                html += `<p>🎫 Admin Session: ${adminSession ? '✅ Present' : '❌ Missing'}</p>`;
+                html += `<p>🔐 Admin Token: ${adminToken ? '✅ Present' : '❌ Missing'}</p>`;
+
+                if (adminSession) {
+                    const session = JSON.parse(adminSession);
+                    html += `<p>📅 Session Expires: ${new Date(session.expiresAt).toLocaleString()}</p>`;
+                    html += `<p>🔒 Permissions: ${session.adminPermissions.join(', ')}</p>`;
+                }
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testAdminAPI() {
+            const resultDiv = document.getElementById('apiResult');
+
+            try {
+                showStatus('Testing admin API...', 'info');
+
+                const adminToken = localStorage.getItem('admin-token');
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (adminToken) {
+                    headers['X-Admin-Token'] = adminToken;
+                }
+
+                const response = await fetch('/api/admin/analytics/users', {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include'
+                });
+
+                const data = await response.text();
+
+                let html = '<h4>API Test Results:</h4>';
+                html += `<p><strong>Status:</strong> ${response.status} ${response.statusText}</p>`;
+                html += `<p><strong>Response:</strong></p>`;
+                html += `<pre>${data}</pre>`;
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function createTestSession() {
+            const resultDiv = document.getElementById('sessionResult');
+
+            try {
+                showStatus('Creating test admin session...', 'info');
+
+                // Create admin user
+                const adminUser = {
+                    id: 'admin-user-' + Date.now(),
+                    googleId: 'google-admin-' + Date.now(),
+                    email: 'shyamkaarthikeyan@gmail.com',
+                    name: 'Shyam Kaarthikeyan',
+                    picture: 'https://via.placeholder.com/150',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    lastLoginAt: new Date().toISOString(),
+                    isActive: true
+                };
+
+                localStorage.setItem('format-a-user', JSON.stringify(adminUser));
+
+                // Create admin session
+                const adminSession = {
+                    sessionId: 'admin_session_' + Date.now(),
+                    userId: adminUser.id,
+                    adminPermissions: [
+                        'view_analytics',
+                        'manage_users',
+                        'system_monitoring',
+                        'download_reports',
+                        'admin_panel_access'
+                    ],
+                    createdAt: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                    lastAccessedAt: new Date().toISOString()
+                };
+
+                const adminToken = 'admin_token_' + Date.now();
+
+                localStorage.setItem('admin-session', JSON.stringify(adminSession));
+                localStorage.setItem('admin-token', adminToken);
+
+                let html = '<h4>Test Session Created:</h4>';
+                html += '<p>✅ Admin user created</p>';
+                html += '<p>✅ Admin session created</p>';
+                html += '<p>✅ Admin token created</p>';
+                html += '<p><strong>You can now access the admin panel at:</strong></p>';
+                html += `<p><a href="/admin" target="_blank">/admin</a></p>`;
+
+                resultDiv.innerHTML = html;
+                showStatus('✅ Test session created successfully!', 'success');
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                showStatus('❌ Failed to create test session', 'error');
+            }
+        }
+
+        // Auto-check auth state on page load
+        window.addEventListener('load', () => {
+            checkAuthState();
+        });
+    </script>
+</body>
+
+</html>

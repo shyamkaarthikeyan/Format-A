@@ -93,16 +93,46 @@ export class MemStorage implements IStorage {
       title: insertDocument.title || "",
       abstract: insertDocument.abstract || null,
       keywords: insertDocument.keywords || null,
-      authors: insertDocument.authors || [],
-      sections: insertDocument.sections || [],
-      references: insertDocument.references || [],
-      figures: insertDocument.figures || [],
-      settings: insertDocument.settings || {
-        fontSize: "9.5pt",
-        columns: "2",
-        exportFormat: "docx",
-        includePageNumbers: true,
-        includeCopyright: true
+      authors: (insertDocument.authors || []).map((author: any) => ({
+        id: author.id || `author-${Date.now()}-${Math.random()}`,
+        name: author.name || '',
+        email: author.email || '',
+        state: author.state || '',
+        department: author.department || '',
+        organization: author.organization || '',
+        city: author.city || '',
+        customFields: author.customFields || []
+      })),
+      sections: (insertDocument.sections || []).map((section: any) => ({
+        id: section.id || `section-${Date.now()}-${Math.random()}`,
+        title: section.title || '',
+        order: section.order || 0,
+        contentBlocks: section.contentBlocks || [],
+        subsections: section.subsections || []
+      })),
+      references: (insertDocument.references || []).map((ref: any) => ({
+        id: ref.id || `ref-${Date.now()}-${Math.random()}`,
+        text: ref.text || '',
+        order: ref.order || 0
+      })),
+      figures: (insertDocument.figures || []).map((figure: any) => ({
+        id: figure.id || `figure-${Date.now()}-${Math.random()}`,
+        caption: figure.caption || '',
+        data: figure.data || '',
+        order: figure.order || 0,
+        size: figure.size || 'medium',
+        fileName: figure.fileName || '',
+        position: figure.position || 'here',
+        originalName: figure.originalName || '',
+        sectionId: figure.sectionId || '',
+        mimeType: figure.mimeType || ''
+      })),
+      settings: {
+        fontSize: insertDocument.settings?.fontSize || "9.5pt",
+        columns: insertDocument.settings?.columns || "2",
+        exportFormat: (insertDocument.settings?.exportFormat as "docx" | "latex") || "docx",
+        includePageNumbers: insertDocument.settings?.includePageNumbers ?? true,
+        includeCopyright: insertDocument.settings?.includeCopyright ?? true
       },
       // Server-specific fields
       createdAt: now,
@@ -125,7 +155,56 @@ export class MemStorage implements IStorage {
     const updated: ServerDocument = {
       ...existing,
       ...updateDocument,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      // Ensure required fields are properly typed
+      authors: updateDocument.authors ? updateDocument.authors.map((author: any) => ({
+        id: author.id || `author-${Date.now()}-${Math.random()}`,
+        name: author.name || '',
+        email: author.email || '',
+        state: author.state || '',
+        department: author.department || '',
+        organization: author.organization || '',
+        city: author.city || '',
+        customFields: author.customFields || []
+      })) : existing.authors,
+      sections: updateDocument.sections ? updateDocument.sections.map((section: any) => ({
+        ...section,
+        id: section.id || `section-${Date.now()}-${Math.random()}`,
+        title: section.title || '',
+        order: section.order || 0,
+        contentBlocks: section.contentBlocks || [],
+        subsections: section.subsections || []
+      })) : existing.sections,
+      references: updateDocument.references ? updateDocument.references.map((ref: any) => ({
+        ...ref,
+        id: ref.id || `ref-${Date.now()}-${Math.random()}`,
+        text: ref.text || '',
+        order: ref.order || 0
+      })) : existing.references,
+      figures: updateDocument.figures ? updateDocument.figures.map((fig: any) => ({
+        ...fig,
+        id: fig.id || `fig-${Date.now()}-${Math.random()}`,
+        caption: fig.caption || '',
+        order: fig.order || 0
+      })) : existing.figures,
+      settings: updateDocument.settings ? {
+        fontSize: updateDocument.settings.fontSize || '12pt',
+        columns: updateDocument.settings.columns || '1',
+        exportFormat: updateDocument.settings.exportFormat || 'docx' as const,
+        includePageNumbers: updateDocument.settings.includePageNumbers ?? true,
+        includeCopyright: updateDocument.settings.includeCopyright ?? true
+      } : existing.settings,
+      iteration: updateDocument.iteration ? {
+        version: updateDocument.iteration.version || 1,
+        history: updateDocument.iteration.history ? updateDocument.iteration.history.map((item: any) => ({
+          type: item.type || 'update',
+          version: item.version || 1,
+          timestamp: item.timestamp || new Date().toISOString(),
+          feedback: item.feedback || '',
+          changes: item.changes || []
+        })) : [],
+        lastModified: updateDocument.iteration.lastModified || new Date().toISOString()
+      } : existing.iteration
     };
     this.documents.set(id, updated);
     return updated;
@@ -411,7 +490,7 @@ async function initializeServerData() {
       settings: {
         fontSize: "10pt",
         columns: "2",
-        exportFormat: "docx",
+        exportFormat: "docx" as "docx" | "latex",
         includePageNumbers: true,
         includeCopyright: true
       }
@@ -435,7 +514,7 @@ async function initializeServerData() {
       settings: {
         fontSize: "10pt",
         columns: "2",
-        exportFormat: "pdf",
+        exportFormat: "docx" as const,
         includePageNumbers: true,
         includeCopyright: true
       }
@@ -443,7 +522,39 @@ async function initializeServerData() {
   ];
 
   for (const docData of documents) {
-    await storage.createDocument(docData);
+    // Transform the sample data to match the expected format
+    const transformedDoc = {
+      ...docData,
+      authors: docData.authors.map((author: any) => ({
+        id: `author-${Date.now()}-${Math.random()}`,
+        name: author.name,
+        email: author.email,
+        state: '',
+        department: '',
+        organization: author.affiliation || '',
+        city: '',
+        customFields: []
+      })),
+      sections: docData.sections.map((section: any, index: number) => ({
+        id: `section-${Date.now()}-${index}`,
+        title: section.title,
+        order: index,
+        contentBlocks: [{
+          id: `block-${Date.now()}-${index}`,
+          type: 'text' as const,
+          content: section.content,
+          order: 0
+        }],
+        subsections: []
+      })),
+      references: docData.references.map((ref: any, index: number) => ({
+        id: `ref-${Date.now()}-${index}`,
+        text: `${ref.authors}. "${ref.title}." ${ref.journal}, ${ref.year}. DOI: ${ref.doi}`,
+        order: index
+      })),
+      figures: []
+    };
+    await storage.createDocument(transformedDoc);
   }
 
   console.log('✅ Real server data initialized for admin panel');

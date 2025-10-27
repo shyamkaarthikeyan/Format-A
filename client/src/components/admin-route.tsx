@@ -23,7 +23,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
 
   useEffect(() => {
     const handleAdminAccess = async () => {
-      console.log('Admin route check:', { loading, user: !!user, isAdmin });
+      console.log('Admin route check:', { loading, user: !!user, isAdmin, adminSession: !!adminSession });
       
       // Wait for auth to finish loading
       if (loading) return;
@@ -39,49 +39,73 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
       if (!isAdmin) {
         console.log('User is not admin');
         if (showUnauthorized) {
-          setInitializationError('You do not have administrative privileges');
+          setInitializationError('You do not have administrative privileges. Only shyamkaarthikeyan@gmail.com can access the admin panel.');
         } else {
           setLocation(fallbackPath);
         }
         return;
       }
 
-      // For admin users, create a simple session if none exists
+      // For admin users, ensure they have an admin session
       if (!adminSession && !isInitializing && isAdmin) {
-        console.log('Creating simple admin session for admin user...');
+        console.log('Creating admin session for admin user...');
         setIsInitializing(true);
+        setInitializationError(null);
         
-        // Create a simple local admin session without API calls
-        const simpleAdminSession = {
-          sessionId: 'local_admin_' + Date.now(),
-          userId: user.id,
-          adminPermissions: [
-            'view_analytics',
-            'manage_users',
-            'system_monitoring',
-            'download_reports',
-            'admin_panel_access'
-          ],
-          createdAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          lastAccessedAt: new Date().toISOString()
-        };
-        
-        // Store in localStorage
-        localStorage.setItem('admin-session', JSON.stringify(simpleAdminSession));
-        localStorage.setItem('admin-token', 'local_admin_token_' + Date.now());
-        
-        setIsInitializing(false);
-        
-        // Force a re-render by updating a dummy state
-        setTimeout(() => {
+        try {
+          // Try to create admin session via API first
+          const response = await fetch('/api/admin/auth/session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              email: user.email
+            })
+          });
+
+          if (response.ok) {
+            const { adminSession: newSession, adminToken } = await response.json();
+            localStorage.setItem('admin-session', JSON.stringify(newSession));
+            localStorage.setItem('admin-token', adminToken);
+            console.log('Admin session created via API');
+          } else {
+            // Fallback to local session creation
+            console.log('API session creation failed, creating local session');
+            const localAdminSession = {
+              sessionId: 'local_admin_' + Date.now(),
+              userId: user.id,
+              adminPermissions: [
+                'view_analytics',
+                'manage_users',
+                'system_monitoring',
+                'download_reports',
+                'admin_panel_access'
+              ],
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+              lastAccessedAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem('admin-session', JSON.stringify(localAdminSession));
+            localStorage.setItem('admin-token', 'admin_token_' + Date.now());
+          }
+          
+          // Trigger a re-render to pick up the new session
           window.location.reload();
-        }, 100);
+          
+        } catch (error) {
+          console.error('Failed to create admin session:', error);
+          setInitializationError('Failed to initialize admin access. Please try refreshing the page.');
+        } finally {
+          setIsInitializing(false);
+        }
       }
     };
 
     handleAdminAccess();
-  }, [user, isAdmin, loading, isInitializing, setLocation, showUnauthorized, fallbackPath]);
+  }, [user, isAdmin, adminSession, loading, isInitializing, setLocation, showUnauthorized, fallbackPath]);
 
   // Check if user has required permissions
   const hasRequiredPermissions = () => {

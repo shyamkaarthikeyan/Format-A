@@ -205,7 +205,7 @@ export function AuthorEditDialog({
                     required: true,
                     minLength: 2,
                   }}
-                  error={errors.name}
+                  // error={errors.name} // Removed - not part of SmartInput interface
                   className="mt-1"
                 />
               </div>
@@ -224,7 +224,7 @@ export function AuthorEditDialog({
                   validation={{
                     pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                   }}
-                  error={errors.email}
+                  // error={errors.email} // Removed - not part of SmartInput interface
                   className="mt-1"
                 />
               </div>

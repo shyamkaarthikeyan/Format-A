@@ -75,9 +75,12 @@ const UserManagement: React.FC = () => {
       const response = await apiClient.get(`/api/admin/users?${params}`);
       
       if (response.success) {
-        setData(response.data);
+        setData(response.data as UserManagementData);
       } else {
-        throw new Error(response.error || 'Failed to fetch users');
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || 'Failed to fetch users';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching users:', err);

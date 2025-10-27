@@ -112,7 +112,7 @@ const AdminDashboard: React.FC = () => {
       console.log('Request headers:', headers);
 
       // Fetch real data from admin API endpoints with authentication
-      const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.all([
+      const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.allSettled([
         fetch('/api/admin/analytics/users', { 
           method: 'GET',
           headers,
@@ -135,22 +135,96 @@ const AdminDashboard: React.FC = () => {
         })
       ]);
 
+      // Handle responses with fallbacks
+      const getUserData = async () => {
+        if (userResponse.status === 'fulfilled' && userResponse.value.ok) {
+          return await userResponse.value.json();
+        }
+        console.warn('Users API failed:', userResponse.status === 'fulfilled' ? userResponse.value.status : 'Network error');
+        if (userResponse.status === 'fulfilled') {
+          const errorText = await userResponse.value.text();
+          console.warn('Users API error details:', errorText);
+        }
+        return { 
+          success: false, 
+          error: 'Failed to fetch user analytics',
+          data: { totalUsers: 0, activeUsers: { last30d: 0 }, userGrowth: { thisMonth: 0 } } 
+        };
+      };
+
+      const getDocumentData = async () => {
+        if (documentResponse.status === 'fulfilled' && documentResponse.value.ok) {
+          return await documentResponse.value.json();
+        }
+        console.warn('Documents API failed:', documentResponse.status === 'fulfilled' ? documentResponse.value.status : 'Network error');
+        if (documentResponse.status === 'fulfilled') {
+          const errorText = await documentResponse.value.text();
+          console.warn('Documents API error details:', errorText);
+        }
+        return { 
+          success: false, 
+          error: 'Failed to fetch document analytics',
+          data: { totalDocuments: 0, documentsThisMonth: 0 } 
+        };
+      };
+
+      const getDownloadData = async () => {
+        if (downloadResponse.status === 'fulfilled' && downloadResponse.value.ok) {
+          return await downloadResponse.value.json();
+        }
+        console.warn('Downloads API failed:', downloadResponse.status === 'fulfilled' ? downloadResponse.value.status : 'Network error');
+        if (downloadResponse.status === 'fulfilled') {
+          const errorText = await downloadResponse.value.text();
+          console.warn('Downloads API error details:', errorText);
+        }
+        return { 
+          success: false, 
+          error: 'Failed to fetch download analytics',
+          data: { totalDownloads: 0 } 
+        };
+      };
+
+      const getSystemData = async () => {
+        if (systemResponse.status === 'fulfilled' && systemResponse.value.ok) {
+          return await systemResponse.value.json();
+        }
+        console.warn('System API failed:', systemResponse.status === 'fulfilled' ? systemResponse.value.status : 'Network error');
+        if (systemResponse.status === 'fulfilled') {
+          const errorText = await systemResponse.value.text();
+          console.warn('System API error details:', errorText);
+        }
+        return { 
+          success: false, 
+          error: 'Failed to fetch system analytics',
+          data: { systemStatus: 'unknown' } 
+        };
+      };
+
       const [userData, documentData, downloadData, systemData] = await Promise.all([
-        userResponse.json(),
-        documentResponse.json(),
-        downloadResponse.json(),
-        systemResponse.json()
+        getUserData(),
+        getDocumentData(),
+        getDownloadData(),
+        getSystemData()
       ]);
 
-      // Check individual responses and provide detailed error info
-      const errors = [];
-      if (!userResponse.ok) errors.push(`Users API: ${userResponse.status} ${userResponse.statusText}`);
-      if (!documentResponse.ok) errors.push(`Documents API: ${documentResponse.status} ${documentResponse.statusText}`);
-      if (!downloadResponse.ok) errors.push(`Downloads API: ${downloadResponse.status} ${downloadResponse.statusText}`);
-      if (!systemResponse.ok) errors.push(`System API: ${systemResponse.status} ${systemResponse.statusText}`);
+      // Check for any failed responses and log warnings
+      const warnings = [];
+      if (userResponse.status === 'rejected' || (userResponse.status === 'fulfilled' && !userResponse.value.ok)) {
+        warnings.push('Users API unavailable');
+      }
+      if (documentResponse.status === 'rejected' || (documentResponse.status === 'fulfilled' && !documentResponse.value.ok)) {
+        warnings.push('Documents API unavailable');
+      }
+      if (downloadResponse.status === 'rejected' || (downloadResponse.status === 'fulfilled' && !downloadResponse.value.ok)) {
+        warnings.push('Downloads API unavailable');
+      }
+      if (systemResponse.status === 'rejected' || (systemResponse.status === 'fulfilled' && !systemResponse.value.ok)) {
+        warnings.push('System API unavailable');
+      }
       
-      if (errors.length > 0) {
-        throw new Error(`API Errors: ${errors.join(', ')}`);
+      if (warnings.length > 0) {
+        console.warn('Some APIs are unavailable:', warnings.join(', '));
+        setError(`Some data may be incomplete: ${warnings.join(', ')}`);
       }
 
       if (userData.success && documentData.success && downloadData.success && systemData.success) {
