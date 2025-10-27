@@ -245,16 +245,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       return;
     }
 
+    if (!isAuthenticated) {
+      setPreviewError("Please sign in to generate PDF preview");
+      return;
+    }
+
     setIsGeneratingPreview(true);
     setPreviewError(null);
 
     try {
       const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-Preview': 'true'
         },
+        credentials: 'include',
         body: JSON.stringify(document),
       });
 
@@ -501,11 +507,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <Lock className="w-6 h-6 text-purple-600" />
               <h3 className="text-lg font-semibold">Sign In Required</h3>
             </div>
-            
+
             <p className="text-gray-600 mb-4">
               To {pendingAction} your document, please sign in to your account.
             </p>
-            
+
             <div className="space-y-2 mb-6">
               <h4 className="font-medium text-gray-900">Benefits of signing in:</h4>
               <ul className="text-sm text-gray-600 space-y-1">
@@ -515,7 +521,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <li>• Access advanced features</li>
               </ul>
             </div>
-            
+
             <div className="flex gap-3">
               <Button onClick={handleSignIn} className="flex-1 bg-purple-600 hover:bg-purple-700">
                 Sign In

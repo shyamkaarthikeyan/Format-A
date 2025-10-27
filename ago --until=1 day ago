@@ -1,0 +1,45 @@
+[33mc123f76[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix Vercel deployment configuration
+[33madd1775[m Remove functions config to avoid Node.js version conflicts
+[33m966bc3c[m Use compatible @vercel/node@2.15.10 runtime version
+[33mc1789da[m Use latest @vercel/node runtime without version pinning
+[33m7cf70e4[m Restore functions configuration in vercel.json for proper API routing
+[33m0de734e[m Fix preview issue - correct content type and function naming for DOCX generation
+[33m7d1c69d[m Clean up generators - keep only working ieee_generator_fixed.py, remove broken PDF generators
+[33ma9fe5c8[m Remove JavaScript fallback - use only Python IEEE generator for consistent format
+[33m4aa1b26[m Improve IEEE format for Vercel - proper 2-column layout with Times New Roman font
+[33m876ea98[m Add serverless fallback for IEEE DOCX generation - fixes Vercel deployment
+[33m1e165cf[m Fix IEEE format preview - integrate actual Python generator with proper 2-column layout
+[33m2134f85[m Implement proper IEEE-formatted PDF generation for preview
+[33m7263e18[m Fix PDF preview generation by bypassing authentication for previews
+[33m4c0dcc7[m Fix PDF preview and download authentication issues
+[33m182806d[m Add comprehensive authentication debugging and fixes
+[33mf4ea866[m Fix authentication and admin panel issues
+[33mbc5e8e7[m Fix download functionality & admin panel loading
+[33m38efa63[m Fix auth data format mismatch
+[33m3aa71a1[m Fix storage module import paths for Vercel
+[33m5ca5d99[m Add comprehensive auth debugging & test endpoint
+[33m898783a[m Fix auth 500 errors - Node.js compatibility
+[33mb35e536[m Fix authentication 404 errors
+[33mc5033b0[m Fix Vercel function limit & implement real admin data
+[33me2635be[m Fix admin panel with real data and implement unauthorized download flow
+[33m779b83f[m Remove collaboration feature from signin page
+[33m39dc150[m Fix Vercel SPA routing and remove promotional content
+[33m43d3512[m Update download history to user-specific tracking system
+[33m8446f92[m Fix download history with simplified API and sample data
+[33mc7adadf[m Add simple test endpoints to debug API deployment issues
+[33m8f71703[m Add detailed session debugging to API endpoints
+[33mb998586[m Add authentication debug tools and debug page
+[33me047e46[m Fix authentication for API calls - resolve 401 errors
+[33ma8a2837[m Add missing download API endpoints to fix 404 errors
+[33m6af53b6[m Fix Vercel runtime configuration error
+[33m7525669[m Fix Vercel API routing for authentication - resolve 404 errors
+[33mc770fb7[m Add API debug endpoint to troubleshoot 404 authentication error - Add /api/test endpoint to verify server connectivity - Help diagnose authentication 404 issues - Maintain existing authentication flow and beautiful UI - Debug server route registration and API availability
+[33mf2c6c48[m Add detailed authentication debugging and error handling - Implement comprehensive console logging for Google OAuth flow - Add step-by-step authentication process tracking - Improve error messages with specific failure details - Help identify authentication issues for faster debugging - Maintain beautiful purple UI while fixing auth flow
+[33madc7199[m Improve sign-in page UI and fix Google OAuth - Add beautiful purple gradient design with animations - Implement working Google Client ID from original code - Add professional feature showcase and glass morphism effects - Maintain responsive layout and proper error handling - Ready for production deployment
+[33mdd54991[m Remove plain form generator and improve UI - Remove generator.tsx plain form interface - Update routing to use purple HomeClient for all routes - Remove test button from download history - Improve sign-in page with proper Format A logo - Make application deployment ready
+[33m87f987b[m Add vertical sidebar content editor and update refund policy
+[33m4f2c76e[m Remove 'Last updated: December 2024' from Terms and Privacy pages
+[33mda4a536[m Create separate Terms and Privacy pages, remove refund policy
+[33m4f5887b[m Add functional terms and privacy policy modals to footer
+[33m44e8eed[m Add comprehensive terms and conditions footer to homepage
+[33ma211875[m Add comprehensive terms and conditions footer to homepage
