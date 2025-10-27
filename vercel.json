@@ -46,8 +46,9 @@
       ]
     }
   ],
-  "env": {
-    "PYTHON_PATH": "/usr/bin/python3",
-    "SKIP_DOCX2PDF": "true"
+  "functions": {
+    "api/generate/docx-to-pdf.py": {
+      "runtime": "python3.9"
+    }
   }
 }
