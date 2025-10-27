@@ -1,7 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { storage } from '../_lib/storage.js';
-import { spawn } from 'child_process';
-import path from 'path';
+import { IEEEDocumentGenerator } from '../_lib/ieee-generator.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -64,8 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Generating PDF for:', isPreview ? 'preview' : `user: ${user?.email}`);
     console.log('Document title:', documentData.title);
 
-    // Generate actual DOCX using Python IEEE generator
-    const docxBuffer = await generateIEEEDocx(documentData);
+    // Generate actual DOCX using JavaScript IEEE generator
+    const docxBuffer = await IEEEDocumentGenerator.generateDocument(documentData);
     
     // Only record download for actual downloads, not previews
     if (!isPreview && user) {
@@ -111,59 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function generateIEEEDocx(documentData: any): Promise<Buffer> {
-  // Use the same working DOCX generator and convert to PDF
-  return new Promise((resolve, reject) => {
-    // Path to the working Python IEEE DOCX generator script
-    const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
-    
-    // Try python3 first, fallback to python
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    
-    console.log(`Using Python DOCX generator for PDF: ${pythonCmd} ${scriptPath}`);
-    
-    // Spawn Python process
-    const pythonProcess = spawn(pythonCmd, [scriptPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
 
-    let outputBuffer = Buffer.alloc(0);
-    let errorOutput = '';
-
-    // Send JSON data to Python script
-    pythonProcess.stdin.write(JSON.stringify(documentData));
-    pythonProcess.stdin.end();
-
-    // Collect binary output (DOCX file)
-    pythonProcess.stdout.on('data', (data) => {
-      outputBuffer = Buffer.concat([outputBuffer, data]);
-    });
-
-    // Collect error output
-    pythonProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-    });
-
-    // Handle process completion
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log(`Python DOCX generator completed successfully, generated ${outputBuffer.length} bytes`);
-        // For now, return the DOCX as PDF (browsers can handle DOCX files)
-        // In the future, you could add DOCX to PDF conversion here
-        resolve(outputBuffer);
-      } else {
-        console.error('Python script error:', errorOutput);
-        reject(new Error(`Python script failed with code ${code}: ${errorOutput}`));
-      }
-    });
-
-    // Handle process errors
-    pythonProcess.on('error', (error) => {
-      console.error('Failed to start Python process:', error);
-      reject(new Error(`Failed to start Python process: ${error.message}`));
-    });
-  });
-}
 
 function estimateWordCount(documentData: any): number {
   let wordCount = 0;
