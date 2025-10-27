@@ -318,28 +318,29 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     }
   };
 
-  // Auto-generate preview when document changes (debounced)
-  useEffect(() => {
-    console.log('Document changed, checking for preview generation:', {
-      hasTitle: !!document.title,
-      hasAuthors: document.authors?.some(author => author.name),
-      title: document.title,
-      authors: document.authors
-    });
+  // DISABLED: Auto-generate preview to prevent unwanted downloads
+  // Preview is now manual-only via the refresh button
+  // useEffect(() => {
+  //   console.log('Document changed, checking for preview generation:', {
+  //     hasTitle: !!document.title,
+  //     hasAuthors: document.authors?.some(author => author.name),
+  //     title: document.title,
+  //     authors: document.authors
+  //   });
 
-    const timer = setTimeout(() => {
-      if (document.title && document.authors?.some(author => author.name)) {
-        console.log('Triggering PDF preview generation...');
-        generatePdfPreview();
-      } else {
-        console.log('Skipping PDF generation - missing title or authors');
-        setPdfUrl(null);
-        setPreviewError(null);
-      }
-    }, 1000); // 1 second debounce
+  //   const timer = setTimeout(() => {
+  //     if (document.title && document.authors?.some(author => author.name)) {
+  //       console.log('Triggering PDF preview generation...');
+  //       generatePdfPreview();
+  //     } else {
+  //       console.log('Skipping PDF generation - missing title or authors');
+  //       setPdfUrl(null);
+  //       setPreviewError(null);
+  //     }
+  //   }, 1000); // 1 second debounce
 
-    return () => clearTimeout(timer);
-  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+  //   return () => clearTimeout(timer);
+  // }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -493,31 +494,32 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="flex justify-center items-start h-full overflow-auto">
-                <div
-                  style={{
-                    transform: `scale(${zoom / 100})`,
-                    transformOrigin: 'top center',
-                    transition: 'transform 0.2s ease-in-out',
-                    width: '8.5in', // Standard letter width
-                    height: '11in', // Standard letter height
-                    minWidth: '8.5in',
-                    minHeight: '11in',
-                    backgroundColor: 'white',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    margin: '20px'
-                  }}
-                >
-                  <iframe
-                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      backgroundColor: 'white'
-                    }}
-                    title="PDF Preview"
-                  />
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6">
+                  <FileText className="w-16 h-16 text-purple-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Document Ready for Preview</h3>
+                  <p className="text-gray-600 mb-4">
+                    Your IEEE document has been generated successfully! 
+                    <br />
+                    DOCX files cannot be previewed directly in the browser.
+                  </p>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = pdfUrl;
+                        link.download = 'ieee_paper_preview.docx';
+                        link.click();
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Preview (DOCX)
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                      Download to view the formatted IEEE document in Microsoft Word or similar applications
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (
