@@ -67,7 +67,7 @@ class handler(BaseHTTPRequestHandler):
                 return
             
             # Check if this is a preview request
-            is_preview = self.headers.get('X-Preview') == 'true'
+            is_preview = self.headers.get('X-Preview') == 'true' or 'preview=true' in self.path
             
             # Generate DOCX document
             docx_buffer = generate_ieee_document(document_data)
@@ -75,8 +75,10 @@ class handler(BaseHTTPRequestHandler):
             # Set response headers for DOCX file
             self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             if is_preview:
+                # For preview, don't set attachment disposition to prevent auto-download
                 self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.docx"')
             else:
+                # For actual downloads, use attachment to trigger download
                 self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
             
             self.end_headers()

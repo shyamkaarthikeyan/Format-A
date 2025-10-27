@@ -318,26 +318,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     }
   };
 
-  // Auto-generate preview when document changes (debounced)
-  useEffect(() => {
-    console.log('Document changed, checking for preview generation:', {
-      hasTitle: !!document.title,
-      hasAuthors: document.authors?.some(author => author.name),
-      title: document.title,
-      authors: document.authors
-    });
+  // Auto-generate preview when document changes (debounced) - DISABLED to prevent auto-downloads
+  // TODO: Fix preview generation to not trigger downloads
+  // useEffect(() => {
+  //   console.log('Document changed, checking for preview generation:', {
+  //     hasTitle: !!document.title,
+  //     hasAuthors: document.authors?.some(author => author.name),
+  //     title: document.title,
+  //     authors: document.authors
+  //   });
 
-    const timer = setTimeout(() => {
-      if (document.title && document.authors?.some(author => author.name)) {
-        console.log('Triggering PDF preview generation...');
-        generatePdfPreview();
-      } else {
-        console.log('Skipping PDF generation - missing title or authors');
-      }
-    }, 1000); // 1 second debounce
+  //   const timer = setTimeout(() => {
+  //     if (document.title && document.authors?.some(author => author.name)) {
+  //       console.log('Triggering PDF preview generation...');
+  //       generatePdfPreview();
+  //     } else {
+  //       console.log('Skipping PDF generation - missing title or authors');
+  //     }
+  //   }, 1000); // 1 second debounce
 
-    return () => clearTimeout(timer);
-  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+  //   return () => clearTimeout(timer);
+  // }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
