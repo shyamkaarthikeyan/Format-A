@@ -277,7 +277,7 @@ const SystemHealth: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Response Time</span>
-              <span className="text-sm font-medium text-green-600">< 100ms</span>
+              <span className="text-sm font-medium text-green-600">&lt; 100ms</span>
             </div>
             
             <div className="flex items-center justify-between">
