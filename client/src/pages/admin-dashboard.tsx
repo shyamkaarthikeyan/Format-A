@@ -101,15 +101,19 @@ const AdminDashboard: React.FC = () => {
 
       // Get admin token for authenticated requests
       const adminToken = localStorage.getItem('admin-token');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      if (adminToken) {
-        headers['X-Admin-Token'] = adminToken;
+      if (!adminToken) {
+        console.error('No admin token found in localStorage');
+        setError('Admin authentication required. Please refresh the page.');
+        setLoading(false);
+        return;
       }
 
-      console.log('Request headers:', headers);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': adminToken
+      };
+
+      console.log('Request headers:', { ...headers, 'X-Admin-Token': adminToken.substring(0, 20) + '...' });
 
       // Fetch real data from admin API endpoints with authentication
       const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.allSettled([

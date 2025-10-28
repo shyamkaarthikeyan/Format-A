@@ -88,8 +88,10 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
               lastAccessedAt: new Date().toISOString()
             };
             
+            const adminToken = 'admin_token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('admin-session', JSON.stringify(localAdminSession));
-            localStorage.setItem('admin-token', 'admin_token_' + Date.now());
+            localStorage.setItem('admin-token', adminToken);
+            console.log('Local admin session created with token:', adminToken);
           }
           
           // Trigger a re-render to pick up the new session
