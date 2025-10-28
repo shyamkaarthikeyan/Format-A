@@ -125,8 +125,8 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(pdf_data)
                     
                 except (ImportError, Exception) as pdf_error:
-                    # If PDF conversion fails, fall back to DOCX (still perfect IEEE format)
-                    print(f"PDF conversion failed, serving DOCX: {pdf_error}", file=sys.stderr)
+                    # If PDF conversion fails, serve DOCX directly (still perfect IEEE format)
+                    print(f"PDF conversion failed, serving DOCX with perfect IEEE formatting: {pdf_error}", file=sys.stderr)
                     
                     self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
                     if is_preview:
@@ -142,32 +142,9 @@ class handler(BaseHTTPRequestHandler):
                         self.wfile.write(docx_buffer.encode())
                         
             except Exception as docx_error:
-                # If the primary IEEE generator fails, fall back to ReportLab PDF
-                try:
-                    server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_pdf_generator.py')
-                    if os.path.exists(server_ieee_path):
-                        import importlib.util
-                        spec = importlib.util.spec_from_file_location("ieee_pdf_generator", server_ieee_path)
-                        ieee_pdf_module = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(ieee_pdf_module)
-                        
-                        generator = ieee_pdf_module.IEEEPDFGenerator()
-                        pdf_data = generator.generate_pdf(document_data)
-                        
-                        self.send_header('Content-Type', 'application/pdf')
-                        if is_preview:
-                            self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"')
-                        else:
-                            self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
-                        
-                        self.end_headers()
-                        self.wfile.write(pdf_data)
-                    else:
-                        raise Exception("No IEEE generators available")
-                        
-                except Exception as final_error:
-                    # Complete fallback failure
-                    raise Exception(f"All IEEE generators failed. DOCX: {docx_error}, PDF: {final_error}")
+                # If the correct IEEE generator fails, don't fall back to incorrect formatting
+                print(f"IEEE generator failed: {docx_error}", file=sys.stderr)
+                raise Exception(f"IEEE document generation failed: {docx_error}")
             
         except json.JSONDecodeError as e:
             self.send_response(400)
