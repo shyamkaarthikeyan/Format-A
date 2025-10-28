@@ -94,10 +94,7 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Debug: Log current state
-      console.log('Loading dashboard stats...');
-      console.log('Admin token:', localStorage.getItem('admin-token'));
-      console.log('Admin session:', localStorage.getItem('admin-session'));
+
 
       // Get admin token for authenticated requests
       const adminToken = localStorage.getItem('admin-token');
@@ -113,7 +110,7 @@ const AdminDashboard: React.FC = () => {
         'X-Admin-Token': adminToken
       };
 
-      console.log('Request headers:', { ...headers, 'X-Admin-Token': adminToken.substring(0, 20) + '...' });
+
 
       // Fetch real data from admin API endpoints with authentication
       const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.allSettled([
