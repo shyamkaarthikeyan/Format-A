@@ -67,12 +67,13 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(error_response.encode())
                 return
             
-            # Check if this is a preview request
+            # Check if this is a preview or download request
             is_preview = self.headers.get('X-Preview') == 'true' or 'preview=true' in self.path
+            is_download = self.headers.get('X-Download') == 'true' or 'download=true' in self.path
             
             # For preview requests, skip authentication
             # For actual downloads, we would check authentication here
-            if not is_preview:
+            if not is_preview and not is_download:
                 # TODO: Add authentication check for actual downloads
                 # For now, allow all requests to work
                 pass
@@ -118,7 +119,11 @@ class handler(BaseHTTPRequestHandler):
                         self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
                         self.send_header('Pragma', 'no-cache')
                         self.send_header('Expires', '0')
+                    elif is_download:
+                        self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
+                        self.send_header('Content-Length', str(len(pdf_data)))
                     else:
+                        # Default to attachment for safety
                         self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
                     
                     self.end_headers()
@@ -131,6 +136,11 @@ class handler(BaseHTTPRequestHandler):
                     self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
                     if is_preview:
                         self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.docx"')
+                    elif is_download:
+                        self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
+                        # Add content length for better download experience
+                        content_length = len(docx_buffer) if isinstance(docx_buffer, bytes) else len(docx_buffer.encode())
+                        self.send_header('Content-Length', str(content_length))
                     else:
                         self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
                     

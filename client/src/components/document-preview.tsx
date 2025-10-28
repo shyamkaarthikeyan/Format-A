@@ -117,36 +117,66 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       const response = await fetch('/api/generate/docx-to-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Download': 'true'  // Indicate this is for download, not preview
+        },
         body: JSON.stringify(document),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to generate PDF: ${response.statusText} - ${errorText}`);
+        // If PDF generation fails, try to get detailed error message
+        let errorMessage = `Failed to generate PDF: ${response.statusText}`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            const errorText = await response.text();
+            if (errorText && errorText.length < 500) {
+              errorMessage = errorText;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not parse error details');
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
+      console.log('PDF download blob:', blob.size, 'bytes, type:', blob.type);
+      
       if (blob.size === 0) throw new Error('Generated PDF is empty');
+
+      // Check if we actually got a PDF or a fallback format
+      const contentType = response.headers.get('content-type');
+      let filename = "ieee_paper.pdf";
+      let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
+      
+      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+        filename = "ieee_paper.docx";
+        downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
+      }
 
       const url = URL.createObjectURL(blob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = "ieee_paper.pdf";
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
 
-      return { success: true };
+      return { success: true, message: downloadMessage };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: "PDF Document Generated",
-        description: "IEEE-formatted PDF file has been downloaded successfully.",
+        title: "Document Generated",
+        description: data.message,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Download Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -539,24 +569,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'hidden' }}>
-                {/* Clean PDF Viewer without any browser controls */}
+              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
+                {/* Clean PDF Viewer with working zoom controls */}
                 <div 
                   className="w-full h-full relative"
                   style={{ 
                     transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top left',
-                    width: `${100 / (zoom / 100)}%`,
-                    height: `${100 / (zoom / 100)}%`
+                    transformOrigin: 'top center',
+                    minWidth: `${zoom}%`,
+                    minHeight: `${zoom}%`,
+                    padding: zoom > 100 ? '20px' : '0px'
                   }}
                 >
                   <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=page-width`}
+                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=${zoom}`}
                     type="application/pdf"
                     className="w-full h-full border-0"
                     style={{
                       outline: 'none',
-                      border: 'none'
+                      border: 'none',
+                      width: '100%',
+                      height: '600px',
+                      minHeight: '600px'
                     }}
                   >
                     {/* Fallback message */}
