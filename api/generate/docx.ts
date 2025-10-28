@@ -1,7 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { storage } from '../_lib/storage.js';
-import { spawn } from 'child_process';
-import path from 'path';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -48,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('Document title:', documentData.title);
 
-    // Generate actual DOCX using Python IEEE generator
+    // Generate actual DOCX using Node.js IEEE generator
     const docxBuffer = await generateIEEEDocx(documentData);
 
     // Record download in storage (only if user is authenticated)
@@ -99,55 +97,180 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function generateIEEEDocx(documentData: any): Promise<Buffer> {
-  // Always use Python generator - it works perfectly for IEEE format
-  return new Promise((resolve, reject) => {
-    // Path to the Python IEEE generator script
-    const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
+  // Use Node.js docx library for Vercel compatibility
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType } = await import('docx');
 
-    // Try python3 first, fallback to python
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  // Create a new document
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        // Title
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: documentData.title || 'Untitled Document',
+              bold: true,
+              size: 28, // 14pt
+              font: 'Times New Roman'
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 240 }
+        }),
 
-    console.log(`Using Python generator: ${pythonCmd} ${scriptPath}`);
+        // Authors
+        ...(documentData.authors && documentData.authors.length > 0 ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: documentData.authors
+                  .filter((author: any) => author.name)
+                  .map((author: any) => {
+                    let authorText = author.name;
+                    if (author.department) authorText += `, ${author.department}`;
+                    if (author.organization) authorText += `, ${author.organization}`;
+                    if (author.city) authorText += `, ${author.city}`;
+                    if (author.email) authorText += ` (${author.email})`;
+                    return authorText;
+                  })
+                  .join('; '),
+                size: 20, // 10pt
+                font: 'Times New Roman'
+              })
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 360 }
+          })
+        ] : []),
 
-    // Spawn Python process
-    const pythonProcess = spawn(pythonCmd, [scriptPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
+        // Abstract
+        ...(documentData.abstract ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Abstract—',
+                bold: true,
+                size: 19, // 9.5pt
+                font: 'Times New Roman'
+              }),
+              new TextRun({
+                text: documentData.abstract,
+                size: 19, // 9.5pt
+                font: 'Times New Roman'
+              })
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 240 }
+          })
+        ] : []),
 
-    let outputBuffer = Buffer.alloc(0);
-    let errorOutput = '';
+        // Keywords
+        ...(documentData.keywords ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Keywords—',
+                bold: true,
+                size: 19, // 9.5pt
+                font: 'Times New Roman'
+              }),
+              new TextRun({
+                text: documentData.keywords,
+                italics: true,
+                size: 19, // 9.5pt
+                font: 'Times New Roman'
+              })
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 360 }
+          })
+        ] : []),
 
-    // Send JSON data to Python script
-    pythonProcess.stdin.write(JSON.stringify(documentData));
-    pythonProcess.stdin.end();
+        // Sections
+        ...(documentData.sections ? documentData.sections.flatMap((section: any, index: number) => [
+          // Section heading
+          ...(section.title ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `${index + 1}. ${section.title}`,
+                  size: 19, // 9.5pt
+                  font: 'Times New Roman'
+                })
+              ],
+              heading: HeadingLevel.HEADING_1,
+              spacing: { before: 240, after: 120 }
+            })
+          ] : []),
+          
+          // Section content
+          ...(section.content ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: section.content,
+                  size: 19, // 9.5pt
+                  font: 'Times New Roman'
+                })
+              ],
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: { after: 240 }
+            })
+          ] : []),
 
-    // Collect binary output (DOCX file)
-    pythonProcess.stdout.on('data', (data) => {
-      outputBuffer = Buffer.concat([outputBuffer, data]);
-    });
+          // Content blocks
+          ...(section.content_blocks ? section.content_blocks
+            .filter((block: any) => block.type === 'text' && block.content)
+            .map((block: any) => 
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: block.content,
+                    size: 19, // 9.5pt
+                    font: 'Times New Roman'
+                  })
+                ],
+                alignment: AlignmentType.JUSTIFIED,
+                spacing: { after: 120 }
+              })
+            ) : [])
+        ]) : []),
 
-    // Collect error output
-    pythonProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-    });
-
-    // Handle process completion
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log(`Python generator completed successfully, generated ${outputBuffer.length} bytes`);
-        resolve(outputBuffer);
-      } else {
-        console.error('Python script error:', errorOutput);
-        reject(new Error(`Python script failed with code ${code}: ${errorOutput}`));
-      }
-    });
-
-    // Handle process errors
-    pythonProcess.on('error', (error) => {
-      console.error('Failed to start Python process:', error);
-      reject(new Error(`Failed to start Python process: ${error.message}`));
-    });
+        // References
+        ...(documentData.references && documentData.references.length > 0 ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'References',
+                size: 19, // 9.5pt
+                font: 'Times New Roman'
+              })
+            ],
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 360, after: 240 }
+          }),
+          ...documentData.references.map((reference: any, index: number) => 
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `[${index + 1}] ${reference.text || reference}`,
+                  size: 18, // 9pt
+                  font: 'Times New Roman'
+                })
+              ],
+              alignment: AlignmentType.LEFT,
+              spacing: { after: 60 }
+            })
+          )
+        ] : [])
+      ]
+    }]
   });
+
+  // Generate the document buffer
+  const buffer = await Packer.toBuffer(doc);
+  return buffer;
 }
 
 

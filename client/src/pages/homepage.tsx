@@ -583,8 +583,7 @@ export default function Homepage() {
                     "Word DOCX & PDF export options",
                     "Unlimited revisions per document",
                     "Email delivery included",
-                    "24/7 automated processing",
-                    "No account required"
+                    "24/7 automated processing"
                   ].map((feature, index) => (
                     <div key={index} className="flex items-center">
                       <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
