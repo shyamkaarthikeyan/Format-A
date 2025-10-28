@@ -1,6 +1,7 @@
 import json
 import sys
 import os
+import importlib.util
 from io import BytesIO
 
 # Add the server directory to Python path to import the IEEE generator
@@ -76,58 +77,21 @@ class handler(BaseHTTPRequestHandler):
                 # For now, allow all requests to work
                 pass
             
-            # Generate DOCX document first
-            docx_buffer = generate_ieee_document(document_data)
-            
-            # For PDF conversion, we need to use a different approach on Vercel
-            # Since docx2pdf might not work, we'll try reportlab as fallback
+            # Try to use the proper IEEE PDF generator first
             try:
-                # Try to import and use reportlab for PDF generation
-                from reportlab.lib.pagesizes import letter
-                from reportlab.lib.styles import getSampleStyleSheet
-                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-                from reportlab.lib.units import inch
-                
-                # Create PDF buffer
-                pdf_buffer = BytesIO()
-                doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
-                styles = getSampleStyleSheet()
-                story = []
-                
-                # Add document content to PDF
-                title_style = styles['Title']
-                normal_style = styles['Normal']
-                
-                # Add title
-                story.append(Paragraph(document_data.get('title', 'IEEE Paper'), title_style))
-                story.append(Spacer(1, 0.2*inch))
-                
-                # Add authors
-                authors = document_data.get('authors', [])
-                if authors:
-                    author_names = ', '.join([author.get('name', '') for author in authors if author.get('name')])
-                    story.append(Paragraph(author_names, normal_style))
-                    story.append(Spacer(1, 0.2*inch))
-                
-                # Add abstract
-                if document_data.get('abstract'):
-                    story.append(Paragraph('<b>Abstract</b>', normal_style))
-                    story.append(Paragraph(document_data['abstract'], normal_style))
-                    story.append(Spacer(1, 0.2*inch))
-                
-                # Add sections
-                sections = document_data.get('sections', [])
-                for section in sections:
-                    if section.get('title'):
-                        story.append(Paragraph(f'<b>{section["title"]}</b>', normal_style))
-                    if section.get('content'):
-                        story.append(Paragraph(section['content'], normal_style))
-                    story.append(Spacer(1, 0.1*inch))
-                
-                # Build PDF
-                doc.build(story)
-                pdf_data = pdf_buffer.getvalue()
-                pdf_buffer.close()
+                # Try to import IEEE PDF generator from server directory
+                server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_pdf_generator.py')
+                if os.path.exists(server_ieee_path):
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("ieee_pdf_generator", server_ieee_path)
+                    ieee_pdf_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(ieee_pdf_module)
+                    
+                    # Generate PDF using proper IEEE formatting
+                    generator = ieee_pdf_module.IEEEPDFGenerator()
+                    pdf_data = generator.generate_pdf(document_data)
+                else:
+                    raise ImportError("IEEE PDF generator not found")
                 
                 # Set response headers for PDF file
                 self.send_header('Content-Type', 'application/pdf')
@@ -145,7 +109,10 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(pdf_data)
                 
             except ImportError:
-                # Fallback to DOCX if PDF generation fails
+                # If IEEE PDF generator is not available, generate DOCX and indicate it's not PDF
+                docx_buffer = generate_ieee_document(document_data)
+                
+                # Set response headers for DOCX file (proper IEEE format)
                 self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
                 if is_preview:
                     self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.docx"')
