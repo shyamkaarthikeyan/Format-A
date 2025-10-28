@@ -189,49 +189,38 @@ class DocumentHandler(BaseHTTPRequestHandler):
 
 def handler(req, res):
     """Vercel serverless function handler"""
-    from io import StringIO
+    import json
     
-    # Create a mock request object for BaseHTTPRequestHandler
-    class MockRequest:
-        def __init__(self, method, body, headers, query_params):
-            self.method = method
-            self.body = body  
-            self.headers = headers
-            self.query_params = query_params
+    # Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview, X-Download')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
     
-    # Extract request details
-    method = req.method if hasattr(req, 'method') else 'POST'
-    body = req.body if hasattr(req, 'body') else b''
-    headers = req.headers if hasattr(req, 'headers') else {}
-    query = req.query if hasattr(req, 'query') else {}
+    # Handle preflight requests
+    if req.method == 'OPTIONS':
+        res.status(200).end()
+        return
     
-    # Handle the request
-    if method == 'OPTIONS':
-        res.status = 200
-        res.headers.update({
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Preview',
-            'Access-Control-Allow-Credentials': 'true'
-        })
+    if req.method != 'POST':
+        res.status(405).json({'error': 'Method not allowed'})
         return
     
     try:
         # Parse request body
-        if isinstance(body, str):
-            document_data = json.loads(body)
-        else:
-            document_data = json.loads(body.decode('utf-8'))
+        document_data = req.body
         
         # Check for preview or download mode
-        is_preview = query.get('preview') == 'true' or headers.get('x-preview') == 'true'
-        is_download = headers.get('x-download') == 'true'
+        is_preview = req.query.get('preview') == 'true' or req.headers.get('x-preview') == 'true'
+        is_download = req.headers.get('x-download') == 'true'
+        
+        print(f"Request mode: preview={is_preview}, download={is_download}", file=sys.stderr)
         
         # Generate perfect IEEE document
         docx_buffer = generate_ieee_document(document_data)
         print("Perfect IEEE DOCX generated successfully", file=sys.stderr)
         
-        # Try to convert to PDF for better preview experience
+        # Try to convert to PDF for preview
         pdf_data = None
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -244,61 +233,48 @@ def handler(req, res):
                 
                 generator = ieee_pdf_module.IEEEPDFGenerator()
                 pdf_data = generator.generate_pdf(document_data)
-                print("PDF conversion successful", file=sys.stderr)
+                print("PDF conversion successful using ReportLab", file=sys.stderr)
         except Exception as pdf_error:
             print(f"PDF conversion failed: {pdf_error}", file=sys.stderr)
         
-        # Serve PDF if available, otherwise DOCX
+        # Return appropriate response
         if pdf_data and is_preview:
-            res.headers.update({
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': 'inline; filename="ieee_paper_preview.pdf"',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Access-Control-Allow-Origin': '*'
-            })
-            res.body = pdf_data
+            # Serve PDF for preview
+            res.setHeader('Content-Type', 'application/pdf')
+            res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"')
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+            res.status(200).send(pdf_data)
+            
         elif pdf_data and is_download:
-            res.headers.update({
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': 'attachment; filename="ieee_paper.pdf"',
-                'Content-Length': str(len(pdf_data)),
-                'Access-Control-Allow-Origin': '*'
+            # Serve PDF for download
+            res.setHeader('Content-Type', 'application/pdf')
+            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
+            res.status(200).send(pdf_data)
+            
+        elif is_preview:
+            # Preview requires PDF - return error with helpful message
+            res.status(500).json({
+                'error': 'PDF preview temporarily unavailable',
+                'message': 'Perfect IEEE formatting available via download. DOCX contains identical layout to localhost.',
+                'suggestion': 'Use Download Word button for perfect IEEE paper.'
             })
-            res.body = pdf_data
+            
         else:
-            # Serve perfect IEEE DOCX
-            if is_preview:
-                # For preview requests, return error message since we can't preview DOCX
-                res.status = 500
-                res.headers.update({
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                })
-                error_response = json.dumps({
-                    'error': 'PDF preview temporarily unavailable',
-                    'message': 'Perfect IEEE formatting available via download. DOCX contains identical layout.',
-                    'suggestion': 'Use Download Word button for perfect IEEE paper.'
-                })
-                res.body = error_response
+            # Serve perfect IEEE DOCX for download
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
+            if isinstance(docx_buffer, bytes):
+                res.status(200).send(docx_buffer)
             else:
-                # For downloads, serve the perfect DOCX
-                res.headers.update({
-                    'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'Content-Disposition': 'attachment; filename="ieee_paper.docx"',
-                    'Content-Length': str(len(docx_buffer) if isinstance(docx_buffer, bytes) else len(docx_buffer.encode())),
-                    'Access-Control-Allow-Origin': '*'
-                })
-                res.body = docx_buffer if isinstance(docx_buffer, bytes) else docx_buffer.encode()
+                res.status(200).send(docx_buffer.encode())
         
     except Exception as e:
         print(f"Handler error: {e}", file=sys.stderr)
-        res.status = 500
-        res.headers.update({
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+        import traceback
+        traceback.print_exc()
+        
+        res.status(500).json({
+            'error': 'Perfect IEEE document generation failed',
+            'message': str(e),
+            'details': 'Check Vercel function logs for more information'
         })
-        error_response = json.dumps({
-            'error': 'Document generation failed', 
-            'message': str(e)
-        })
-        res.body = error_response
