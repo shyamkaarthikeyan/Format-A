@@ -3,26 +3,10 @@ import sys
 import os
 import importlib.util
 from io import BytesIO
-
-# Add the server directory to Python path to import the IEEE generator
-current_dir = os.path.dirname(os.path.abspath(__file__))
-server_dir = os.path.join(current_dir, '..', '..', 'server')
-sys.path.insert(0, server_dir)
-
-try:
-    # Import the generate function from the IEEE generator
-    sys.path.append('/var/task/server')  # Vercel's task directory
-    from ieee_generator_fixed import generate_ieee_document
-except ImportError as e:
-    print(f"Import error: {e}", file=sys.stderr)
-    # Create a fallback function
-    def generate_ieee_document(data):
-        raise Exception(f"IEEE generator not available: {e}")
-
 from http.server import BaseHTTPRequestHandler
 
 def generate_ieee_document(document_data):
-    """Generate IEEE document using the fixed generator"""
+    """Generate IEEE document using the perfect IEEE generator"""
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_generator_fixed.py')
@@ -37,12 +21,12 @@ def generate_ieee_document(document_data):
             docx_buffer = generator.generate_document(document_data)
             return docx_buffer
         else:
-            raise Exception("IEEE generator not found")
+            raise Exception("Perfect IEEE generator not found at server/ieee_generator_fixed.py")
     except Exception as e:
-        print(f"IEEE document generation failed: {e}", file=sys.stderr)
+        print(f"Perfect IEEE document generation failed: {e}", file=sys.stderr)
         raise e
 
-def handler(req, res):
+class DocumentHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle CORS preflight requests"""
         self.send_response(200)
@@ -111,6 +95,7 @@ def handler(req, res):
                     pdf_data = None
                     
                     # Method 1: Try ReportLab converter if available
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
                     server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_pdf_generator.py')
                     if os.path.exists(server_ieee_path):
                         import importlib.util
@@ -201,3 +186,119 @@ def handler(req, res):
                 'message': str(e)
             })
             self.wfile.write(error_response.encode())
+
+def handler(req, res):
+    """Vercel serverless function handler"""
+    from io import StringIO
+    
+    # Create a mock request object for BaseHTTPRequestHandler
+    class MockRequest:
+        def __init__(self, method, body, headers, query_params):
+            self.method = method
+            self.body = body  
+            self.headers = headers
+            self.query_params = query_params
+    
+    # Extract request details
+    method = req.method if hasattr(req, 'method') else 'POST'
+    body = req.body if hasattr(req, 'body') else b''
+    headers = req.headers if hasattr(req, 'headers') else {}
+    query = req.query if hasattr(req, 'query') else {}
+    
+    # Handle the request
+    if method == 'OPTIONS':
+        res.status = 200
+        res.headers.update({
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Preview',
+            'Access-Control-Allow-Credentials': 'true'
+        })
+        return
+    
+    try:
+        # Parse request body
+        if isinstance(body, str):
+            document_data = json.loads(body)
+        else:
+            document_data = json.loads(body.decode('utf-8'))
+        
+        # Check for preview or download mode
+        is_preview = query.get('preview') == 'true' or headers.get('x-preview') == 'true'
+        is_download = headers.get('x-download') == 'true'
+        
+        # Generate perfect IEEE document
+        docx_buffer = generate_ieee_document(document_data)
+        print("Perfect IEEE DOCX generated successfully", file=sys.stderr)
+        
+        # Try to convert to PDF for better preview experience
+        pdf_data = None
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_pdf_generator.py')
+            if os.path.exists(server_ieee_path):
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("ieee_pdf_generator", server_ieee_path)
+                ieee_pdf_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(ieee_pdf_module)
+                
+                generator = ieee_pdf_module.IEEEPDFGenerator()
+                pdf_data = generator.generate_pdf(document_data)
+                print("PDF conversion successful", file=sys.stderr)
+        except Exception as pdf_error:
+            print(f"PDF conversion failed: {pdf_error}", file=sys.stderr)
+        
+        # Serve PDF if available, otherwise DOCX
+        if pdf_data and is_preview:
+            res.headers.update({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'inline; filename="ieee_paper_preview.pdf"',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Access-Control-Allow-Origin': '*'
+            })
+            res.body = pdf_data
+        elif pdf_data and is_download:
+            res.headers.update({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'attachment; filename="ieee_paper.pdf"',
+                'Content-Length': str(len(pdf_data)),
+                'Access-Control-Allow-Origin': '*'
+            })
+            res.body = pdf_data
+        else:
+            # Serve perfect IEEE DOCX
+            if is_preview:
+                # For preview requests, return error message since we can't preview DOCX
+                res.status = 500
+                res.headers.update({
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                })
+                error_response = json.dumps({
+                    'error': 'PDF preview temporarily unavailable',
+                    'message': 'Perfect IEEE formatting available via download. DOCX contains identical layout.',
+                    'suggestion': 'Use Download Word button for perfect IEEE paper.'
+                })
+                res.body = error_response
+            else:
+                # For downloads, serve the perfect DOCX
+                res.headers.update({
+                    'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'Content-Disposition': 'attachment; filename="ieee_paper.docx"',
+                    'Content-Length': str(len(docx_buffer) if isinstance(docx_buffer, bytes) else len(docx_buffer.encode())),
+                    'Access-Control-Allow-Origin': '*'
+                })
+                res.body = docx_buffer if isinstance(docx_buffer, bytes) else docx_buffer.encode()
+        
+    except Exception as e:
+        print(f"Handler error: {e}", file=sys.stderr)
+        res.status = 500
+        res.headers.update({
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        })
+        error_response = json.dumps({
+            'error': 'Document generation failed', 
+            'message': str(e)
+        })
+        res.body = error_response
