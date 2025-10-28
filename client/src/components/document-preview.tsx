@@ -268,31 +268,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting to generate clean PDF preview...');
+      console.log('Generating PDF preview for Vercel compatibility...');
       
-      // Try image-based preview first (cleanest, no browser PDF controls)
-      let response = await fetch('/api/generate/pdf-images-preview', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(document),
-      });
-
-      if (response.ok) {
-        const imagesData = await response.json();
-        if (imagesData.success && imagesData.images) {
-          console.log('Image-based preview generated successfully');
-          setPreviewImages(imagesData.images);
-          setPreviewMode('images');
-          return;
-        }
-      }
-
-      console.log('Image preview failed, falling back to PDF preview...');
-      
-      // Fallback to PDF preview
-      response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Use the main PDF endpoint with preview parameters
+      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -341,16 +320,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         URL.revokeObjectURL(pdfUrl);
       }
 
-      // Create new blob URL for preview with specific parameters for clean display
+      // Create new blob URL for preview display
       const url = URL.createObjectURL(blob);
-      setPdfUrl(url);
       setPreviewMode('pdf');
       setPreviewImages([]);
+      setPdfUrl(url);
       console.log('PDF preview generated successfully, URL:', url);
-      
-      // Force reload of preview to ensure clean display
-      const timestamp = Date.now();
-      setPdfUrl(`${url}#t=${timestamp}`);
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';

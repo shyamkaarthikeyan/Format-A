@@ -76,25 +76,88 @@ class handler(BaseHTTPRequestHandler):
                 # For now, allow all requests to work
                 pass
             
-            # Generate DOCX document
+            # Generate DOCX document first
             docx_buffer = generate_ieee_document(document_data)
             
-            # Set response headers for DOCX file
-            self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            if is_preview:
-                # For preview, don't set attachment disposition to prevent auto-download
-                self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.docx"')
-            else:
-                # For actual downloads, use attachment to trigger download
-                self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
-            
-            self.end_headers()
-            
-            # Send the DOCX file
-            if isinstance(docx_buffer, bytes):
-                self.wfile.write(docx_buffer)
-            else:
-                self.wfile.write(docx_buffer.encode())
+            # For PDF conversion, we need to use a different approach on Vercel
+            # Since docx2pdf might not work, we'll try reportlab as fallback
+            try:
+                # Try to import and use reportlab for PDF generation
+                from reportlab.lib.pagesizes import letter
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.lib.units import inch
+                
+                # Create PDF buffer
+                pdf_buffer = BytesIO()
+                doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+                styles = getSampleStyleSheet()
+                story = []
+                
+                # Add document content to PDF
+                title_style = styles['Title']
+                normal_style = styles['Normal']
+                
+                # Add title
+                story.append(Paragraph(document_data.get('title', 'IEEE Paper'), title_style))
+                story.append(Spacer(1, 0.2*inch))
+                
+                # Add authors
+                authors = document_data.get('authors', [])
+                if authors:
+                    author_names = ', '.join([author.get('name', '') for author in authors if author.get('name')])
+                    story.append(Paragraph(author_names, normal_style))
+                    story.append(Spacer(1, 0.2*inch))
+                
+                # Add abstract
+                if document_data.get('abstract'):
+                    story.append(Paragraph('<b>Abstract</b>', normal_style))
+                    story.append(Paragraph(document_data['abstract'], normal_style))
+                    story.append(Spacer(1, 0.2*inch))
+                
+                # Add sections
+                sections = document_data.get('sections', [])
+                for section in sections:
+                    if section.get('title'):
+                        story.append(Paragraph(f'<b>{section["title"]}</b>', normal_style))
+                    if section.get('content'):
+                        story.append(Paragraph(section['content'], normal_style))
+                    story.append(Spacer(1, 0.1*inch))
+                
+                # Build PDF
+                doc.build(story)
+                pdf_data = pdf_buffer.getvalue()
+                pdf_buffer.close()
+                
+                # Set response headers for PDF file
+                self.send_header('Content-Type', 'application/pdf')
+                if is_preview:
+                    # For preview, use inline disposition for browser display
+                    self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"')
+                    self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                    self.send_header('Pragma', 'no-cache')
+                    self.send_header('Expires', '0')
+                else:
+                    # For actual downloads, use attachment to trigger download
+                    self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
+                
+                self.end_headers()
+                self.wfile.write(pdf_data)
+                
+            except ImportError:
+                # Fallback to DOCX if PDF generation fails
+                self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                if is_preview:
+                    self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.docx"')
+                else:
+                    self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
+                
+                self.end_headers()
+                
+                if isinstance(docx_buffer, bytes):
+                    self.wfile.write(docx_buffer)
+                else:
+                    self.wfile.write(docx_buffer.encode())
             
         except json.JSONDecodeError as e:
             self.send_response(400)
