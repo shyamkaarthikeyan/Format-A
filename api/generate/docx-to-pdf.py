@@ -130,13 +130,27 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(pdf_data)
                     
                 except (ImportError, Exception) as pdf_error:
-                    # If PDF conversion fails, serve DOCX directly (still perfect IEEE format)
-                    print(f"PDF conversion failed, serving DOCX with perfect IEEE formatting: {pdf_error}", file=sys.stderr)
+                    print(f"PDF conversion failed: {pdf_error}", file=sys.stderr)
+                    
+                    # For preview requests, we need to fail rather than serve DOCX
+                    if is_preview:
+                        # Preview requires PDF format - return error response
+                        self.send_response(500)
+                        self.send_header('Content-Type', 'application/json')
+                        self.end_headers()
+                        error_response = json.dumps({
+                            'error': 'PDF preview temporarily unavailable',
+                            'message': 'PDF conversion failed. Downloads still work perfectly with identical IEEE formatting.',
+                            'suggestion': 'Use Download buttons to get your IEEE paper.'
+                        })
+                        self.wfile.write(error_response.encode())
+                        return
+                    
+                    # For downloads, serve DOCX as fallback (still perfect IEEE format)
+                    print(f"Serving DOCX fallback for download: {pdf_error}", file=sys.stderr)
                     
                     self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-                    if is_preview:
-                        self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.docx"')
-                    elif is_download:
+                    if is_download:
                         self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
                         # Add content length for better download experience
                         content_length = len(docx_buffer) if isinstance(docx_buffer, bytes) else len(docx_buffer.encode())

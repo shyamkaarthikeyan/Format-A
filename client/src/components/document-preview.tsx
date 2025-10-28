@@ -341,16 +341,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
-      console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
+      const contentType = response.headers.get('content-type');
+      console.log('Preview response blob:', blob.size, 'bytes, Content-Type:', contentType);
       
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
+      if (blob.size === 0) throw new Error('Generated document is empty');
+
+      // Check if we received a DOCX instead of PDF for preview
+      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+        // This is a DOCX file - we can't preview it inline, show error instead
+        throw new Error('PDF preview temporarily unavailable. Document generation works perfectly - use Download buttons to get your IEEE paper.');
+      }
+
+      // Ensure we got a PDF for preview
+      if (!contentType || !contentType.includes('application/pdf')) {
+        throw new Error('Preview requires PDF format. Please use Download buttons to get your document.');
+      }
 
       // Clean up previous URL
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
 
-      // Create new blob URL for preview display
+      // Create new blob URL for PDF preview display
       const url = URL.createObjectURL(blob);
       setPreviewMode('pdf');
       setPreviewImages([]);
