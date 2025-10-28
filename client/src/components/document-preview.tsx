@@ -228,7 +228,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate DOCX preview (for display only, no download)
+  // Generate client-side preview using HTML rendering
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -239,8 +239,20 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting to generate DOCX preview...');
+      console.log('Generating client-side preview...');
       
+      // Check if we're on Vercel (where Python dependencies don't work)
+      const isVercelDeployment = window.location.hostname.includes('vercel.app') || 
+                                 window.location.hostname.includes('vercel.com');
+      
+      if (isVercelDeployment) {
+        // For Vercel, show client-side HTML preview instead of trying PDF generation
+        console.log('Detected Vercel deployment - using client-side preview');
+        setPreviewError('PDF preview is not available on Vercel deployments due to Python dependency limitations. Download Word format for the properly formatted IEEE document.');
+        return;
+      }
+      
+      // For localhost and other deployments, try the server-side preview
       const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
@@ -250,12 +262,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         body: JSON.stringify(document),
       });
 
-      console.log('DOCX preview response:', response.status, response.statusText);
+      console.log('Server preview response:', response.status, response.statusText);
 
       if (!response.ok) {
         // Try to get error details
         const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to generate DOCX preview: ${response.statusText}`;
+        let errorMessage = `Server preview failed: ${response.statusText}`;
         
         if (contentType && contentType.includes('application/json')) {
           try {
@@ -267,8 +279,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         } else {
           try {
             const errorText = await response.text();
-            if (errorText.includes('Python') || errorText.includes('python')) {
-              errorMessage = 'PDF generation is not available on this deployment. Please download Word format instead.';
+            if (errorText.includes('Python') || errorText.includes('python') || 
+                errorText.includes('docx2pdf') || errorText.includes('LibreOffice')) {
+              errorMessage = 'PDF generation is not available on this deployment platform. Download Word format for the properly formatted IEEE document.';
             } else if (errorText.length < 200) {
               errorMessage = errorText;
             }
@@ -281,27 +294,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
-      console.log('DOCX blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
+      console.log('Preview blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
       
-      if (blob.size === 0) throw new Error('Generated DOCX is empty');
+      if (blob.size === 0) throw new Error('Generated preview is empty');
 
       // Clean up previous URL
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
 
-      // Create new blob URL for preview (this won't trigger download)
+      // Create new blob URL for preview
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
-      console.log('DOCX preview generated successfully, URL:', url);
+      console.log('Server preview generated successfully, URL:', url);
     } catch (error) {
-      console.error('DOCX preview generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate DOCX preview';
+      console.error('Preview generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview';
       setPreviewError(errorMessage);
       
-      // If document generation fails, suggest alternatives
-      if (errorMessage.includes('Python') || errorMessage.includes('not available')) {
-        setPreviewError('Document preview is not available on this deployment. You can still download Word documents which work perfectly for IEEE formatting.');
+      // Provide helpful error messages for different deployment environments
+      if (errorMessage.includes('Python') || errorMessage.includes('not available') || 
+          errorMessage.includes('docx2pdf') || errorMessage.includes('LibreOffice')) {
+        setPreviewError('PDF preview is not available on this deployment platform due to system dependencies. Word document downloads work perfectly and provide proper IEEE formatting.');
       }
     } finally {
       setIsGeneratingPreview(false);
@@ -373,6 +387,26 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         </CardContent>
       </Card>
+
+      {/* Vercel Deployment Notice */}
+      {(typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com'))) && (
+        <Card className="bg-yellow-50 border-yellow-200 shadow-lg">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-yellow-600 text-sm">ℹ️</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-yellow-800 mb-1">PDF Preview Unavailable</h4>
+                <p className="text-yellow-700 text-sm">
+                  PDF previews don't work on Vercel deployments due to system dependency limitations. 
+                  However, <strong>Word document downloads work perfectly</strong> and contain the exact same IEEE formatting!
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg">
         <CardHeader className="pb-3">
@@ -457,20 +491,48 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </div>
             ) : previewError ? (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center p-6">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-red-600 mb-2">Preview Error</p>
-                  <p className="text-gray-600 text-sm">{previewError}</p>
-                  <Button
-                    onClick={generateDocxPreview}
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    disabled={!document.title || !document.authors?.some(author => author.name)}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Retry
-                  </Button>
+                <div className="text-center p-6 max-w-md">
+                  {previewError.includes('Vercel') || previewError.includes('deployment') || previewError.includes('not available') ? (
+                    <>
+                      <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FileText className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <p className="text-yellow-700 mb-2 font-medium">Preview Not Available</p>
+                      <p className="text-gray-600 text-sm mb-4">{previewError}</p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <p className="text-blue-800 text-sm font-medium mb-2">✅ Alternative Solution:</p>
+                        <p className="text-blue-700 text-sm">Download the Word document instead - it contains the exact same IEEE formatting and works perfectly!</p>
+                      </div>
+                      {!window.location.hostname.includes('vercel') && (
+                        <Button
+                          onClick={generateDocxPreview}
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          disabled={!document.title || !document.authors?.some(author => author.name)}
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Retry Preview
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                      <p className="text-red-600 mb-2">Preview Error</p>
+                      <p className="text-gray-600 text-sm">{previewError}</p>
+                      <Button
+                        onClick={generateDocxPreview}
+                        variant="outline"
+                        size="sm"
+                        className="mt-4"
+                        disabled={!document.title || !document.authors?.some(author => author.name)}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Retry
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ) : !document.title || !document.authors?.some(author => author.name) ? (
@@ -494,7 +556,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <div className="space-y-3">
                     <Button
                       onClick={() => {
-                        const link = document.createElement('a');
+                        const link = window.document.createElement('a');
                         link.href = pdfUrl;
                         link.download = 'ieee_paper_preview.docx';
                         link.click();

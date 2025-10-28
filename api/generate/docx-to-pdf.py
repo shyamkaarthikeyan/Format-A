@@ -33,6 +33,27 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests for document generation"""
         try:
+            # Check if we're running on Vercel (where docx2pdf dependencies don't work)
+            is_vercel = os.environ.get('VERCEL') == '1' or os.environ.get('VERCEL_ENV') is not None
+            
+            if is_vercel:
+                # For Vercel deployments, return a helpful error
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview')
+                self.end_headers()
+                
+                error_response = json.dumps({
+                    'error': 'PDF generation not available on Vercel',
+                    'message': 'PDF preview is not supported on Vercel deployments due to Python dependency limitations (docx2pdf requires LibreOffice). Please download Word format instead, which provides proper IEEE formatting.',
+                    'platform': 'vercel',
+                    'suggestion': 'Use Word document download for proper IEEE formatting'
+                })
+                self.wfile.write(error_response.encode())
+                return
+            
             # Set CORS headers first
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')

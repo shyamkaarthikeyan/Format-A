@@ -1059,11 +1059,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return requireAuth(req, res, next);
   }, async (req: any, res) => {
     try {
+      // Check if we're running on Vercel (where docx2pdf dependencies don't work)
+      const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
+      const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
+      
+      if (isVercel && isPreview) {
+        console.log('🚫 PDF preview blocked on Vercel - docx2pdf dependencies not available');
+        return res.status(503).json({
+          error: 'PDF preview not available on Vercel',
+          message: 'PDF generation requires system dependencies (LibreOffice) that are not available in Vercel\'s serverless environment. Word document downloads work perfectly and provide proper IEEE formatting.',
+          platform: 'vercel',
+          suggestion: 'Download Word format instead - it provides the same IEEE formatting',
+          workaround: 'Use localhost development for PDF previews'
+        });
+      }
+      
       console.log('=== Word to PDF Conversion Debug Info ===');
       console.log('Request body keys:', Object.keys(req.body));
       console.log('Working directory:', __dirname);
       console.log('Platform:', process.platform);
       console.log('Python command:', getPythonCommand());
+      console.log('Is Vercel:', isVercel);
+      console.log('Is Preview:', isPreview);
       
       const documentData = req.body;
       
