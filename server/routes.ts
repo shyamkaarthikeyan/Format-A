@@ -860,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document generation routes
-  app.post('/api/generate/docx', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/generate/docx', optionalAuth, async (req: any, res) => {
     try {
       console.log('=== DOCX Generation Debug Info ===');
       console.log('Request body keys:', Object.keys(req.body));
@@ -973,39 +973,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Record download tracking
           try {
-            const documentId = `doc_${Date.now()}`;
-            const generationStartTime = Date.now();
-            
-            const downloadRecord = await storage.recordDownload({
-              userId: req.user!.id,
-              documentId, // Generate unique document ID
-              documentTitle: documentData.title || 'IEEE Paper',
-              fileFormat: 'docx',
-              fileSize: outputBuffer.length,
-              downloadedAt: new Date().toISOString(),
-              ipAddress: getClientIP(req),
-              userAgent: getUserAgent(req),
-              status: 'completed',
-              emailSent: false,
-              documentMetadata: {
-                pageCount: Math.ceil((documentData.sections?.length || 1) * 1.5), // Estimate
-                wordCount: JSON.stringify(documentData).length / 5, // Rough estimate
-                sectionCount: documentData.sections?.length || 0,
-                figureCount: documentData.figures?.length || 0,
-                referenceCount: documentData.references?.length || 0,
-                generationTime: Date.now() - generationStartTime
-              }
-            });
+            // Only record download and send email if user is authenticated
+            if (req.user) {
+              const documentId = `doc_${Date.now()}`;
+              const generationStartTime = Date.now();
+              
+              const downloadRecord = await storage.recordDownload({
+                userId: req.user.id,
+                documentId, // Generate unique document ID
+                documentTitle: documentData.title || 'IEEE Paper',
+                fileFormat: 'docx',
+                fileSize: outputBuffer.length,
+                downloadedAt: new Date().toISOString(),
+                ipAddress: getClientIP(req),
+                userAgent: getUserAgent(req),
+                status: 'completed',
+                emailSent: false,
+                documentMetadata: {
+                  pageCount: Math.ceil((documentData.sections?.length || 1) * 1.5), // Estimate
+                  wordCount: JSON.stringify(documentData).length / 5, // Rough estimate
+                  sectionCount: documentData.sections?.length || 0,
+                  figureCount: documentData.figures?.length || 0,
+                  referenceCount: documentData.references?.length || 0,
+                  generationTime: Date.now() - generationStartTime
+                }
+              });
 
-            // Send email with document attachment
-            if (req.user.preferences.emailNotifications) {
-              try {
-                await sendIEEEPaper(req.user.email, outputBuffer, 'ieee_paper.docx');
-                await storage.updateDownloadStatus(downloadRecord.id, 'completed', true);
-                console.log('✓ Email sent successfully to:', req.user.email);
-              } catch (emailError) {
-                console.error('Email sending failed:', emailError);
-                await storage.updateDownloadStatus(downloadRecord.id, 'completed', false, (emailError as Error).message);
+              // Send email with document attachment
+              if (req.user.preferences.emailNotifications) {
+                try {
+                  await sendIEEEPaper(req.user.email, outputBuffer, 'ieee_paper.docx');
+                  await storage.updateDownloadStatus(downloadRecord.id, 'completed', true);
+                  console.log('✓ Email sent successfully to:', req.user.email);
+                } catch (emailError) {
+                  console.error('Email sending failed:', emailError);
+                  await storage.updateDownloadStatus(downloadRecord.id, 'completed', false, (emailError as Error).message);
+                }
               }
             }
           } catch (trackingError) {
@@ -1276,9 +1279,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
                 
                 res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+                
                 if (isPreview) {
                   // For preview, use inline disposition so it displays in browser
                   res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
+                  res.setHeader('Access-Control-Allow-Origin', '*');
+                  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+                  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Preview');
                   console.log('✓ Serving PDF for inline preview');
                 } else {
                   // For download, use attachment disposition
@@ -1354,303 +1364,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/generate/latex', async (req, res) => {
+  app.post('/api/generate/pdf-images-preview', async (req, res) => {
     try {
+      console.log('=== PDF Images Preview Generation ===');
       const documentData = req.body;
       
-      // Use the IEEE PDF generator with actual document data
-      const scriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
-      
-      console.log('=== IEEE PDF Generation Debug Info ===');
-      console.log('Script path:', scriptPath);
-      console.log('Working directory:', __dirname);
-      console.log('Document title:', documentData?.title || 'No title');
-      
-      // Check if IEEE PDF generator exists
-      try {
-        await fs.promises.access(scriptPath);
-        console.log('✓ IEEE PDF generator file exists');
-      } catch (err) {
-        console.error('✗ IEEE PDF generator file NOT found:', err);
-        return res.status(500).json({ 
-          error: 'IEEE PDF generator not found', 
-          details: `Script path: ${scriptPath}`,
-          suggestion: 'The IEEE PDF generator file may not have been deployed correctly'
-        });
-      }
-      
-      // Generate PDF using the IEEE generator
-      const python = spawn(getPythonCommand(), [scriptPath], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: __dirname
-      });
-      
-      python.stdin.write(JSON.stringify(documentData));
-      python.stdin.end();
-      
-      let outputBuffer = Buffer.alloc(0);
-      let errorOutput = '';
-      
-      python.stdout.on('data', (data: Buffer) => {
-        outputBuffer = Buffer.concat([outputBuffer, data]);
-      });
-      
-      python.stderr.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-        console.log('IEEE PDF stderr:', data.toString());
-      });
-      
-      python.on('close', (code: number) => {
-        console.log('IEEE PDF generator finished with code:', code);
-        console.log('Output buffer length:', outputBuffer.length);
-        console.log('Error output:', errorOutput);
-        
-        if (code !== 0) {
-          console.error('IEEE PDF generation error:', errorOutput);
-          return res.status(500).json({ 
-            error: 'Failed to generate IEEE PDF', 
-            details: errorOutput,
-            pythonExitCode: code,
-            scriptPath: scriptPath,
-            workingDirectory: __dirname,
-            suggestion: 'Check ReportLab installation and IEEE PDF generator dependencies'
-          });
-        }
-        
-        // More lenient PDF validation - check if we have substantial output
-        if (outputBuffer.length > 100) {
-          // Check if it starts with PDF header or contains PDF content
-          const bufferStart = outputBuffer.subarray(0, 10).toString();
-          if (bufferStart.includes('%PDF') || outputBuffer.toString().includes('%PDF')) {
-            console.log('✓ Valid PDF generated, sending response');
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
-            res.send(outputBuffer);
-          } else {
-            console.log('Generated output may not be PDF format');
-            console.log('Buffer start (first 50 chars):', outputBuffer.subarray(0, 50).toString());
-            // Still try to send as PDF since the generator worked in our test
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
-            res.send(outputBuffer);
-          }
-        } else {
-          console.error('Generated IEEE PDF is too small, length:', outputBuffer.length);
-          console.error('Buffer content:', outputBuffer.toString());
-          res.status(500).json({ 
-            error: 'Failed to generate valid IEEE PDF document',
-            details: `Output length: ${outputBuffer.length}, Content: ${outputBuffer.toString().substring(0, 100)}`,
-            suggestion: 'ReportLab may not be properly installed or IEEE formatting failed'
-          });
-        }
-      });
-      
-      python.on('error', (err) => {
-        console.error('Failed to start IEEE PDF generation process:', err);
-        res.status(500).json({ 
-          error: 'Failed to start IEEE PDF generation process', 
-          details: err.message,
-          suggestion: 'Python may not be installed or the IEEE PDF generator path is incorrect'
-        });
-      });
-      
-    } catch (error) {
-      console.error('IEEE PDF generation error:', error);
-      res.status(500).json({ error: 'Internal server error during IEEE PDF generation' });
-    }
-  });
-  // Get all documents
-  app.get("/api/documents", async (req, res) => {
-    try {
-      const documents = await storage.getAllDocuments();
-      res.json(documents);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch documents" });
-    }
-  });
-
-  // Get single document
-  app.get("/api/documents/:id", async (req, res) => {
-    try {
-      const id = req.params.id;
-      const document = await storage.getDocument(id);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-      res.json(document);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch document" });
-    }
-  });
-
-  // Create new document
-  app.post("/api/documents", async (req, res) => {
-    try {
-      const validatedData = insertDocumentSchema.parse(req.body);
-      const document = await storage.createDocument(validatedData);
-      res.status(201).json(document);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid document data", error: error });
-    }
-  });
-
-  // Update document
-  app.patch("/api/documents/:id", async (req, res) => {
-    try {
-      const id = req.params.id;
-      console.log("PATCH request body:", JSON.stringify(req.body, null, 2));
-      const validatedData = updateDocumentSchema.parse(req.body);
-      const document = await storage.updateDocument(id, validatedData);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-      res.json(document);
-    } catch (error) {
-      console.error("Document update validation error:", error);
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-      }
-      res.status(400).json({ message: "Invalid document data", error: error });
-    }
-  });
-
-  // Delete document
-  app.delete("/api/documents/:id", async (req, res) => {
-    try {
-      const id = req.params.id;
-      const deleted = await storage.deleteDocument(id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete document" });
-    }
-  });
-
-  // Upload figure
-  app.post("/api/documents/:id/figures", upload.single("figure"), async (req, res) => {
-    try {
-      const documentId = req.params.id;
-      const document = await storage.getDocument(documentId);
-      
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const figureId = `fig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const figure = {
-        id: figureId,
-        fileName: `${figureId}.${req.file.originalname.split('.').pop()}`,
-        originalName: req.file.originalname,
-        caption: req.body.caption || "",
-        size: req.body.size || "medium",
-        position: req.body.position || "here",
-        sectionId: req.body.sectionId,
-        order: document.figures?.length || 0,
-        mimeType: req.file.mimetype,
-        data: req.file.buffer.toString('base64')
-      };
-
-      const updatedFigures = [...(document.figures || []), figure];
-      await storage.updateDocument(documentId, { figures: updatedFigures });
-
-      res.status(201).json(figure);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to upload figure" });
-    }
-  });
-
-  // Generate DOCX
-  app.post("/api/documents/:id/generate/docx", async (req, res) => {
-    try {
-      const id = req.params.id;
-      const document = await storage.getDocument(id);
-      
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      // In a real implementation, this would use the docx library to generate the document
-      // For now, we'll return a placeholder response
-      res.json({ 
-        message: "DOCX generation would be implemented here",
-        downloadUrl: `/api/documents/${id}/download/docx`,
-        document: document
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to generate DOCX" });
-    }
-  });
-
-  // Generate LaTeX
-  app.post("/api/documents/:id/generate/latex", async (req, res) => {
-    try {
-      const id = req.params.id;
-      const document = await storage.getDocument(id);
-      
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      // In a real implementation, this would use the LaTeX template from the Python code
-      res.json({ 
-        message: "LaTeX generation would be implemented here",
-        downloadUrl: `/api/documents/${id}/download/latex`,
-        document: document
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to generate LaTeX" });
-    }
-  });
-
-  // Email PDF endpoint
-  app.post('/api/generate/email', async (req, res) => {
-    try {
-      const { email, documentData } = req.body;
-      
-      if (!email) {
-        return res.status(400).json({ error: 'Email address is required' });
-      }
-      
-      if (!documentData) {
-        return res.status(400).json({ error: 'Document data is required' });
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Invalid email format' });
-      }
-
-      console.log('=== Email PDF Generation (using same method as download) ===');
-      console.log('Email:', email);
-      console.log('Document title:', documentData?.title || 'No title');
-
-      // STEP 1: Generate DOCX first (same as download)
+      // First generate the PDF using existing route logic
       const docxScriptPath = path.join(__dirname, 'ieee_generator_fixed.py');
       
-      try {
-        await fs.promises.access(docxScriptPath);
-        console.log('✓ DOCX generator file exists for email');
-      } catch (err) {
-        console.error('✗ DOCX generator file NOT found for email:', err);
-        return res.status(500).json({ 
-          error: 'DOCX generator not found for email', 
-          details: `Script path: ${docxScriptPath}`,
-          suggestion: 'The DOCX generator file may not have been deployed correctly'
-        });
-      }
-
-      // Generate DOCX
-      console.log('Generating DOCX for email...');
+      // Generate DOCX first
       const docxPython = spawn(getPythonCommand(), [docxScriptPath], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: __dirname
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       
       docxPython.stdin.write(JSON.stringify(documentData));
@@ -1659,501 +1383,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let docxBuffer = Buffer.alloc(0);
       let docxErrorOutput = '';
       
-      docxPython.stdout.on('data', (data: Buffer) => {
+      docxPython.stdout.on('data', (data) => {
         docxBuffer = Buffer.concat([docxBuffer, data]);
       });
       
-      docxPython.stderr.on('data', (data: Buffer) => {
+      docxPython.stderr.on('data', (data) => {
         docxErrorOutput += data.toString();
-        console.log('Email DOCX stderr:', data.toString());
       });
       
-      docxPython.on('close', async (docxCode: number) => {
-        console.log('Email DOCX generation finished with code:', docxCode);
-        
-        if (docxCode !== 0) {
-          console.error('Email DOCX generation error:', docxErrorOutput);
+      docxPython.on('close', async (docxCode) => {
+        if (docxCode !== 0 || docxBuffer.length === 0) {
+          console.error('DOCX generation failed for images preview');
           return res.status(500).json({ 
-            error: 'Failed to generate DOCX for email', 
-            details: docxErrorOutput,
-            pythonExitCode: docxCode
+            error: 'Failed to generate DOCX for images preview',
+            details: docxErrorOutput
           });
         }
         
-        if (docxBuffer.length === 0) {
-          console.error('No DOCX output for email');
-          return res.status(500).json({ 
-            error: 'No DOCX output generated for email'
-          });
-        }
-        
-        console.log('✓ DOCX generated for email, now converting to PDF...');
-        
-        // STEP 2: Convert DOCX to PDF (same as download)
         try {
-          const tempDir = path.join(__dirname, '../temp');
-          await fs.promises.mkdir(tempDir, { recursive: true });
+          // Save DOCX to temp file
+          const tempId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          const tempDocxPath = path.join(__dirname, '..', 'temp', `temp_${tempId}.docx`);
+          const tempPdfPath = path.join(__dirname, '..', 'temp', `temp_${tempId}.pdf`);
           
-          const tempDocxPath = path.join(tempDir, `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.docx`);
-          const tempPdfPath = tempDocxPath.replace('.docx', '.pdf');
-          
-          // Write DOCX to temp file
           await fs.promises.writeFile(tempDocxPath, docxBuffer);
-          console.log('✓ Email DOCX written to temp file');
           
-          // Convert to PDF using same converter as download
+          // Convert DOCX to PDF
           const pdfConverterPath = path.join(__dirname, 'docx_to_pdf_converter.py');
-          
-          try {
-            await fs.promises.access(pdfConverterPath);
-            console.log('✓ PDF converter exists for email');
-          } catch (err) {
-            await fs.promises.unlink(tempDocxPath).catch(() => {});
-            return res.status(500).json({ 
-              error: 'PDF converter not found for email', 
-              details: `Script path: ${pdfConverterPath}`
-            });
-          }
-          
           const pdfPython = spawn(getPythonCommand(), [pdfConverterPath, tempDocxPath, tempPdfPath], {
             stdio: ['pipe', 'pipe', 'pipe'],
             cwd: __dirname
           });
           
           let pdfErrorOutput = '';
-          
-          pdfPython.stderr.on('data', (data: Buffer) => {
+          pdfPython.stderr.on('data', (data) => {
             pdfErrorOutput += data.toString();
-            console.log('Email PDF conversion stderr:', data.toString());
           });
           
-          pdfPython.on('close', async (pdfCode: number) => {
-            console.log('Email PDF conversion finished with code:', pdfCode);
-            
+          pdfPython.on('close', async (pdfCode) => {
             try {
-              if (pdfCode !== 0) {
-                console.error('Email PDF conversion error:', pdfErrorOutput);
-                return res.status(500).json({ 
-                  error: 'Failed to convert DOCX to PDF for email', 
+              if (pdfCode === 0) {
+                // PDF generated successfully, now convert to images
+                const imagesConverterPath = path.join(__dirname, 'pdf_to_images.py');
+                const imagesPython = spawn(getPythonCommand(), [imagesConverterPath], {
+                  stdio: ['pipe', 'pipe', 'pipe'],
+                  cwd: __dirname
+                });
+                
+                const imagesInput = JSON.stringify({
+                  pdf_path: tempPdfPath,
+                  dpi: 150
+                });
+                
+                imagesPython.stdin.write(imagesInput);
+                imagesPython.stdin.end();
+                
+                let imagesOutput = '';
+                let imagesError = '';
+                
+                imagesPython.stdout.on('data', (data) => {
+                  imagesOutput += data.toString();
+                });
+                
+                imagesPython.stderr.on('data', (data) => {
+                  imagesError += data.toString();
+                });
+                
+                imagesPython.on('close', async (imagesCode) => {
+                  try {
+                    // Clean up temp files
+                    await fs.promises.unlink(tempDocxPath).catch(() => {});
+                    await fs.promises.unlink(tempPdfPath).catch(() => {});
+                    
+                    if (imagesCode === 0) {
+                      const result = JSON.parse(imagesOutput);
+                      if (result.success) {
+                        res.json(result);
+                      } else {
+                        throw new Error(result.error || 'Image conversion failed');
+                      }
+                    } else {
+                      throw new Error(`Image conversion failed: ${imagesError}`);
+                    }
+                  } catch (parseError) {
+                    console.error('Error parsing images result:', parseError);
+                    res.status(500).json({
+                      error: 'Failed to convert PDF to images',
+                      details: imagesError || parseError.message
+                    });
+                  }
+                });
+              } else {
+                // PDF generation failed, clean up and return error
+                await fs.promises.unlink(tempDocxPath).catch(() => {});
+                res.status(500).json({
+                  error: 'PDF generation failed for images preview',
                   details: pdfErrorOutput
                 });
               }
-              
-              // Read the generated PDF
-              try {
-                const pdfStats = await fs.promises.stat(tempPdfPath);
-                console.log('Email PDF file size:', pdfStats.size);
-                
-                if (pdfStats.size === 0) {
-                  throw new Error('Generated email PDF file is empty');
-                }
-                
-                const pdfBuffer = await fs.promises.readFile(tempPdfPath);
-                console.log('✓ Email PDF generated successfully, size:', pdfBuffer.length);
-                
-                // Send email with the same PDF as download
-                const filename = `ieee-paper-${Date.now()}.pdf`;
-                const result = await sendIEEEPaper(email, pdfBuffer, filename);
-                
-                console.log('✓ Email sent successfully to:', email);
-                res.json({
-                  success: true,
-                  message: `IEEE paper sent successfully to ${email}`,
-                  messageId: result.messageId
-                });
-                
-              } catch (readError) {
-                console.error('Failed to read generated email PDF:', readError);
-                res.status(500).json({ 
-                  error: 'Email PDF file not generated or is empty', 
-                  details: (readError as Error).message
-                });
-              }
-              
-            } finally {
-              // Clean up temp files
-              try {
-                await fs.promises.unlink(tempDocxPath);
-                await fs.promises.unlink(tempPdfPath);
-                console.log('✓ Cleaned up email temp files');
-              } catch (cleanupError) {
-                console.warn('Warning: Could not clean up email temp files:', cleanupError);
-              }
+            } catch (cleanupError) {
+              console.error('Error in PDF images cleanup:', cleanupError);
+              res.status(500).json({
+                error: 'Error processing PDF for images',
+                details: cleanupError.message
+              });
             }
           });
           
-          pdfPython.on('error', (err) => {
-            console.error('Failed to start email PDF conversion:', err);
-            fs.promises.unlink(tempDocxPath).catch(() => {});
-            res.status(500).json({ 
-              error: 'Failed to start email PDF conversion process', 
-              details: err.message
-            });
-          });
-          
-        } catch (tempFileError) {
-          console.error('Error with email temp file handling:', tempFileError);
-          res.status(500).json({ 
-            error: 'Failed to handle temporary files for email PDF', 
-            details: (tempFileError as Error).message
-          });
-        }
-      });
-      
-      docxPython.on('error', (err) => {
-        console.error('Failed to start email DOCX generation:', err);
-        res.status(500).json({ 
-          error: 'Failed to start email DOCX generation process', 
-          details: err.message
-        });
-      });
-      
-    } catch (error) {
-      console.error('Email PDF generation error:', error);
-      res.status(500).json({ 
-        error: 'Internal server error during email PDF generation', 
-        details: (error as Error).message 
-      });
-    }
-  });
-
-  // Document iteration and improvement routes
-  app.post('/api/documents/:id/iterate', async (req, res) => {
-    try {
-      const documentId = req.params.id;
-      const { iterationType, feedback, specificRequests } = req.body;
-      
-      // Get the existing document
-      const existingDocument = await storage.getDocument(documentId);
-      if (!existingDocument) {
-        return res.status(404).json({ error: 'Document not found' });
-      }
-      
-      // Apply iteration improvements
-      const improvedDocument = await applyIterationImprovements(
-        existingDocument, 
-        iterationType, 
-        feedback, 
-        specificRequests
-      );
-      
-      // Update the document in storage
-      const updatedDocument = await storage.updateDocument(documentId, improvedDocument);
-      
-      if (!updatedDocument) {
-        return res.status(500).json({ error: 'Failed to update document' });
-      }
-      
-      // Generate suggestions for further improvements
-      const suggestions = generateSpecificSuggestions(updatedDocument, iterationType, feedback);
-      
-      res.json({
-        document: updatedDocument,
-        iteration: {
-          version: updatedDocument.iteration?.version || 1,
-          type: iterationType,
-          appliedImprovements: true
-        },
-        suggestions: suggestions,
-        message: `Document successfully improved with ${iterationType} iteration`
-      });
-      
-    } catch (error) {
-      console.error('Error in document iteration:', error);
-      res.status(500).json({ 
-        error: 'Failed to iterate document', 
-        details: (error as Error).message 
-      });
-    }
-  });
-  
-  // Get iteration history for a document
-  app.get('/api/documents/:id/iterations', async (req, res) => {
-    try {
-      const documentId = req.params.id;
-      const document = await storage.getDocument(documentId);
-      
-      if (!document) {
-        return res.status(404).json({ error: 'Document not found' });
-      }
-      
-      const iterationHistory = document.iteration?.history || [];
-      const currentVersion = document.iteration?.version || 0;
-      
-      res.json({
-        currentVersion,
-        history: iterationHistory,
-        availableIterationTypes: [
-          'content_enhancement',
-          'structure_optimization', 
-          'technical_accuracy',
-          'ieee_compliance',
-          'language_polish'
-        ]
-      });
-      
-    } catch (error) {
-      console.error('Error getting iteration history:', error);
-      res.status(500).json({ 
-        error: 'Failed to get iteration history', 
-        details: (error as Error).message 
-      });
-    }
-  });
-  
-  // Get improvement suggestions for a document
-  app.get('/api/documents/:id/suggestions', async (req, res) => {
-    try {
-      const documentId = req.params.id;
-      const document = await storage.getDocument(documentId);
-      
-      if (!document) {
-        return res.status(404).json({ error: 'Document not found' });
-      }
-      
-      const suggestions = generateDocumentSuggestions(document, 'general');
-      
-      res.json({
-        documentId,
-        suggestions,
-        iterationTypes: {
-          content_enhancement: generateSpecificSuggestions(document, 'content_enhancement'),
-          structure_optimization: generateSpecificSuggestions(document, 'structure_optimization'),
-          technical_accuracy: generateSpecificSuggestions(document, 'technical_accuracy'),
-          ieee_compliance: generateSpecificSuggestions(document, 'ieee_compliance'),
-          language_polish: generateSpecificSuggestions(document, 'language_polish')
-        }
-      });
-      
-    } catch (error) {
-      console.error('Error generating suggestions:', error);
-      res.status(500).json({ 
-        error: 'Failed to generate suggestions', 
-        details: (error as Error).message 
-      });
-    }
-  });
-  
-  // Convert Word document to PDF
-  app.post('/api/convert/docx-to-pdf', upload.single('document'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No document file provided' });
-      }
-      
-      const tempDir = path.join(__dirname, '../temp');
-      await fs.promises.mkdir(tempDir, { recursive: true });
-      
-      const inputPath = path.join(tempDir, `input_${Date.now()}.docx`);
-      const outputPath = path.join(tempDir, `output_${Date.now()}.pdf`);
-      
-      // Save uploaded file
-      await fs.promises.writeFile(inputPath, req.file.buffer);
-      
-      // Convert using Python script
-      const converterScript = path.join(__dirname, 'docx_to_pdf_converter.py');
-      
-      const python = spawn(getPythonCommand(), [converterScript, inputPath, outputPath], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: __dirname
-      });
-      
-      let errorOutput = '';
-      
-      python.stderr.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-      });
-      
-      python.on('close', async (code: number) => {
-        try {
-          // Clean up input file
-          await fs.promises.unlink(inputPath).catch(() => {});
-          
-          if (code !== 0) {
-            return res.status(500).json({ 
-              error: 'Failed to convert document', 
-              details: errorOutput 
-            });
-          }
-          
-          // Check if output file was created
-          try {
-            const pdfBuffer = await fs.promises.readFile(outputPath);
-            
-            // Clean up output file
-            await fs.promises.unlink(outputPath).catch(() => {});
-            
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'attachment; filename="converted.pdf"');
-            res.send(pdfBuffer);
-            
-          } catch (readError) {
-            res.status(500).json({ 
-              error: 'PDF file not generated', 
-              details: 'Conversion may have failed silently' 
-            });
-          }
-          
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
-        }
-      });
-      
-      python.on('error', (err) => {
-        res.status(500).json({ 
-          error: 'Failed to start conversion process', 
-          details: err.message 
-        });
-      });
-      
-    } catch (error) {
-      console.error('Error in Word to PDF conversion:', error);
-      res.status(500).json({ 
-        error: 'Failed to convert document', 
-        details: (error as Error).message 
-      });
-    }
-  });
-  
-  // Primary PDF generation endpoint - using ReportLab directly
-  app.post('/api/generate/pdf', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      console.log('=== PDF Generation Request ===');
-      console.log('Document data received:', !!req.body);
-      
-      const documentData = req.body;
-      
-      // Validate document data
-      if (!documentData.title) {
-        return res.status(400).json({ error: 'Document title is required' });
-      }
-      
-      const scriptPath = path.join(__dirname, 'ieee_pdf_generator.py');
-      const pythonCmd = getPythonCommand();
-      
-      console.log('Using Python command:', pythonCmd);
-      console.log('PDF script path:', scriptPath);
-      
-      // Test ReportLab availability first
-      const testCommand = `${pythonCmd} -c "import reportlab; print('ReportLab available')"}`;
-      console.log('Testing ReportLab:', testCommand);
-      
-      const testProcess = spawn(pythonCmd, ['-c', 'import reportlab; print("ReportLab available")'], {
-        shell: true,
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-      
-      let testOutput = '';
-      let testError = '';
-      
-      testProcess.stdout.on('data', (data) => {
-        testOutput += data.toString();
-      });
-      
-      testProcess.stderr.on('data', (data) => {
-        testError += data.toString();
-      });
-      
-      testProcess.on('close', (testCode) => {
-        if (testCode !== 0) {
-          console.error('ReportLab test failed:', testError);
-          return res.status(500).json({
-            error: 'ReportLab not available',
-            details: testError,
-            suggestion: 'Install ReportLab: pip install reportlab'
-          });
-        }
-        
-        console.log('✓ ReportLab test passed:', testOutput.trim());
-        
-        // Now run the PDF generation
-        const python = spawn(pythonCmd, [scriptPath], {
-          shell: true,
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
-        
-        // Send document data to Python script
-        python.stdin.write(JSON.stringify(documentData));
-        python.stdin.end();
-        
-        let outputBuffer = Buffer.alloc(0);
-        let errorOutput = '';
-        
-        python.stdout.on('data', (data) => {
-          outputBuffer = Buffer.concat([outputBuffer, data]);
-        });
-        
-        python.stderr.on('data', (data) => {
-          errorOutput += data.toString();
-          console.log('PDF generation stderr:', data.toString());
-        });
-        
-        python.on('close', (code) => {
-          console.log('PDF generation finished with code:', code);
-          
-          if (code !== 0) {
-            console.error('PDF generation failed:', errorOutput);
-            return res.status(500).json({
-              error: 'PDF generation failed',
-              details: errorOutput,
-              exitCode: code,
-              suggestion: 'Check document data and PDF generation script'
-            });
-          }
-          
-          if (outputBuffer.length === 0) {
-            console.error('No PDF output generated');
-            return res.status(500).json({
-              error: 'No PDF output generated',
-              details: 'PDF script completed but produced no output',
-              suggestion: 'Check document data validity'
-            });
-          }
-          
-          // Validate PDF format
-          const pdfHeader = outputBuffer.subarray(0, 4).toString();
-          if (!pdfHeader.startsWith('%PDF')) {
-            console.error('Invalid PDF format, header:', pdfHeader);
-            return res.status(500).json({
-              error: 'Invalid PDF format',
-              details: `Expected PDF header, got: ${pdfHeader}`,
-              outputSize: outputBuffer.length
-            });
-          }
-          
-          console.log('✓ PDF generated successfully, size:', outputBuffer.length);
-          
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
-          res.send(outputBuffer);
-        });
-        
-        python.on('error', (err) => {
-          console.error('Failed to start PDF generation:', err);
+        } catch (tempError) {
+          console.error('Error with temp files for images:', tempError);
           res.status(500).json({
-            error: 'Failed to start PDF generation process',
-            details: err.message,
-            pythonCommand: pythonCmd,
-            suggestion: 'Check Python installation and script path'
+            error: 'Temporary file error for images preview',
+            details: tempError.message
           });
-        });
-      });
-      
-      testProcess.on('error', (err) => {
-        console.error('Failed to test ReportLab:', err);
-        res.status(500).json({
-          error: 'Failed to test ReportLab installation',
-          details: err.message,
-          pythonCommand: pythonCmd,
-          suggestion: 'Check Python installation'
-        });
+        }
       });
       
     } catch (error) {
-      console.error('PDF generation error:', error);
+      console.error('Images preview generation error:', error);
       res.status(500).json({
-        error: 'Internal server error during PDF generation',
-        details: (error as Error).message
+        error: 'Internal error generating images preview',
+        details: error.message
       });
     }
   });

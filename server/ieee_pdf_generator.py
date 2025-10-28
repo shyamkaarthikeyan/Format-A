@@ -10,7 +10,9 @@ import logging
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, pt
+from reportlab.lib.units import inch
+# pt is not always available, so we define it manually
+pt = 1.0  # 1 point = 1/72 inch, but for simplicity we use 1.0
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from reportlab.pdfgen import canvas

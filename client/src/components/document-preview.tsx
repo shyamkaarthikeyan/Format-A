@@ -8,6 +8,35 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import type { Document } from "@shared/schema";
 
+// CSS to hide PDF browser controls
+const pdfHideControlsCSS = `
+  object[type="application/pdf"] {
+    outline: none;
+    border: none;
+  }
+  
+  /* Hide context menu and selection */
+  .pdf-preview-container {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .pdf-preview-container * {
+    pointer-events: none !important;
+  }
+`;
+
+// Inject the CSS into the document head
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = pdfHideControlsCSS;
+  document.head.appendChild(style);
+}
+
 interface DocumentPreviewProps {
   document: Document;
   documentId: string | null;
@@ -17,6 +46,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [zoom, setZoom] = useState(75);
   const [email, setEmail] = useState("");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<any[]>([]);
+  const [previewMode, setPreviewMode] = useState<'pdf' | 'images'>('pdf');
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -45,7 +76,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const response = await fetch('/api/generate/docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(document),
       });
 
@@ -88,7 +118,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const response = await fetch('/api/generate/docx-to-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(document),
       });
 
@@ -239,10 +268,31 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting to generate PDF preview...');
+      console.log('Attempting to generate clean PDF preview...');
       
-      // Try the Node.js PDF generation first (for Vercel compatibility)
-      let response = await fetch('/api/generate/pdf-preview', {
+      // Try image-based preview first (cleanest, no browser PDF controls)
+      let response = await fetch('/api/generate/pdf-images-preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(document),
+      });
+
+      if (response.ok) {
+        const imagesData = await response.json();
+        if (imagesData.success && imagesData.images) {
+          console.log('Image-based preview generated successfully');
+          setPreviewImages(imagesData.images);
+          setPreviewMode('images');
+          return;
+        }
+      }
+
+      console.log('Image preview failed, falling back to PDF preview...');
+      
+      // Fallback to PDF preview
+      response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,19 +300,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         },
         body: JSON.stringify(document),
       });
-
-      // If Node.js PDF generation fails, fallback to the original Python-based method
-      if (!response.ok) {
-        console.log('Node.js PDF generation failed, trying original method...');
-        response = await fetch('/api/generate/docx-to-pdf?preview=true', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Preview': 'true'
-          },
-          body: JSON.stringify(document),
-        });
-      }
 
       console.log('PDF preview response:', response.status, response.statusText);
 
@@ -304,10 +341,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         URL.revokeObjectURL(pdfUrl);
       }
 
-      // Create new blob URL for preview
+      // Create new blob URL for preview with specific parameters for clean display
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
+      setPreviewMode('pdf');
+      setPreviewImages([]);
       console.log('PDF preview generated successfully, URL:', url);
+      
+      // Force reload of preview to ensure clean display
+      const timestamp = Date.now();
+      setPdfUrl(`${url}#t=${timestamp}`);
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
@@ -338,6 +381,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       } else {
         console.log('Skipping PDF generation - missing title or authors');
         setPdfUrl(null);
+        setPreviewImages([]);
         setPreviewError(null);
       }
     }, 1000); // 1 second debounce
@@ -494,14 +538,62 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
               </div>
+            ) : previewMode === 'images' && previewImages.length > 0 ? (
+              <div className="h-full relative overflow-auto bg-white">
+                <div 
+                  className="flex flex-col items-center space-y-4 p-4"
+                  style={{ 
+                    transform: `scale(${zoom / 100})`, 
+                    transformOrigin: 'top center',
+                  }}
+                >
+                  {previewImages.map((image, index) => (
+                    <div key={index} className="shadow-lg border border-gray-200">
+                      <img
+                        src={image.data}
+                        alt={`Page ${image.page}`}
+                        className="max-w-full h-auto"
+                        style={{
+                          userSelect: 'none',
+                          pointerEvents: 'none'
+                        }}
+                        onContextMenu={(e) => e.preventDefault()}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : pdfUrl ? (
-              <div className="h-full">
-                <iframe
-                  src={pdfUrl}
-                  className="w-full h-full border-0"
-                  title="IEEE Paper Preview"
-                  style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
-                />
+              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'hidden' }}>
+                {/* Clean PDF Viewer without any browser controls */}
+                <div 
+                  className="w-full h-full relative"
+                  style={{ 
+                    transform: `scale(${zoom / 100})`, 
+                    transformOrigin: 'top left',
+                    width: `${100 / (zoom / 100)}%`,
+                    height: `${100 / (zoom / 100)}%`
+                  }}
+                >
+                  <object
+                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=page-width`}
+                    type="application/pdf"
+                    className="w-full h-full border-0"
+                    style={{
+                      outline: 'none',
+                      border: 'none'
+                    }}
+                  >
+                    {/* Fallback message */}
+                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                      <div className="text-center p-6">
+                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
+                        <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
+                      </div>
+                    </div>
+                  </object>
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
