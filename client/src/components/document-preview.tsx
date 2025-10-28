@@ -300,8 +300,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     try {
       console.log('Attempting PDF preview generation...');
       
-      // Use the new Node.js PDF preview endpoint (works on both localhost and Vercel)
-      let response = await fetch('/api/generate/pdf-preview', {
+      // Use the Node.js PDF preview endpoint (works on both localhost and Vercel)
+      let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

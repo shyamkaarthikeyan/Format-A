@@ -4,7 +4,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview, X-Download');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
@@ -17,6 +17,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const documentData = req.body;
+    
+    // Check for preview or download mode
+    const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
+    const isDownload = req.headers['x-download'] === 'true';
+
+    console.log(`Request mode: preview=${isPreview}, download=${isDownload}`);
 
     // Validate required fields
     if (!documentData.title) {
@@ -33,20 +39,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Generate PDF using Node.js libraries
-    const pdfBuffer = await generatePDFPreview(documentData);
+    if (isPreview) {
+      // Generate PDF for preview using Node.js
+      const pdfBuffer = await generatePDFPreview(documentData);
 
-    // Set response headers for PDF
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
-    return res.status(200).send(pdfBuffer);
+      return res.status(200).send(pdfBuffer);
+    } else {
+      // For downloads, redirect to the working DOCX endpoint
+      return res.status(302).setHeader('Location', '/api/generate/docx').end();
+    }
 
   } catch (error) {
-    console.error('PDF preview generation error:', error);
+    console.error('Document generation error:', error);
     return res.status(500).json({
-      error: 'PDF preview generation failed',
+      error: 'Document generation failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       suggestion: 'Try downloading the Word document instead'
     });
@@ -137,6 +147,18 @@ async function generatePDFPreview(documentData: any): Promise<Buffer> {
                .font('Times-Roman')
                .text(section.content, { align: 'justify' })
                .moveDown(0.5);
+          }
+
+          // Handle content blocks if present
+          if (section.content_blocks) {
+            section.content_blocks.forEach((block: any) => {
+              if (block.type === 'text' && block.content) {
+                doc.fontSize(10)
+                   .font('Times-Roman')
+                   .text(block.content, { align: 'justify' })
+                   .moveDown(0.3);
+              }
+            });
           }
         });
       }
