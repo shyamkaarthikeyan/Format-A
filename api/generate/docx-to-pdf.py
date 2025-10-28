@@ -69,6 +69,13 @@ class handler(BaseHTTPRequestHandler):
             # Check if this is a preview request
             is_preview = self.headers.get('X-Preview') == 'true' or 'preview=true' in self.path
             
+            # For preview requests, skip authentication
+            # For actual downloads, we would check authentication here
+            if not is_preview:
+                # TODO: Add authentication check for actual downloads
+                # For now, allow all requests to work
+                pass
+            
             # Generate DOCX document
             docx_buffer = generate_ieee_document(document_data)
             

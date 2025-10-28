@@ -199,26 +199,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPendingAction(null);
   };
 
-  // Download handlers with auth check
+  // Download handlers - now work without authentication
   const handleDownloadWord = () => {
     console.log('Download Word clicked, isAuthenticated:', isAuthenticated);
-    if (!isAuthenticated) {
-      console.log('User not authenticated, showing auth prompt');
-      handleAuthRequired('download');
-      return;
-    }
-    console.log('User authenticated, generating DOCX');
+    console.log('Generating DOCX (authentication not required)');
     generateDocxMutation.mutate();
   };
 
   const handleDownloadPdf = () => {
     console.log('Download PDF clicked, isAuthenticated:', isAuthenticated);
-    if (!isAuthenticated) {
-      console.log('User not authenticated, showing auth prompt');
-      handleAuthRequired('download');
-      return;
-    }
-    console.log('User authenticated, generating PDF');
+    console.log('Generating PDF (authentication not required)');
     generatePdfMutation.mutate();
   };
 
@@ -368,9 +358,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               disabled={generateDocxMutation.isPending || !document.title}
               className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
-              {isAuthenticated && <Download className="w-4 h-4 mr-2" />}
-              {generateDocxMutation.isPending ? "Generating..." : !isAuthenticated ? "Sign in to Download Word" : "Download Word"}
+              <Download className="w-4 h-4 mr-2" />
+              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
             </Button>
             <Button
               onClick={handleDownloadPdf}
@@ -378,9 +367,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               variant="outline"
               className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50 hover:border-purple-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
-              {isAuthenticated && <FileText className="w-4 h-4 mr-2" />}
-              {generatePdfMutation.isPending ? "Generating..." : !isAuthenticated ? "Sign in to Download PDF" : "Download PDF"}
+              <FileText className="w-4 h-4 mr-2" />
+              {generatePdfMutation.isPending ? "Generating..." : "Download PDF"}
             </Button>
           </div>
         </CardContent>

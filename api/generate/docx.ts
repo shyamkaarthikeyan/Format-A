@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Get user from session
+    // Get user from session (optional for downloads)
     let sessionId = req.cookies?.sessionId;
     if (!sessionId) {
       const authHeader = req.headers.authorization;
@@ -28,22 +28,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    if (!sessionId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-        message: 'Please sign in to download documents'
-      });
+    let user = null;
+    if (sessionId) {
+      user = await storage.getUserBySessionId(sessionId);
     }
 
-    const user = await storage.getUserBySessionId(sessionId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session',
-        message: 'Please sign in again'
-      });
-    }
+    // Allow downloads without authentication for better UX
+    // Authentication is optional - we'll track anonymous downloads
+    console.log('Generating DOCX for:', user ? `user: ${user.email}` : 'anonymous user');
 
     const documentData = req.body;
 
@@ -54,35 +46,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log('Generating DOCX for user:', user.email);
     console.log('Document title:', documentData.title);
 
     // Generate actual DOCX using Python IEEE generator
     const docxBuffer = await generateIEEEDocx(documentData);
 
-    // Record download in storage
-    const downloadRecord = await storage.recordDownload({
-      userId: user.id,
-      documentId: `doc_${Date.now()}`,
-      documentTitle: documentData.title,
-      fileFormat: 'docx',
-      fileSize: docxBuffer.length,
-      downloadedAt: new Date().toISOString(),
-      ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
-      status: 'completed',
-      emailSent: false,
-      documentMetadata: {
-        pageCount: Math.ceil(documentData.sections?.length || 1),
-        wordCount: estimateWordCount(documentData),
-        sectionCount: documentData.sections?.length || 1,
-        figureCount: 0,
-        referenceCount: documentData.references?.length || 0,
-        generationTime: 2.5
+    // Record download in storage (only if user is authenticated)
+    if (user) {
+      try {
+        const downloadRecord = await storage.recordDownload({
+          userId: user.id,
+          documentId: `doc_${Date.now()}`,
+          documentTitle: documentData.title,
+          fileFormat: 'docx',
+          fileSize: docxBuffer.length,
+          downloadedAt: new Date().toISOString(),
+          ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
+          userAgent: req.headers['user-agent'] || 'unknown',
+          status: 'completed',
+          emailSent: false,
+          documentMetadata: {
+            pageCount: Math.ceil(documentData.sections?.length || 1),
+            wordCount: estimateWordCount(documentData),
+            sectionCount: documentData.sections?.length || 1,
+            figureCount: 0,
+            referenceCount: documentData.references?.length || 0,
+            generationTime: 2.5
+          }
+        });
+        console.log('Download recorded:', downloadRecord.id);
+      } catch (recordError) {
+        console.warn('Failed to record download:', recordError);
+        // Continue with download even if recording fails
       }
-    });
-
-    console.log('Download recorded:', downloadRecord.id);
+    } else {
+      console.log('Anonymous download - not recording in database');
+    }
 
     // Set response headers for file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
