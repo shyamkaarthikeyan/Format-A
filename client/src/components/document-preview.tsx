@@ -316,12 +316,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       if (!response.ok && (response.status === 500 || response.status === 503)) {
         console.log('Python endpoint failed - this is expected on Vercel production');
         
-        // Show helpful message for Vercel deployments
-        setPreviewError(
-          "PDF preview is not available on this deployment due to serverless environment limitations. " +
+        const errorMsg = "PDF preview is not available on this deployment due to serverless environment limitations. " +
           "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-          "identical formatting to what you see on localhost! Use the Download Word button above."
-        );
+          "identical formatting to what you see on localhost! Use the Download Word button above.";
+        
+        console.log('Setting preview error message:', errorMsg);
+        setPreviewError(errorMsg);
         return;
       }
 
