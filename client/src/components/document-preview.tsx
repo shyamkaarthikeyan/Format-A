@@ -317,6 +317,29 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         const contentType = response.headers.get('content-type');
         let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
         
+        // Handle 503 Service Unavailable (expected for Vercel PDF limitations)
+        if (response.status === 503) {
+          try {
+            const errorData = await response.json();
+            if (errorData.message) {
+              setPreviewError(
+                errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.")
+              );
+              return;
+            }
+          } catch (e) {
+            console.warn('Could not parse 503 error response');
+          }
+          
+          // Fallback message for 503
+          setPreviewError(
+            "PDF preview is not available on this deployment due to serverless limitations. " +
+            "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
+            "identical formatting to what you see on localhost! Use the Download Word button above."
+          );
+          return;
+        }
+        
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
@@ -330,9 +353,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               errorData.message.includes('not supported')
             )) {
               setPreviewError(
-                "PDF preview is not available on this deployment due to serverless limitations. " +
-                "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-                "identical formatting to what you see on localhost!"
+                errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.")
               );
               return;
             }

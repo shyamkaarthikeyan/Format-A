@@ -40,14 +40,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (isPreview) {
-      // Generate PDF for preview using Node.js
-      const pdfBuffer = await generatePDFPreview(documentData);
+      // Try to generate PDF, but provide fallback if it fails
+      try {
+        const pdfBuffer = await generatePDFPreview(documentData);
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
-      return res.status(200).send(pdfBuffer);
+        return res.status(200).send(pdfBuffer);
+      } catch (pdfError) {
+        console.error('PDF generation failed, returning helpful message:', pdfError);
+        
+        // Return a helpful JSON response instead of failing
+        return res.status(503).json({
+          error: 'PDF preview not available on this deployment',
+          message: 'PDF generation is not supported in this serverless environment. Perfect IEEE formatting is available via Word download.',
+          suggestion: 'Use the Download Word button to get your perfectly formatted IEEE paper.',
+          workaround: 'The DOCX file contains identical formatting to what you see on localhost.',
+          available_formats: ['docx'],
+          deployment_info: 'This is a Vercel serverless function with limited PDF capabilities.'
+        });
+      }
     } else {
       // For downloads, redirect to the working DOCX endpoint
       return res.status(302).setHeader('Location', '/api/generate/docx').end();
