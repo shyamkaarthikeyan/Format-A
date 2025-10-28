@@ -287,7 +287,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview (works on both localhost and Vercel)
+  // Generate reliable preview that works on both localhost and Vercel
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -298,85 +298,85 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating PDF preview for Vercel compatibility...');
+      console.log('Generating reliable HTML preview...');
       
-      // Use the main PDF endpoint with preview parameters
-      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Try PDF preview first for localhost, HTML preview for Vercel
+      const preferPdf = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      if (preferPdf) {
+        // Try PDF preview for localhost
+        try {
+          const pdfResponse = await fetch('/api/generate/docx-to-pdf?preview=true', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Preview': 'true'
+            },
+            body: JSON.stringify(document),
+          });
+
+          if (pdfResponse.ok) {
+            const blob = await pdfResponse.blob();
+            const contentType = pdfResponse.headers.get('content-type');
+            
+            if (contentType && contentType.includes('application/pdf') && blob.size > 0) {
+              // Clean up previous URL
+              if (pdfUrl) {
+                URL.revokeObjectURL(pdfUrl);
+              }
+
+              const url = URL.createObjectURL(blob);
+              setPreviewMode('pdf');
+              setPreviewImages([]);
+              setPdfUrl(url);
+              console.log('PDF preview generated successfully');
+              return;
+            }
+          }
+        } catch (e) {
+          console.log('PDF preview failed, falling back to HTML preview');
+        }
+      }
+      
+      // Use reliable HTML preview (works everywhere)
+      const response = await fetch('/api/generate/preview-images', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Preview': 'true'
         },
         body: JSON.stringify(document),
       });
 
-      console.log('PDF preview response:', response.status, response.statusText);
+      console.log('HTML preview response:', response.status, response.statusText);
 
       if (!response.ok) {
-        // Try to get error details
-        const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
+        throw new Error(`Failed to generate preview: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.html_content) {
+        // Create blob URL for HTML preview
+        const htmlBlob = new Blob([result.html_content], { type: 'text/html' });
+        const url = URL.createObjectURL(htmlBlob);
         
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } catch (e) {
-            console.warn('Could not parse error JSON');
-          }
-        } else {
-          try {
-            const errorText = await response.text();
-            if (errorText.includes('Python') || errorText.includes('python') || errorText.includes('docx2pdf')) {
-              errorMessage = 'PDF generation temporarily unavailable. Please download Word format which contains identical IEEE formatting.';
-            } else if (errorText.length < 200) {
-              errorMessage = errorText;
-            }
-          } catch (e) {
-            console.warn('Could not read error text');
-          }
+        // Clean up previous URLs
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
         }
         
-        throw new Error(errorMessage);
+        setPreviewMode('pdf'); // Use same display mode
+        setPreviewImages([]);
+        setPdfUrl(url);
+        console.log('HTML preview generated successfully');
+      } else {
+        throw new Error(result.message || 'Failed to generate preview');
       }
-
-      const blob = await response.blob();
-      const contentType = response.headers.get('content-type');
-      console.log('Preview response blob:', blob.size, 'bytes, Content-Type:', contentType);
       
-      if (blob.size === 0) throw new Error('Generated document is empty');
-
-      // Check if we received a DOCX instead of PDF for preview
-      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        // This is a DOCX file - we can't preview it inline, show error instead
-        throw new Error('PDF preview temporarily unavailable. Document generation works perfectly - use Download buttons to get your IEEE paper.');
-      }
-
-      // Ensure we got a PDF for preview
-      if (!contentType || !contentType.includes('application/pdf')) {
-        throw new Error('Preview requires PDF format. Please use Download buttons to get your document.');
-      }
-
-      // Clean up previous URL
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
-
-      // Create new blob URL for PDF preview display
-      const url = URL.createObjectURL(blob);
-      setPreviewMode('pdf');
-      setPreviewImages([]);
-      setPdfUrl(url);
-      console.log('PDF preview generated successfully, URL:', url);
     } catch (error) {
-      console.error('PDF preview generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
+      console.error('Preview generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview';
       setPreviewError(errorMessage);
-      
-      // If document generation fails, suggest alternatives
-      if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
-        setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
-      }
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -582,7 +582,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </div>
             ) : pdfUrl ? (
               <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
-                {/* Clean PDF Viewer with working zoom controls */}
+                {/* Universal Preview Viewer - handles both PDF and HTML */}
                 <div 
                   className="w-full h-full relative"
                   style={{ 
@@ -593,27 +593,29 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     padding: zoom > 100 ? '20px' : '0px'
                   }}
                 >
-                  <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=${zoom}`}
-                    type="application/pdf"
+                  <iframe
+                    src={pdfUrl}
                     className="w-full h-full border-0"
                     style={{
                       outline: 'none',
                       border: 'none',
                       width: '100%',
                       height: '600px',
-                      minHeight: '600px'
+                      minHeight: '600px',
+                      backgroundColor: 'white'
                     }}
+                    sandbox="allow-same-origin"
+                    title="Document Preview"
                   >
                     {/* Fallback message */}
                     <div className="w-full h-full flex items-center justify-center bg-gray-50">
                       <div className="text-center p-6">
                         <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
+                        <p className="text-gray-600 mb-2">Preview Not Available</p>
                         <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
                       </div>
                     </div>
-                  </object>
+                  </iframe>
                 </div>
               </div>
             ) : (
