@@ -69,20 +69,20 @@ def handler(req, res):
                 'message': 'At least one author is required'
             })
         
-        # For Vercel deployment, prioritize DOCX generation over PDF
-        # PDF generation has known issues on Vercel serverless environment
+        # For Vercel deployment, handle both DOCX and PDF generation gracefully
+        # Both may have issues on Vercel serverless environment
         
-        # Generate perfect IEEE document first
+        docx_buffer = None
+        docx_generation_available = False
+        
+        # Try DOCX generation first
         try:
             docx_buffer = generate_ieee_document(document_data)
+            docx_generation_available = True
             print(f"✅ Perfect IEEE DOCX generated successfully, size: {len(docx_buffer)} bytes", file=sys.stderr)
         except Exception as docx_error:
-            print(f"❌ DOCX generation failed: {docx_error}", file=sys.stderr)
-            return res.status(500).json({
-                'error': 'Document generation failed',
-                'message': f'DOCX generation error: {str(docx_error)}',
-                'details': 'Check Vercel function logs for more information'
-            })
+            print(f"⚠️ DOCX generation failed (may be expected on Vercel): {docx_error}", file=sys.stderr)
+            docx_generation_available = False
         
         # Try PDF generation only if specifically requested and environment supports it
         pdf_data = None
@@ -132,17 +132,29 @@ def handler(req, res):
                 'message': 'PDF generation is not supported in this serverless environment. Perfect IEEE formatting is available via Word download.',
                 'suggestion': 'Use the Download Word button to get your perfectly formatted IEEE paper.',
                 'workaround': 'The DOCX file contains identical formatting to what you see on localhost.',
-                'available_formats': ['docx']
+                'available_formats': ['docx'] if docx_generation_available else [],
+                'deployment_info': 'This is a Vercel serverless function with limited Python capabilities.'
             })
             
-        else:
-            # Serve perfect IEEE DOCX for download (always works)
+        elif docx_generation_available and docx_buffer:
+            # Serve perfect IEEE DOCX for download
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
             if isinstance(docx_buffer, bytes):
                 return res.status(200).send(docx_buffer)
             else:
                 return res.status(200).send(docx_buffer.encode())
+                
+        else:
+            # Neither DOCX nor PDF generation is available
+            return res.status(503).json({
+                'error': 'Document generation not available on this deployment',
+                'message': 'Both PDF and DOCX generation are not supported in this serverless environment.',
+                'suggestion': 'This may be due to Vercel serverless limitations with Python dependencies.',
+                'workaround': 'Try using the TypeScript-based document generation endpoint at /api/generate/docx',
+                'alternative_endpoint': '/api/generate/docx',
+                'deployment_info': 'Vercel serverless functions have limited support for complex Python dependencies.'
+            })
         
     except Exception as e:
         print(f"❌ Handler error: {e}", file=sys.stderr)

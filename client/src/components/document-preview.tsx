@@ -298,10 +298,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating PDF preview for Vercel compatibility...');
+      console.log('Attempting PDF preview generation...');
       
-      // Use the main PDF endpoint with preview parameters
-      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Try the Python PDF endpoint first (works on localhost)
+      let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -311,16 +311,59 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       console.log('PDF preview response:', response.status, response.statusText);
+      
+      // If Python endpoint fails with 500/503, it's likely a Vercel limitation
+      if (!response.ok && (response.status === 500 || response.status === 503)) {
+        console.log('Python endpoint failed, checking if this is a Vercel deployment...');
+        
+        // Try to get the error details to see if it's a Vercel limitation
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            if (errorData.message && (
+              errorData.message.includes('serverless') || 
+              errorData.message.includes('Vercel') ||
+              errorData.message.includes('deployment')
+            )) {
+              // This is a known Vercel limitation, show helpful message
+              setPreviewError(
+                "PDF preview is not available on this deployment due to serverless limitations. " +
+                "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
+                "identical formatting to what you see on localhost!"
+              );
+              return;
+            }
+          } catch (e) {
+            console.warn('Could not parse error response');
+          }
+        }
+      }
 
       if (!response.ok) {
-        // Try to get error details
+        // Handle different types of failures
         const contentType = response.headers.get('content-type');
         let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
         
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
+            errorMessage = errorData.error || errorData.message || errorMessage;
+            
+            // Check if this is a known Vercel/serverless limitation
+            if (errorData.message && (
+              errorData.message.includes('serverless') || 
+              errorData.message.includes('Vercel') ||
+              errorData.message.includes('deployment') ||
+              errorData.message.includes('not supported')
+            )) {
+              setPreviewError(
+                "PDF preview is not available on this deployment due to serverless limitations. " +
+                "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
+                "identical formatting to what you see on localhost!"
+              );
+              return;
+            }
           } catch (e) {
             console.warn('Could not parse error JSON');
           }
