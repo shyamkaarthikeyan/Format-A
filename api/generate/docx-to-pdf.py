@@ -30,20 +30,99 @@ def generate_ieee_document(document_data):
         raise e
 
 def handler(req, res):
-    """Vercel serverless function handler"""
+    """Vercel serverless function handler - DEBUG VERSION"""
     
-    # Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview, X-Download')
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    
-    # Handle preflight requests
-    if req.method == 'OPTIONS':
-        return res.status(200).end()
-    
-    if req.method != 'POST':
-        return res.status(405).json({'error': 'Method not allowed'})
+    try:
+        print(f"🚀 Handler started - Python function is running", file=sys.stderr)
+        print(f"🔍 Python version: {sys.version}", file=sys.stderr)
+        print(f"🔍 Current working directory: {os.getcwd()}", file=sys.stderr)
+        
+        # Test basic imports first
+        try:
+            import json
+            print(f"✅ json import successful", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ json import failed: {e}", file=sys.stderr)
+            
+        try:
+            from io import BytesIO
+            print(f"✅ BytesIO import successful", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ BytesIO import failed: {e}", file=sys.stderr)
+            
+        try:
+            import importlib.util
+            print(f"✅ importlib.util import successful", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ importlib.util import failed: {e}", file=sys.stderr)
+        
+        # Test python-docx import
+        try:
+            from docx import Document
+            print(f"✅ python-docx import successful", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ python-docx import failed: {e}", file=sys.stderr)
+            
+        # Test ReportLab import
+        try:
+            from reportlab.lib.pagesizes import letter
+            print(f"✅ ReportLab import successful", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ ReportLab import failed: {e}", file=sys.stderr)
+        
+        # Set CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview, X-Download')
+        res.setHeader('Access-Control-Allow-Credentials', 'true')
+        
+        print(f"🔍 CORS headers set successfully", file=sys.stderr)
+        
+        # Handle preflight requests
+        if req.method == 'OPTIONS':
+            print(f"🔍 Handling OPTIONS request", file=sys.stderr)
+            return res.status(200).end()
+        
+        if req.method != 'POST':
+            print(f"🔍 Invalid method: {req.method}", file=sys.stderr)
+            return res.status(405).json({'error': 'Method not allowed'})
+        
+        print(f"🔍 POST request received, processing...", file=sys.stderr)
+        
+        # Check file system access
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        print(f"🔍 Current file directory: {current_dir}", file=sys.stderr)
+        
+        # List contents of current directory
+        try:
+            current_contents = os.listdir(current_dir)
+            print(f"🔍 Current directory contents: {current_contents}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Cannot list current directory: {e}", file=sys.stderr)
+        
+        # Check for server directory
+        server_path = os.path.join(current_dir, '..', '..', 'server')
+        print(f"🔍 Looking for server directory at: {server_path}", file=sys.stderr)
+        print(f"🔍 Server directory exists: {os.path.exists(server_path)}", file=sys.stderr)
+        
+        if os.path.exists(server_path):
+            try:
+                server_contents = os.listdir(server_path)
+                print(f"🔍 Server directory contents: {server_contents}", file=sys.stderr)
+            except Exception as e:
+                print(f"❌ Cannot list server directory: {e}", file=sys.stderr)
+        
+        # Continue with actual processing after debug info
+        
+    except Exception as init_error:
+        print(f"❌ Handler initialization failed: {init_error}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return res.status(500).json({
+            'error': 'Function initialization failed',
+            'message': str(init_error),
+            'details': 'Python function failed to initialize properly on Vercel'
+        })
     
     try:
         # Parse request body
