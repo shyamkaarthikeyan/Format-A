@@ -822,7 +822,7 @@ export default function Homepage() {
                 The most advanced IEEE research paper formatting tool, designed for modern researchers and academics.
               </p>
               <p className="text-purple-300 text-sm">
-                Built with precision by the Format A Team
+                Built with precision by the Format A Team • Vishal
               </p>
             </div>
           </div>
