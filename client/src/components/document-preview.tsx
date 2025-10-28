@@ -300,8 +300,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     try {
       console.log('Attempting PDF preview generation...');
       
-      // Try the Python PDF endpoint first (works on localhost)
-      let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Use the new Node.js PDF preview endpoint (works on both localhost and Vercel)
+      let response = await fetch('/api/generate/pdf-preview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -311,19 +311,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       console.log('PDF preview response:', response.status, response.statusText);
-      
-      // If Python endpoint fails with 500/503, it's likely a Vercel limitation
-      if (!response.ok && (response.status === 500 || response.status === 503)) {
-        console.log('Python endpoint failed - this is expected on Vercel production');
-        
-        const errorMsg = "PDF preview is not available on this deployment due to serverless environment limitations. " +
-          "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-          "identical formatting to what you see on localhost! Use the Download Word button above.";
-        
-        console.log('Setting preview error message:', errorMsg);
-        setPreviewError(errorMsg);
-        return;
-      }
 
       if (!response.ok) {
         // Handle different types of failures
