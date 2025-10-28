@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getStorage } from './_lib/storage';
+import { adminStorage } from './_lib/admin-storage';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -59,33 +59,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const storage = getStorage();
+    console.log('Admin API processing endpoint:', endpoint);
 
     // Route to different admin functions based on path
     switch (endpoint) {
       case 'analytics/users':
-        return await handleUserAnalytics(req, res, storage);
+        return await handleUserAnalytics(req, res, adminStorage);
       
       case 'analytics/documents':
-        return await handleDocumentAnalytics(req, res, storage);
+        return await handleDocumentAnalytics(req, res, adminStorage);
       
       case 'analytics/downloads':
-        return await handleDownloadAnalytics(req, res, storage);
+        return await handleDownloadAnalytics(req, res, adminStorage);
       
       case 'analytics/system':
-        return await handleSystemAnalytics(req, res, storage);
+        return await handleSystemAnalytics(req, res, adminStorage);
       
       case 'users':
-        return await handleUsers(req, res, storage);
+        return await handleUsers(req, res, adminStorage);
       
       case 'auth/session':
-        return await handleAdminSession(req, res, storage);
+        return await handleAdminSession(req, res, adminStorage);
       
       case 'auth/verify':
-        return await handleAdminVerify(req, res, storage);
+        return await handleAdminVerify(req, res, adminStorage);
       
       case 'auth/signout':
-        return await handleAdminSignout(req, res, storage);
+        return await handleAdminSignout(req, res, adminStorage);
       
       default:
         console.log('Unknown admin endpoint:', endpoint);

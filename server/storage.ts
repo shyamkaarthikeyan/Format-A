@@ -557,6 +557,123 @@ async function initializeServerData() {
     await storage.createDocument(transformedDoc);
   }
 
+  // Add sample download records
+  const allUsers = await storage.getAllUsers();
+  const allDocuments = await storage.getAllDocuments();
+  
+  if (allUsers.length > 0 && allDocuments.length > 0) {
+    const downloadRecords = [
+      {
+        userId: allUsers[0].id,
+        documentId: allDocuments[0].id,
+        documentTitle: allDocuments[0].title,
+        fileFormat: 'pdf' as const,
+        fileSize: 245760, // ~240KB
+        downloadedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+        ipAddress: '192.168.1.100',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        status: 'completed' as const,
+        emailSent: true,
+        emailSentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
+        documentMetadata: {
+          pageCount: 8,
+          wordCount: 3200,
+          sectionCount: 5,
+          figureCount: 2,
+          referenceCount: 15,
+          generationTime: 2340
+        }
+      },
+      {
+        userId: allUsers[1].id,
+        documentId: allDocuments[1].id,
+        documentTitle: allDocuments[1].title,
+        fileFormat: 'docx' as const,
+        fileSize: 189440, // ~185KB
+        downloadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        ipAddress: '10.0.0.50',
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        status: 'completed' as const,
+        emailSent: true,
+        emailSentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 3 * 60 * 1000).toISOString(),
+        documentMetadata: {
+          pageCount: 6,
+          wordCount: 2800,
+          sectionCount: 4,
+          figureCount: 1,
+          referenceCount: 12,
+          generationTime: 1890
+        }
+      },
+      {
+        userId: allUsers[0].id,
+        documentId: allDocuments[1].id,
+        documentTitle: allDocuments[1].title,
+        fileFormat: 'pdf' as const,
+        fileSize: 298240, // ~291KB
+        downloadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+        ipAddress: '192.168.1.100',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        status: 'completed' as const,
+        emailSent: true,
+        emailSentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 4 * 60 * 1000).toISOString(),
+        documentMetadata: {
+          pageCount: 6,
+          wordCount: 2800,
+          sectionCount: 4,
+          figureCount: 1,
+          referenceCount: 12,
+          generationTime: 2100
+        }
+      },
+      {
+        userId: allUsers[2].id,
+        documentId: allDocuments[0].id,
+        documentTitle: allDocuments[0].title,
+        fileFormat: 'docx' as const,
+        fileSize: 156672, // ~153KB
+        downloadedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+        ipAddress: '172.16.0.25',
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        status: 'completed' as const,
+        emailSent: false,
+        documentMetadata: {
+          pageCount: 8,
+          wordCount: 3200,
+          sectionCount: 5,
+          figureCount: 2,
+          referenceCount: 15,
+          generationTime: 1750
+        }
+      },
+      {
+        userId: allUsers[1].id,
+        documentId: allDocuments[0].id,
+        documentTitle: allDocuments[0].title,
+        fileFormat: 'pdf' as const,
+        fileSize: 267264, // ~261KB
+        downloadedAt: new Date().toISOString(), // Today
+        ipAddress: '10.0.0.50',
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        status: 'completed' as const,
+        emailSent: true,
+        emailSentAt: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+        documentMetadata: {
+          pageCount: 8,
+          wordCount: 3200,
+          sectionCount: 5,
+          figureCount: 2,
+          referenceCount: 15,
+          generationTime: 2200
+        }
+      }
+    ];
+
+    for (const downloadData of downloadRecords) {
+      await storage.recordDownload(downloadData);
+    }
+  }
+
   console.log('✅ Real server data initialized for admin panel');
 }
 
