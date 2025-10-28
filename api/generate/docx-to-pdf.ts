@@ -40,28 +40,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (isPreview) {
-      // Try to generate PDF, but provide fallback if it fails
-      try {
-        const pdfBuffer = await generatePDFPreview(documentData);
-
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-
-        return res.status(200).send(pdfBuffer);
-      } catch (pdfError) {
-        console.error('PDF generation failed, returning helpful message:', pdfError);
-        
-        // Return a helpful JSON response instead of failing
-        return res.status(503).json({
-          error: 'PDF preview not available on this deployment',
-          message: 'PDF generation is not supported in this serverless environment. Perfect IEEE formatting is available via Word download.',
-          suggestion: 'Use the Download Word button to get your perfectly formatted IEEE paper.',
-          workaround: 'The DOCX file contains identical formatting to what you see on localhost.',
-          available_formats: ['docx'],
-          deployment_info: 'This is a Vercel serverless function with limited PDF capabilities.'
-        });
-      }
+      // PDF preview not available on Vercel - return helpful message
+      return res.status(503).json({
+        error: 'PDF preview not available on this deployment',
+        message: 'PDF generation is not supported in this serverless environment. Perfect IEEE formatting is available via Word download.',
+        suggestion: 'Use the Download Word button to get your perfectly formatted IEEE paper.',
+        workaround: 'The DOCX file contains identical formatting to what you see on localhost.',
+        available_formats: ['docx']
+      });
     } else {
       // For downloads, redirect to the working DOCX endpoint
       return res.status(302).setHeader('Location', '/api/generate/docx').end();
@@ -77,83 +63,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function generatePDFPreview(documentData: any): Promise<Buffer> {
-  try {
-    // Test if PDFKit is available
-    console.log('Attempting to load PDFKit...');
-    const PDFDocument = require('pdfkit');
-    console.log('PDFKit loaded successfully');
-    
-    return new Promise((resolve, reject) => {
-      try {
-        console.log('Creating PDF document...');
-        const doc = new PDFDocument({
-          size: 'LETTER',
-          margins: {
-            top: 72,
-            bottom: 72,
-            left: 54,
-            right: 54
-          }
-        });
-
-        const chunks: Buffer[] = [];
-        
-        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-        doc.on('end', () => {
-          console.log(`PDF generated successfully, size: ${Buffer.concat(chunks).length} bytes`);
-          resolve(Buffer.concat(chunks));
-        });
-        doc.on('error', (error: any) => {
-          console.error('PDF generation error:', error);
-          reject(error);
-        });
-
-        // Simple content for testing
-        doc.fontSize(16)
-           .text('IEEE Paper Preview', { align: 'center' })
-           .moveDown();
-
-        if (documentData.title) {
-          doc.fontSize(14)
-             .text(documentData.title, { align: 'center' })
-             .moveDown();
-        }
-
-        if (documentData.authors && documentData.authors.length > 0) {
-          const authorsText = documentData.authors
-            .map((author: any) => author.name || '')
-            .join(', ');
-          
-          doc.fontSize(12)
-             .text(authorsText, { align: 'center' })
-             .moveDown();
-        }
-
-        if (documentData.abstract) {
-          doc.fontSize(10)
-             .text('Abstract', { align: 'left' })
-             .moveDown(0.3)
-             .text(documentData.abstract)
-             .moveDown();
-        }
-
-        // Add a simple message
-        doc.fontSize(10)
-           .text('This is a simplified preview. Download the Word document for full IEEE formatting.')
-           .moveDown();
-
-        console.log('Finalizing PDF...');
-        doc.end();
-
-      } catch (docError) {
-        console.error('Error creating PDF document:', docError);
-        reject(docError);
-      }
-    });
-
-  } catch (requireError) {
-    console.error('PDFKit require failed:', requireError);
-    throw new Error(`PDFKit not available: ${requireError.message}`);
-  }
-}

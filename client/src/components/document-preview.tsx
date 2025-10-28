@@ -319,24 +319,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         
         // Handle 503 Service Unavailable (expected for Vercel PDF limitations)
         if (response.status === 503) {
+          console.log('Received 503 response - PDF not available on Vercel');
           try {
             const errorData = await response.json();
+            console.log('503 error data:', errorData);
             if (errorData.message) {
-              setPreviewError(
-                errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.")
-              );
+              const errorMsg = errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.");
+              console.log('Setting 503 error message:', errorMsg);
+              setPreviewError(errorMsg);
               return;
             }
           } catch (e) {
-            console.warn('Could not parse 503 error response');
+            console.warn('Could not parse 503 error response:', e);
           }
           
           // Fallback message for 503
-          setPreviewError(
-            "PDF preview is not available on this deployment due to serverless limitations. " +
+          const fallbackMsg = "PDF preview is not available on this deployment due to serverless limitations. " +
             "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-            "identical formatting to what you see on localhost! Use the Download Word button above."
-          );
+            "identical formatting to what you see on localhost! Use the Download Word button above.";
+          console.log('Setting 503 fallback message:', fallbackMsg);
+          setPreviewError(fallbackMsg);
+          console.log('Preview error state should now be:', fallbackMsg);
           return;
         }
         
