@@ -77,29 +77,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let yPosition = 140;
 
-    // Authors
+    // Authors - IEEE format with proper layout
     if (documentData.authors && documentData.authors.length > 0) {
-      const authorNames = documentData.authors
-        .filter((author: any) => author.name)
-        .map((author: any) => {
-          let authorText = author.name;
-          if (author.affiliation) {
-            authorText += `, ${author.affiliation}`;
+      const validAuthors = documentData.authors.filter((author: any) => author.name);
+      
+      if (validAuthors.length > 0) {
+        // Calculate column width for authors
+        const authorColumnWidth = contentWidth / validAuthors.length;
+        let currentX = margin;
+        
+        validAuthors.forEach((author: any, index: number) => {
+          // Author name (bold)
+          doc.fontSize(10)
+             .font('Times-Bold')
+             .text(author.name, currentX, yPosition, {
+               width: authorColumnWidth,
+               align: 'center'
+             });
+          
+          let authorYPosition = yPosition + 15;
+          
+          // Author details (regular font, smaller)
+          const details = [];
+          if (author.department) details.push(author.department);
+          if (author.organization) details.push(author.organization);
+          if (author.city) details.push(author.city);
+          if (author.state) details.push(author.state);
+          if (author.country) details.push(author.country);
+          if (author.email) details.push(author.email);
+          
+          if (details.length > 0) {
+            doc.fontSize(9)
+               .font('Times-Roman')
+               .text(details.join('\n'), currentX, authorYPosition, {
+                 width: authorColumnWidth,
+                 align: 'center',
+                 lineGap: 2
+               });
           }
-          if (author.email) {
-            authorText += ` (${author.email})`;
-          }
-          return authorText;
+          
+          currentX += authorColumnWidth;
         });
-
-      if (authorNames.length > 0) {
-        doc.fontSize(12)
-           .font('Times-Roman')
-           .text(authorNames.join('; '), margin, yPosition, {
-             width: contentWidth,
-             align: 'center'
-           });
-        yPosition += 40;
+        
+        // Calculate the height needed for all author details
+        const maxDetailsHeight = Math.max(...validAuthors.map(author => {
+          const details = [];
+          if (author.department) details.push(author.department);
+          if (author.organization) details.push(author.organization);
+          if (author.city) details.push(author.city);
+          if (author.state) details.push(author.state);
+          if (author.country) details.push(author.country);
+          if (author.email) details.push(author.email);
+          return details.length * 12; // Approximate line height
+        }));
+        
+        yPosition += 15 + maxDetailsHeight + 20; // Name height + details height + spacing
       }
     }
 
