@@ -228,8 +228,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview (for display only, no download)
-  const generatePdfPreview = async () => {
+  // Generate DOCX preview (for display only, no download)
+  const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
       return;
@@ -239,7 +239,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting to generate PDF preview...');
+      console.log('Attempting to generate DOCX preview...');
       
       const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
@@ -250,12 +250,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         body: JSON.stringify(document),
       });
 
-      console.log('PDF preview response:', response.status, response.statusText);
+      console.log('DOCX preview response:', response.status, response.statusText);
 
       if (!response.ok) {
         // Try to get error details
         const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
+        let errorMessage = `Failed to generate DOCX preview: ${response.statusText}`;
         
         if (contentType && contentType.includes('application/json')) {
           try {
@@ -281,9 +281,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
-      console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
+      console.log('DOCX blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
       
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
+      if (blob.size === 0) throw new Error('Generated DOCX is empty');
 
       // Clean up previous URL
       if (pdfUrl) {
@@ -293,15 +293,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       // Create new blob URL for preview (this won't trigger download)
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
-      console.log('PDF preview generated successfully, URL:', url);
+      console.log('DOCX preview generated successfully, URL:', url);
     } catch (error) {
-      console.error('PDF preview generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
+      console.error('DOCX preview generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate DOCX preview';
       setPreviewError(errorMessage);
       
-      // If PDF generation fails, suggest alternatives
+      // If document generation fails, suggest alternatives
       if (errorMessage.includes('Python') || errorMessage.includes('not available')) {
-        setPreviewError('PDF preview is not available on this deployment. You can still download Word documents which work perfectly for IEEE formatting.');
+        setPreviewError('Document preview is not available on this deployment. You can still download Word documents which work perfectly for IEEE formatting.');
       }
     } finally {
       setIsGeneratingPreview(false);
@@ -424,13 +424,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              Live PDF Preview
+              Live Document Preview
             </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={generatePdfPreview}
+                onClick={generateDocxPreview}
                 disabled={isGeneratingPreview || !document.title}
                 className="text-purple-600 hover:text-purple-700"
               >
@@ -452,7 +452,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
-                  <p className="text-gray-600">Generating PDF preview...</p>
+                  <p className="text-gray-600">Generating document preview...</p>
                 </div>
               </div>
             ) : previewError ? (
@@ -462,7 +462,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-red-600 mb-2">Preview Error</p>
                   <p className="text-gray-600 text-sm">{previewError}</p>
                   <Button
-                    onClick={generatePdfPreview}
+                    onClick={generateDocxPreview}
                     variant="outline"
                     size="sm"
                     className="mt-4"
@@ -478,7 +478,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <div className="text-center p-6">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600 mb-2">Ready for Preview</p>
-                  <p className="text-gray-500 text-sm">Add a title and at least one author to generate PDF preview</p>
+                  <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
               </div>
             ) : pdfUrl ? (
