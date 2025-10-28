@@ -314,30 +314,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       
       // If Python endpoint fails with 500/503, it's likely a Vercel limitation
       if (!response.ok && (response.status === 500 || response.status === 503)) {
-        console.log('Python endpoint failed, checking if this is a Vercel deployment...');
+        console.log('Python endpoint failed - this is expected on Vercel production');
         
-        // Try to get the error details to see if it's a Vercel limitation
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            if (errorData.message && (
-              errorData.message.includes('serverless') || 
-              errorData.message.includes('Vercel') ||
-              errorData.message.includes('deployment')
-            )) {
-              // This is a known Vercel limitation, show helpful message
-              setPreviewError(
-                "PDF preview is not available on this deployment due to serverless limitations. " +
-                "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-                "identical formatting to what you see on localhost!"
-              );
-              return;
-            }
-          } catch (e) {
-            console.warn('Could not parse error response');
-          }
-        }
+        // Show helpful message for Vercel deployments
+        setPreviewError(
+          "PDF preview is not available on this deployment due to serverless environment limitations. " +
+          "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
+          "identical formatting to what you see on localhost! Use the Download Word button above."
+        );
+        return;
       }
 
       if (!response.ok) {
