@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
-import HtmlDocumentPreview from "./html-document-preview";
 import type { Document } from "@shared/schema";
 
 interface DocumentPreviewProps {
@@ -20,7 +19,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [showHtmlPreview, setShowHtmlPreview] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const { toast } = useToast();
@@ -230,7 +228,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate client-side preview using HTML rendering
+  // Generate PDF preview (works on both localhost and Vercel)
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -241,23 +239,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating preview...');
+      console.log('Attempting to generate PDF preview...');
       
-      // Check if we're on Vercel (where Python dependencies don't work)
-      const isVercelDeployment = window.location.hostname.includes('vercel.app') || 
-                                 window.location.hostname.includes('vercel.com');
-      
-      if (isVercelDeployment) {
-        // For Vercel, show client-side HTML preview
-        console.log('Detected Vercel deployment - using HTML preview');
-        setShowHtmlPreview(true);
-        setPdfUrl(null);
-        setPreviewError(null);
-        return;
-      }
-      
-      // For localhost and other deployments, try the server-side preview
-      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Try the Node.js PDF generation first (for Vercel compatibility)
+      let response = await fetch('/api/generate/pdf-preview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -266,12 +251,25 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         body: JSON.stringify(document),
       });
 
-      console.log('Server preview response:', response.status, response.statusText);
+      // If Node.js PDF generation fails, fallback to the original Python-based method
+      if (!response.ok) {
+        console.log('Node.js PDF generation failed, trying original method...');
+        response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Preview': 'true'
+          },
+          body: JSON.stringify(document),
+        });
+      }
+
+      console.log('PDF preview response:', response.status, response.statusText);
 
       if (!response.ok) {
         // Try to get error details
         const contentType = response.headers.get('content-type');
-        let errorMessage = `Server preview failed: ${response.statusText}`;
+        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
         
         if (contentType && contentType.includes('application/json')) {
           try {
@@ -283,9 +281,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         } else {
           try {
             const errorText = await response.text();
-            if (errorText.includes('Python') || errorText.includes('python') || 
-                errorText.includes('docx2pdf') || errorText.includes('LibreOffice')) {
-              errorMessage = 'PDF generation is not available on this deployment platform. Download Word format for the properly formatted IEEE document.';
+            if (errorText.includes('Python') || errorText.includes('python') || errorText.includes('docx2pdf')) {
+              errorMessage = 'PDF generation temporarily unavailable. Please download Word format which contains identical IEEE formatting.';
             } else if (errorText.length < 200) {
               errorMessage = errorText;
             }
@@ -298,9 +295,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const blob = await response.blob();
-      console.log('Preview blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
+      console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
       
-      if (blob.size === 0) throw new Error('Generated preview is empty');
+      if (blob.size === 0) throw new Error('Generated PDF is empty');
 
       // Clean up previous URL
       if (pdfUrl) {
@@ -310,42 +307,42 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       // Create new blob URL for preview
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
-      console.log('Server preview generated successfully, URL:', url);
+      console.log('PDF preview generated successfully, URL:', url);
     } catch (error) {
-      console.error('Preview generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview';
+      console.error('PDF preview generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
       setPreviewError(errorMessage);
       
-      // Provide helpful error messages for different deployment environments
-      if (errorMessage.includes('Python') || errorMessage.includes('not available') || 
-          errorMessage.includes('docx2pdf') || errorMessage.includes('LibreOffice')) {
-        setPreviewError('PDF preview is not available on this deployment platform due to system dependencies. Word document downloads work perfectly and provide proper IEEE formatting.');
+      // If document generation fails, suggest alternatives
+      if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
+        setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
       }
     } finally {
       setIsGeneratingPreview(false);
     }
   };
 
-  // Auto-generate HTML preview on Vercel when document changes
+  // Auto-generate preview when document has required fields
   useEffect(() => {
-    const isVercelDeployment = typeof window !== 'undefined' && (
-      window.location.hostname.includes('vercel.app') || 
-      window.location.hostname.includes('vercel.com')
-    );
+    console.log('Document changed, checking for preview generation:', {
+      hasTitle: !!document.title,
+      hasAuthors: document.authors?.some(author => author.name),
+      title: document.title,
+      authors: document.authors
+    });
 
-    if (isVercelDeployment && document.title && document.authors?.some(author => author.name)) {
-      console.log('Auto-generating HTML preview for Vercel deployment');
-      const timer = setTimeout(() => {
-        setShowHtmlPreview(true);
+    const timer = setTimeout(() => {
+      if (document.title && document.authors?.some(author => author.name)) {
+        console.log('Triggering PDF preview generation...');
+        generateDocxPreview();
+      } else {
+        console.log('Skipping PDF generation - missing title or authors');
         setPdfUrl(null);
         setPreviewError(null);
-      }, 500); // Short delay for better UX
+      }
+    }, 1000); // 1 second debounce
 
-      return () => clearTimeout(timer);
-    } else if (!isVercelDeployment) {
-      // Reset HTML preview for non-Vercel deployments
-      setShowHtmlPreview(false);
-    }
+    return () => clearTimeout(timer);
   }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
 
   // Cleanup blob URL on unmount
@@ -389,26 +386,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           </div>
         </CardContent>
       </Card>
-
-      {/* Vercel Deployment Notice */}
-      {(typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com'))) && (
-        <Card className="bg-blue-50 border-blue-200 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-blue-600 text-sm">✨</span>
-              </div>
-              <div>
-                <h4 className="font-medium text-blue-800 mb-1">HTML Preview Mode</h4>
-                <p className="text-blue-700 text-sm">
-                  You're seeing an HTML preview optimized for Vercel deployments! 
-                  The <strong>Word document downloads contain the exact IEEE formatting</strong> for submission.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="bg-white/80 backdrop-blur-sm border-purple-200 shadow-lg">
         <CardHeader className="pb-3">
@@ -460,9 +437,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              {(typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com'))) 
-                ? 'Live HTML Preview' 
-                : 'Live Document Preview'}
+              Live PDF Preview
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -495,48 +470,20 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </div>
             ) : previewError ? (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center p-6 max-w-md">
-                  {previewError.includes('Vercel') || previewError.includes('deployment') || previewError.includes('not available') ? (
-                    <>
-                      <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FileText className="w-6 h-6 text-yellow-600" />
-                      </div>
-                      <p className="text-yellow-700 mb-2 font-medium">Preview Not Available</p>
-                      <p className="text-gray-600 text-sm mb-4">{previewError}</p>
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                        <p className="text-blue-800 text-sm font-medium mb-2">✅ Alternative Solution:</p>
-                        <p className="text-blue-700 text-sm">Download the Word document instead - it contains the exact same IEEE formatting and works perfectly!</p>
-                      </div>
-                      {!window.location.hostname.includes('vercel') && (
-                        <Button
-                          onClick={generateDocxPreview}
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          disabled={!document.title || !document.authors?.some(author => author.name)}
-                        >
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                          Retry Preview
-                        </Button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                      <p className="text-red-600 mb-2">Preview Error</p>
-                      <p className="text-gray-600 text-sm">{previewError}</p>
-                      <Button
-                        onClick={generateDocxPreview}
-                        variant="outline"
-                        size="sm"
-                        className="mt-4"
-                        disabled={!document.title || !document.authors?.some(author => author.name)}
-                      >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Retry
-                      </Button>
-                    </>
-                  )}
+                <div className="text-center p-6">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-red-600 mb-2">Preview Error</p>
+                  <p className="text-gray-600 text-sm">{previewError}</p>
+                  <Button
+                    onClick={generateDocxPreview}
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    disabled={!document.title || !document.authors?.some(author => author.name)}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retry
+                  </Button>
                 </div>
               </div>
             ) : !document.title || !document.authors?.some(author => author.name) ? (
@@ -547,38 +494,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
               </div>
-            ) : showHtmlPreview ? (
-              <div className="h-full overflow-auto">
-                <HtmlDocumentPreview document={document} zoom={zoom} />
-              </div>
             ) : pdfUrl ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center p-6">
-                  <FileText className="w-16 h-16 text-purple-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Document Ready for Preview</h3>
-                  <p className="text-gray-600 mb-4">
-                    Your IEEE document has been generated successfully! 
-                    <br />
-                    DOCX files cannot be previewed directly in the browser.
-                  </p>
-                  <div className="space-y-3">
-                    <Button
-                      onClick={() => {
-                        const link = window.document.createElement('a');
-                        link.href = pdfUrl;
-                        link.download = 'ieee_paper_preview.docx';
-                        link.click();
-                      }}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Preview (DOCX)
-                    </Button>
-                    <p className="text-xs text-gray-500">
-                      Download to view the formatted IEEE document in Microsoft Word or similar applications
-                    </p>
-                  </div>
-                </div>
+              <div className="h-full">
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-full border-0"
+                  title="IEEE Paper Preview"
+                  style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
+                />
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">

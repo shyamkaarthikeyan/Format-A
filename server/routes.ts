@@ -1059,28 +1059,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return requireAuth(req, res, next);
   }, async (req: any, res) => {
     try {
-      // Check if we're running on Vercel (where docx2pdf dependencies don't work)
-      const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
-      const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
-      
-      if (isVercel && isPreview) {
-        console.log('🚫 PDF preview blocked on Vercel - docx2pdf dependencies not available');
-        return res.status(503).json({
-          error: 'PDF preview not available on Vercel',
-          message: 'PDF generation requires system dependencies (LibreOffice) that are not available in Vercel\'s serverless environment. Word document downloads work perfectly and provide proper IEEE formatting.',
-          platform: 'vercel',
-          suggestion: 'Download Word format instead - it provides the same IEEE formatting',
-          workaround: 'Use localhost development for PDF previews'
-        });
-      }
-      
       console.log('=== Word to PDF Conversion Debug Info ===');
       console.log('Request body keys:', Object.keys(req.body));
       console.log('Working directory:', __dirname);
       console.log('Platform:', process.platform);
       console.log('Python command:', getPythonCommand());
-      console.log('Is Vercel:', isVercel);
-      console.log('Is Preview:', isPreview);
       
       const documentData = req.body;
       
@@ -1235,8 +1218,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   fallbackPython.on('close', (fallbackCode: number) => {
                     if (fallbackCode === 0 && fallbackBuffer.length > 0) {
                       console.log('✅ ReportLab fallback successful, PDF size:', fallbackBuffer.length);
+                      
+                      // Check if this is a preview request
+                      const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
+                      
                       res.setHeader('Content-Type', 'application/pdf');
-                      res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                      if (isPreview) {
+                        // For preview, use inline disposition so it displays in browser
+                        res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
+                        console.log('✅ Serving ReportLab PDF for inline preview');
+                      } else {
+                        // For download, use attachment disposition
+                        res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                        console.log('✅ Serving ReportLab PDF for download');
+                      }
                       res.send(fallbackBuffer);
                     } else {
                       console.error('ReportLab fallback also failed:', fallbackError);
@@ -1277,8 +1272,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const pdfBuffer = await fs.promises.readFile(tempPdfPath);
                 console.log('✓ PDF converted successfully from DOCX, size:', pdfBuffer.length);
                 
+                // Check if this is a preview request
+                const isPreview = req.query.preview === 'true' || req.headers['x-preview'] === 'true';
+                
                 res.setHeader('Content-Type', 'application/pdf');
-                res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                if (isPreview) {
+                  // For preview, use inline disposition so it displays in browser
+                  res.setHeader('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"');
+                  console.log('✓ Serving PDF for inline preview');
+                } else {
+                  // For download, use attachment disposition
+                  res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.pdf"');
+                  console.log('✓ Serving PDF for download');
+                }
                 res.send(pdfBuffer);
                 
               } catch (readError) {
