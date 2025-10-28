@@ -102,144 +102,158 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 // User Analytics
 async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
-  const users = await storage.getAllUsers();
-  const documents = await storage.getAllDocuments();
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-  const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-  const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  
-  const totalUsers = users.length;
-  const activeUsers24h = users.filter((user: any) => 
-    user.lastLoginAt && new Date(user.lastLoginAt) > twentyFourHoursAgo
-  ).length;
-  const activeUsers7d = users.filter((user: any) => 
-    user.lastLoginAt && new Date(user.lastLoginAt) > sevenDaysAgo
-  ).length;
-  const activeUsers30d = users.filter((user: any) => 
-    user.lastLoginAt && new Date(user.lastLoginAt) > thirtyDaysAgo
-  ).length;
-  
-  const newUsersThisMonth = users.filter((user: any) => 
-    user.createdAt && new Date(user.createdAt) >= thisMonth
-  ).length;
-  const newUsersLastMonth = users.filter((user: any) => 
-    user.createdAt && new Date(user.createdAt) >= lastMonth && new Date(user.createdAt) < thisMonth
-  ).length;
-  
-  const growthRate = newUsersLastMonth > 0 
-    ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100 
-    : newUsersThisMonth > 0 ? 100 : 0;
-
-  // Get user document counts
-  const userDocCounts = new Map();
-  documents.forEach((doc: any) => {
-    const count = userDocCounts.get(doc.userId) || 0;
-    userDocCounts.set(doc.userId, count + 1);
-  });
-
-  // Get user download counts
-  const userDownloadCounts = new Map();
-  for (const user of users) {
-    const userDownloads = await storage.getUserDownloads(user.id);
-    userDownloadCounts.set(user.id, userDownloads.downloads.length);
-  }
-
-  // Create top users list
-  const topUsers = users
-    .map((user: any) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      documentsCreated: userDocCounts.get(user.id) || 0,
-      downloadsCount: userDownloadCounts.get(user.id) || 0,
-      lastActive: user.lastLoginAt || user.createdAt
-    }))
-    .sort((a: any, b: any) => (b.documentsCreated + b.downloadsCount) - (a.documentsCreated + a.downloadsCount))
-    .slice(0, 10);
-
-  // Generate daily registration data for the last 30 days
-  const dailyRegistrations = [];
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
-    const dateStr = date.toISOString().split('T')[0];
-    const count = users.filter((user: any) => 
-      user.createdAt && user.createdAt.startsWith(dateStr)
+  try {
+    console.log('Fetching users and documents...');
+    const users = await storage.getAllUsers();
+    console.log('Users fetched:', users.length);
+    const documents = await storage.getAllDocuments();
+    console.log('Documents fetched:', documents.length);
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const totalUsers = users.length;
+    const activeUsers24h = users.filter((user: any) => 
+      user.lastLoginAt && new Date(user.lastLoginAt) > twentyFourHoursAgo
     ).length;
-    dailyRegistrations.push({ date: dateStr, count });
-  }
+    const activeUsers7d = users.filter((user: any) => 
+      user.lastLoginAt && new Date(user.lastLoginAt) > sevenDaysAgo
+    ).length;
+    const activeUsers30d = users.filter((user: any) => 
+      user.lastLoginAt && new Date(user.lastLoginAt) > thirtyDaysAgo
+    ).length;
+    
+    const newUsersThisMonth = users.filter((user: any) => 
+      user.createdAt && new Date(user.createdAt) >= thisMonth
+    ).length;
+    const newUsersLastMonth = users.filter((user: any) => 
+      user.createdAt && new Date(user.createdAt) >= lastMonth && new Date(user.createdAt) < thisMonth
+    ).length;
+    
+    const growthRate = newUsersLastMonth > 0 
+      ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100 
+      : newUsersThisMonth > 0 ? 100 : 0;
 
-  // User distribution by registration period
-  const registrationDistribution = [
-    { period: 'Last 7 days', count: users.filter((u: any) => new Date(u.createdAt) > sevenDaysAgo).length },
-    { period: 'Last 30 days', count: users.filter((u: any) => new Date(u.createdAt) > thirtyDaysAgo).length },
-    { period: 'Last 3 months', count: users.filter((u: any) => new Date(u.createdAt) > new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))).length },
-    { period: 'Older', count: users.filter((u: any) => new Date(u.createdAt) <= new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))).length }
-  ];
+    // Get user document counts
+    const userDocCounts = new Map();
+    documents.forEach((doc: any) => {
+      const count = userDocCounts.get(doc.userId) || 0;
+      userDocCounts.set(doc.userId, count + 1);
+    });
 
-  // Activity distribution
-  const activityDistribution = [
-    { category: 'Very Active (10+ docs)', count: users.filter((u: any) => (userDocCounts.get(u.id) || 0) >= 10).length },
-    { category: 'Active (3-9 docs)', count: users.filter((u: any) => {
-      const docCount = userDocCounts.get(u.id) || 0;
-      return docCount >= 3 && docCount < 10;
-    }).length },
-    { category: 'Moderate (1-2 docs)', count: users.filter((u: any) => {
-      const docCount = userDocCounts.get(u.id) || 0;
-      return docCount >= 1 && docCount < 3;
-    }).length },
-    { category: 'New Users (0 docs)', count: users.filter((u: any) => (userDocCounts.get(u.id) || 0) === 0).length }
-  ];
-
-  return res.json({
-    success: true,
-    data: {
-      totalUsers,
-      newUsers: {
-        daily: dailyRegistrations,
-        weekly: [], // Could implement if needed
-        monthly: [] // Could implement if needed
-      },
-      activeUsers: {
-        last24h: activeUsers24h,
-        last7d: activeUsers7d,
-        last30d: activeUsers30d
-      },
-      userGrowth: {
-        thisMonth: newUsersThisMonth,
-        lastMonth: newUsersLastMonth,
-        growthRate
-      },
-      userDistribution: {
-        byRegistrationDate: registrationDistribution,
-        byActivity: activityDistribution
-      },
-      topUsers
+    // Get user download counts
+    const userDownloadCounts = new Map();
+    for (const user of users) {
+      const userDownloads = await storage.getUserDownloads(user.id);
+      userDownloadCounts.set(user.id, userDownloads.downloads.length);
     }
-  });
+
+    // Create top users list
+    const topUsers = users
+      .map((user: any) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        documentsCreated: userDocCounts.get(user.id) || 0,
+        downloadsCount: userDownloadCounts.get(user.id) || 0,
+        lastActive: user.lastLoginAt || user.createdAt
+      }))
+      .sort((a: any, b: any) => (b.documentsCreated + b.downloadsCount) - (a.documentsCreated + a.downloadsCount))
+      .slice(0, 10);
+
+    // Generate daily registration data for the last 30 days
+    const dailyRegistrations = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
+      const dateStr = date.toISOString().split('T')[0];
+      const count = users.filter((user: any) => 
+        user.createdAt && user.createdAt.startsWith(dateStr)
+      ).length;
+      dailyRegistrations.push({ date: dateStr, count });
+    }
+
+    // User distribution by registration period
+    const registrationDistribution = [
+      { period: 'Last 7 days', count: users.filter((u: any) => new Date(u.createdAt) > sevenDaysAgo).length },
+      { period: 'Last 30 days', count: users.filter((u: any) => new Date(u.createdAt) > thirtyDaysAgo).length },
+      { period: 'Last 3 months', count: users.filter((u: any) => new Date(u.createdAt) > new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))).length },
+      { period: 'Older', count: users.filter((u: any) => new Date(u.createdAt) <= new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))).length }
+    ];
+
+    // Activity distribution
+    const activityDistribution = [
+      { category: 'Very Active (10+ docs)', count: users.filter((u: any) => (userDocCounts.get(u.id) || 0) >= 10).length },
+      { category: 'Active (3-9 docs)', count: users.filter((u: any) => {
+        const docCount = userDocCounts.get(u.id) || 0;
+        return docCount >= 3 && docCount < 10;
+      }).length },
+      { category: 'Moderate (1-2 docs)', count: users.filter((u: any) => {
+        const docCount = userDocCounts.get(u.id) || 0;
+        return docCount >= 1 && docCount < 3;
+      }).length },
+      { category: 'New Users (0 docs)', count: users.filter((u: any) => (userDocCounts.get(u.id) || 0) === 0).length }
+    ];
+
+    return res.json({
+      success: true,
+      data: {
+        totalUsers,
+        newUsers: {
+          daily: dailyRegistrations,
+          weekly: [], // Could implement if needed
+          monthly: [] // Could implement if needed
+        },
+        activeUsers: {
+          last24h: activeUsers24h,
+          last7d: activeUsers7d,
+          last30d: activeUsers30d
+        },
+        userGrowth: {
+          thisMonth: newUsersThisMonth,
+          lastMonth: newUsersLastMonth,
+          growthRate
+        },
+        userDistribution: {
+          byRegistrationDate: registrationDistribution,
+          byActivity: activityDistribution
+        },
+        topUsers
+      }
+    });
+  } catch (error) {
+    console.error('User analytics error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
 
 // Document Analytics
 async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
-  const documents = await storage.getAllDocuments();
-  const users = await storage.getAllUsers();
-  const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-  
-  const totalDocuments = documents.length;
-  const documentsThisMonth = documents.filter((doc: any) => 
-    doc.createdAt && new Date(doc.createdAt) >= thisMonthStart
-  ).length;
-  const documentsLastMonth = documents.filter((doc: any) => 
-    doc.createdAt && new Date(doc.createdAt) >= lastMonthStart && new Date(doc.createdAt) < thisMonthStart
-  ).length;
-  const documentsThisWeek = documents.filter((doc: any) => 
-    doc.createdAt && new Date(doc.createdAt) >= sevenDaysAgo
-  ).length;
+  try {
+    const documents = await storage.getAllDocuments();
+    const users = await storage.getAllUsers();
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+    
+    const totalDocuments = documents.length;
+    const documentsThisMonth = documents.filter((doc: any) => 
+      doc.createdAt && new Date(doc.createdAt) >= thisMonthStart
+    ).length;
+    const documentsLastMonth = documents.filter((doc: any) => 
+      doc.createdAt && new Date(doc.createdAt) >= lastMonthStart && new Date(doc.createdAt) < thisMonthStart
+    ).length;
+    const documentsThisWeek = documents.filter((doc: any) => 
+      doc.createdAt && new Date(doc.createdAt) >= sevenDaysAgo
+    ).length;
 
   // Calculate growth rate
   const growthRate = documentsLastMonth > 0 
@@ -385,33 +399,42 @@ async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, 
       }
     }
   });
+  } catch (error) {
+    console.error('Document analytics error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
 
 // Download Analytics
 async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
-  const users = await storage.getAllUsers();
-  const documents = await storage.getAllDocuments();
-  let allDownloads: any[] = [];
-  
-  for (const user of users) {
-    const userDownloads = await storage.getUserDownloads(user.id);
-    allDownloads = allDownloads.concat(userDownloads.downloads);
-  }
-  
-  const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  
-  const totalDownloads = allDownloads.length;
-  const downloadsThisMonth = allDownloads.filter((download: any) => 
-    new Date(download.downloadedAt) >= thisMonthStart
-  ).length;
-  
-  const pdfDownloads = allDownloads.filter((download: any) => 
-    download.fileFormat === 'pdf'
-  ).length;
-  const docxDownloads = allDownloads.filter((download: any) => 
-    download.fileFormat === 'docx'
-  ).length;
+  try {
+    const users = await storage.getAllUsers();
+    const documents = await storage.getAllDocuments();
+    let allDownloads: any[] = [];
+    
+    for (const user of users) {
+      const userDownloads = await storage.getUserDownloads(user.id);
+      allDownloads = allDownloads.concat(userDownloads.downloads);
+    }
+    
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const totalDownloads = allDownloads.length;
+    const downloadsThisMonth = allDownloads.filter((download: any) => 
+      new Date(download.downloadedAt) >= thisMonthStart
+    ).length;
+    
+    const pdfDownloads = allDownloads.filter((download: any) => 
+      download.fileFormat === 'pdf'
+    ).length;
+    const docxDownloads = allDownloads.filter((download: any) => 
+      download.fileFormat === 'docx'
+    ).length;
 
   // Calculate format distribution
   const downloadsByFormat = [
@@ -577,25 +600,34 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
       }
     }
   });
+  } catch (error) {
+    console.error('Download analytics error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
 
 // System Analytics
 async function handleSystemAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
-  const memUsage = process.memoryUsage();
-  const uptime = process.uptime();
-  
-  const users = await storage.getAllUsers();
-  const documents = await storage.getAllDocuments();
-  
-  const totalMemoryMB = Math.round(memUsage.heapTotal / 1024 / 1024);
-  const usedMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-  const memoryUsagePercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
-  
-  let systemStatus = 'healthy';
-  if (memoryUsagePercent > 80) systemStatus = 'warning';
-  if (memoryUsagePercent > 95) systemStatus = 'critical';
+  try {
+    const memUsage = process.memoryUsage();
+    const uptime = process.uptime();
+    
+    const users = await storage.getAllUsers();
+    const documents = await storage.getAllDocuments();
+    
+    const totalMemoryMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+    const usedMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const memoryUsagePercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
+    
+    let systemStatus = 'healthy';
+    if (memoryUsagePercent > 80) systemStatus = 'warning';
+    if (memoryUsagePercent > 95) systemStatus = 'critical';
 
-  return res.json({
+    return res.json({
     success: true,
     data: {
       uptime: Math.round(uptime),
@@ -611,6 +643,14 @@ async function handleSystemAnalytics(req: VercelRequest, res: VercelResponse, st
       totalUsers: users.length
     }
   });
+  } catch (error) {
+    console.error('System analytics error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
 
 // User Management
