@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
+import HtmlDocumentPreview from "./html-document-preview";
 import type { Document } from "@shared/schema";
 
 interface DocumentPreviewProps {
@@ -19,6 +20,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showHtmlPreview, setShowHtmlPreview] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const { toast } = useToast();
@@ -239,16 +241,18 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating client-side preview...');
+      console.log('Generating preview...');
       
       // Check if we're on Vercel (where Python dependencies don't work)
       const isVercelDeployment = window.location.hostname.includes('vercel.app') || 
                                  window.location.hostname.includes('vercel.com');
       
       if (isVercelDeployment) {
-        // For Vercel, show client-side HTML preview instead of trying PDF generation
-        console.log('Detected Vercel deployment - using client-side preview');
-        setPreviewError('PDF preview is not available on Vercel deployments due to Python dependency limitations. Download Word format for the properly formatted IEEE document.');
+        // For Vercel, show client-side HTML preview
+        console.log('Detected Vercel deployment - using HTML preview');
+        setShowHtmlPreview(true);
+        setPdfUrl(null);
+        setPreviewError(null);
         return;
       }
       
@@ -322,29 +326,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     }
   };
 
-  // DISABLED: Auto-generate preview to prevent unwanted downloads
-  // Preview is now manual-only via the refresh button
-  // useEffect(() => {
-  //   console.log('Document changed, checking for preview generation:', {
-  //     hasTitle: !!document.title,
-  //     hasAuthors: document.authors?.some(author => author.name),
-  //     title: document.title,
-  //     authors: document.authors
-  //   });
+  // Auto-generate HTML preview on Vercel when document changes
+  useEffect(() => {
+    const isVercelDeployment = typeof window !== 'undefined' && (
+      window.location.hostname.includes('vercel.app') || 
+      window.location.hostname.includes('vercel.com')
+    );
 
-  //   const timer = setTimeout(() => {
-  //     if (document.title && document.authors?.some(author => author.name)) {
-  //       console.log('Triggering PDF preview generation...');
-  //       generatePdfPreview();
-  //     } else {
-  //       console.log('Skipping PDF generation - missing title or authors');
-  //       setPdfUrl(null);
-  //       setPreviewError(null);
-  //     }
-  //   }, 1000); // 1 second debounce
+    if (isVercelDeployment && document.title && document.authors?.some(author => author.name)) {
+      console.log('Auto-generating HTML preview for Vercel deployment');
+      const timer = setTimeout(() => {
+        setShowHtmlPreview(true);
+        setPdfUrl(null);
+        setPreviewError(null);
+      }, 500); // Short delay for better UX
 
-  //   return () => clearTimeout(timer);
-  // }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+      return () => clearTimeout(timer);
+    } else if (!isVercelDeployment) {
+      // Reset HTML preview for non-Vercel deployments
+      setShowHtmlPreview(false);
+    }
+  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -390,17 +392,17 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       {/* Vercel Deployment Notice */}
       {(typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com'))) && (
-        <Card className="bg-yellow-50 border-yellow-200 shadow-lg">
+        <Card className="bg-blue-50 border-blue-200 shadow-lg">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-yellow-600 text-sm">ℹ️</span>
+              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-blue-600 text-sm">✨</span>
               </div>
               <div>
-                <h4 className="font-medium text-yellow-800 mb-1">PDF Preview Unavailable</h4>
-                <p className="text-yellow-700 text-sm">
-                  PDF previews don't work on Vercel deployments due to system dependency limitations. 
-                  However, <strong>Word document downloads work perfectly</strong> and contain the exact same IEEE formatting!
+                <h4 className="font-medium text-blue-800 mb-1">HTML Preview Mode</h4>
+                <p className="text-blue-700 text-sm">
+                  You're seeing an HTML preview optimized for Vercel deployments! 
+                  The <strong>Word document downloads contain the exact IEEE formatting</strong> for submission.
                 </p>
               </div>
             </div>
@@ -458,7 +460,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              Live Document Preview
+              {(typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com'))) 
+                ? 'Live HTML Preview' 
+                : 'Live Document Preview'}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -542,6 +546,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-600 mb-2">Ready for Preview</p>
                   <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
+              </div>
+            ) : showHtmlPreview ? (
+              <div className="h-full overflow-auto">
+                <HtmlDocumentPreview document={document} zoom={zoom} />
               </div>
             ) : pdfUrl ? (
               <div className="flex items-center justify-center h-full">
