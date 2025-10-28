@@ -1,8 +1,6 @@
-from http.server import BaseHTTPRequestHandler
 import json
 import sys
 import os
-import base64
 from io import BytesIO
 
 # Add the server directory to Python path to import the IEEE generator
@@ -20,6 +18,8 @@ except ImportError as e:
     def generate_ieee_document(data):
         raise Exception(f"IEEE generator not available: {e}")
 
+from http.server import BaseHTTPRequestHandler
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle CORS preflight requests"""
@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests for document generation"""
         try:
-            # Set CORS headers
+            # Set CORS headers first
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
