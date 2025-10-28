@@ -21,7 +21,28 @@ except ImportError as e:
 
 from http.server import BaseHTTPRequestHandler
 
-class handler(BaseHTTPRequestHandler):
+def generate_ieee_document(document_data):
+    """Generate IEEE document using the fixed generator"""
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_generator_fixed.py')
+        
+        if os.path.exists(server_ieee_path):
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("ieee_generator_fixed", server_ieee_path)
+            ieee_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ieee_module)
+            
+            generator = ieee_module.IEEEDocumentGenerator()
+            docx_buffer = generator.generate_document(document_data)
+            return docx_buffer
+        else:
+            raise Exception("IEEE generator not found")
+    except Exception as e:
+        print(f"IEEE document generation failed: {e}", file=sys.stderr)
+        raise e
+
+def handler(req, res):
     def do_OPTIONS(self):
         """Handle CORS preflight requests"""
         self.send_response(200)
@@ -78,97 +99,84 @@ class handler(BaseHTTPRequestHandler):
                 # For now, allow all requests to work
                 pass
             
-            # Use the same approach as localhost: ieee_generator_fixed.py first (perfect IEEE formatting)
+            # Priority 1: Use the perfect IEEE generator (same as localhost)
             try:
-                # Generate DOCX using the proven IEEE generator (same as localhost)
+                # First try to generate perfect IEEE DOCX using ieee_generator_fixed.py
                 docx_buffer = generate_ieee_document(document_data)
+                print("Perfect IEEE DOCX generated successfully", file=sys.stderr)
                 
                 # Try to convert DOCX to PDF for preview/download
                 try:
-                    # Import docx2pdf for conversion (if available)
-                    import docx2pdf
-                    from tempfile import NamedTemporaryFile
-                    import os
+                    # Attempt PDF conversion using available methods
+                    pdf_data = None
                     
-                    # Create temporary files for conversion
-                    with NamedTemporaryFile(suffix='.docx', delete=False) as temp_docx:
-                        if isinstance(docx_buffer, bytes):
-                            temp_docx.write(docx_buffer)
-                        else:
-                            temp_docx.write(docx_buffer.encode())
-                        temp_docx_path = temp_docx.name
-                    
-                    with NamedTemporaryFile(suffix='.pdf', delete=False) as temp_pdf:
-                        temp_pdf_path = temp_pdf.name
-                    
-                    # Convert DOCX to PDF (preserves perfect IEEE formatting)
-                    docx2pdf.convert(temp_docx_path, temp_pdf_path)
-                    
-                    # Read the generated PDF
-                    with open(temp_pdf_path, 'rb') as pdf_file:
-                        pdf_data = pdf_file.read()
-                    
-                    # Clean up temporary files
-                    os.unlink(temp_docx_path)
-                    os.unlink(temp_pdf_path)
-                    
-                    # Set response headers for PDF file (perfect IEEE format)
-                    self.send_header('Content-Type', 'application/pdf')
-                    if is_preview:
-                        self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"')
-                        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                        self.send_header('Pragma', 'no-cache')
-                        self.send_header('Expires', '0')
-                    elif is_download:
-                        self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
-                        self.send_header('Content-Length', str(len(pdf_data)))
-                    else:
-                        # Default to attachment for safety
-                        self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
-                    
-                    self.end_headers()
-                    self.wfile.write(pdf_data)
-                    
-                except (ImportError, Exception) as pdf_error:
-                    print(f"PDF conversion failed: {pdf_error}", file=sys.stderr)
-                    
-                    # For preview requests, we need to fail rather than serve DOCX
-                    if is_preview:
-                        # Preview requires PDF format - return error response
-                        self.send_response(500)
-                        self.send_header('Content-Type', 'application/json')
-                        self.end_headers()
-                        error_response = json.dumps({
-                            'error': 'PDF preview temporarily unavailable',
-                            'message': 'PDF conversion failed. Downloads still work perfectly with identical IEEE formatting.',
-                            'suggestion': 'Use Download buttons to get your IEEE paper.'
-                        })
-                        self.wfile.write(error_response.encode())
-                        return
-                    
-                    # For downloads, serve DOCX as fallback (still perfect IEEE format)
-                    print(f"Serving DOCX fallback for download: {pdf_error}", file=sys.stderr)
-                    
-                    self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-                    if is_download:
-                        self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
-                        # Add content length for better download experience
-                        content_length = len(docx_buffer) if isinstance(docx_buffer, bytes) else len(docx_buffer.encode())
-                        self.send_header('Content-Length', str(content_length))
-                    else:
-                        self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
-                    
-                    self.end_headers()
-                    
-                    if isinstance(docx_buffer, bytes):
-                        self.wfile.write(docx_buffer)
-                    else:
-                        self.wfile.write(docx_buffer.encode())
+                    # Method 1: Try ReportLab converter if available
+                    server_ieee_path = os.path.join(current_dir, '..', '..', 'server', 'ieee_pdf_generator.py')
+                    if os.path.exists(server_ieee_path):
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location("ieee_pdf_generator", server_ieee_path)
+                        ieee_pdf_module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(ieee_pdf_module)
                         
-            except Exception as docx_error:
-                # If the correct IEEE generator fails, don't fall back to incorrect formatting
-                print(f"IEEE generator failed: {docx_error}", file=sys.stderr)
-                raise Exception(f"IEEE document generation failed: {docx_error}")
+                        # Generate PDF using ReportLab (for Vercel compatibility)
+                        generator = ieee_pdf_module.IEEEPDFGenerator()
+                        pdf_data = generator.generate_pdf(document_data)
+                        print("PDF conversion successful using ReportLab", file=sys.stderr)
+                    
+                    # If PDF generation succeeded, serve PDF
+                    if pdf_data:
+                        self.send_header('Content-Type', 'application/pdf')
+                        if is_preview:
+                            self.send_header('Content-Disposition', 'inline; filename="ieee_paper_preview.pdf"')
+                            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                            self.send_header('Pragma', 'no-cache')
+                            self.send_header('Expires', '0')
+                        elif is_download:
+                            self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
+                            self.send_header('Content-Length', str(len(pdf_data)))
+                        else:
+                            self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.pdf"')
+                        
+                        self.end_headers()
+                        self.wfile.write(pdf_data)
+                        return
+                        
+                except Exception as pdf_error:
+                    print(f"PDF conversion failed, serving perfect IEEE DOCX: {pdf_error}", file=sys.stderr)
+                
+                # If PDF conversion failed, serve the perfect IEEE DOCX
+                if is_preview:
+                    # For preview, we need PDF format - return helpful error
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    error_response = json.dumps({
+                        'error': 'PDF preview temporarily unavailable',
+                        'message': 'Perfect IEEE formatting available via download. DOCX contains identical layout to your localhost preview.',
+                        'suggestion': 'Use Download Word button to get your perfect IEEE paper.'
+                    })
+                    self.wfile.write(error_response.encode())
+                    return
+                
+                # For downloads, serve the perfect IEEE DOCX (same quality as localhost)
+                self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                if is_download:
+                    self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
+                    content_length = len(docx_buffer) if isinstance(docx_buffer, bytes) else len(docx_buffer.encode())
+                    self.send_header('Content-Length', str(content_length))
+                else:
+                    self.send_header('Content-Disposition', 'attachment; filename="ieee_paper.docx"')
+                
+                self.end_headers()
+                
+                if isinstance(docx_buffer, bytes):
+                    self.wfile.write(docx_buffer)
+                else:
+                    self.wfile.write(docx_buffer.encode())
+                        
+            except Exception as error:
+                print(f"Perfect IEEE document generation failed: {error}", file=sys.stderr)
+                raise Exception(f"IEEE document generation failed: {error}")
             
         except json.JSONDecodeError as e:
             self.send_response(400)
