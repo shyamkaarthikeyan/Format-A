@@ -17,16 +17,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pathArray = Array.isArray(path) ? path : [path].filter(Boolean);
     const endpoint = pathArray.join('/');
 
+    // Check for admin email in query params for direct access
+    const { adminEmail } = req.query;
+    const ADMIN_EMAIL = 'shyamkaarthikeyan@gmail.com';
+    
     // Simple admin token check
     const adminToken = req.headers['x-admin-token'] as string;
     const skipAuthEndpoints = ['auth/session', 'auth/verify', 'auth/signout'];
     const needsAuth = !skipAuthEndpoints.includes(endpoint);
     
-    if (needsAuth && (!adminToken || !adminToken.startsWith('admin_token_'))) {
+    // Allow direct access with admin email parameter
+    const hasAdminAccess = adminEmail === ADMIN_EMAIL || (adminToken && adminToken.startsWith('admin_token_'));
+    
+    if (needsAuth && !hasAdminAccess) {
       return res.status(401).json({ 
         success: false,
         error: 'ADMIN_AUTH_REQUIRED', 
-        message: 'Valid admin token required'
+        message: 'Valid admin token required or use ?adminEmail=shyamkaarthikeyan@gmail.com'
       });
     }
 
