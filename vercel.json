@@ -14,6 +14,10 @@
       "destination": "/api/admin?path=$1"
     },
     {
+      "source": "/api/auth/(.*)",
+      "destination": "/api/auth?path=$1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
