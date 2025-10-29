@@ -59,7 +59,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get(`/api/admin/analytics/users?timeRange=${selectedTimeRange}`);
+      const response = await apiClient.adminGet(`/analytics/users?timeRange=${selectedTimeRange}`);
       
       if (response.success) {
         setAnalytics(response.data as UserAnalytics);

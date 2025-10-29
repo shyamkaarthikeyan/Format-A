@@ -116,30 +116,39 @@
         }
 
         async function testAdminEndpoints() {
-            if (!adminToken) {
-                addResult('❌ No admin token. Create one first.', 'error');
-                return;
-            }
-
             addResult('🧪 Testing admin endpoints...', 'loading');
             
             const endpoints = [
+                '/api/admin-simple',
                 '/api/admin-simple/analytics/system',
                 '/api/admin-simple/analytics/users',
                 '/api/admin-simple/analytics/documents',
-                '/api/admin-simple/analytics/downloads'
+                '/api/admin-simple/analytics/downloads',
+                '/api/admin-simple/users'
             ];
 
-            for (const endpoint of endpoints) {
+            for (let endpoint of endpoints) {
                 try {
                     addResult(`Testing ${endpoint}...`, 'loading');
                     
-                    const response = await fetch(endpoint, {
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    let testUrl = endpoint;
+                    
+                    // Add admin token if available, otherwise use email fallback
+                    if (adminToken) {
+                        headers['X-Admin-Token'] = adminToken;
+                    } else {
+                        // Use direct admin email access for testing
+                        const separator = endpoint.includes('?') ? '&' : '?';
+                        testUrl = `${endpoint}${separator}adminEmail=shyamkaarthikeyan@gmail.com`;
+                    }
+                    
+                    const response = await fetch(testUrl, {
                         method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Admin-Token': adminToken
-                        }
+                        headers
                     });
                     
                     const responseText = await response.text();
@@ -148,7 +157,17 @@
                     if (response.ok) {
                         try {
                             const data = JSON.parse(responseText);
-                            addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                            // Show condensed version for large responses
+                            if (JSON.stringify(data).length > 2000) {
+                                addResult(`<pre>${JSON.stringify({
+                                    success: data.success,
+                                    message: data.message,
+                                    dataKeys: Object.keys(data.data || {}),
+                                    timestamp: data.timestamp
+                                }, null, 2)}</pre>`, 'success');
+                            } else {
+                                addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                            }
                         } catch (e) {
                             addResult(`<pre>${responseText}</pre>`, 'info');
                         }
@@ -160,8 +179,10 @@
                 }
                 
                 // Small delay between requests
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
+            
+            addResult('✅ Admin endpoint testing complete!', 'success');
         }
 
         // Show existing token if available

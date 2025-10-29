@@ -76,7 +76,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get(`/api/admin/analytics/downloads?timeRange=${selectedTimeRange}&format=${selectedFormat}`);
+      const response = await apiClient.adminGet(`/analytics/downloads?timeRange=${selectedTimeRange}&format=${selectedFormat}`);
       
       if (response.success) {
         setAnalytics(response.data as DownloadAnalytics);
