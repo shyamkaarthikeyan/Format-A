@@ -120,6 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'test-db':
         return await handleDbTest(req, res);
       
+      case 'debug':
+        return await handleDebug(req, res);
+      
       default:
         console.log('Unknown admin endpoint:', endpoint);
         return res.status(404).json({ error: 'Admin endpoint not found', endpoint });
@@ -137,6 +140,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: any) {
   try {
     console.log('Starting user analytics...');
+    console.log('Database object:', typeof db, Object.keys(db || {}));
+    
+    if (!db) {
+      throw new Error('Database connection not available');
+    }
     
     const users = await db.getAllUsers();
     const documents = await db.getAllDocuments();
@@ -935,6 +943,60 @@ async function handleDbTest(req: VercelRequest, res: VercelResponse) {
       success: false,
       error: 'Database test failed',
       details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+/
+/ Debug handler
+async function handleDebug(req: VercelRequest, res: VercelResponse) {
+  try {
+    return res.json({
+      success: true,
+      debug: {
+        environment: process.env.NODE_ENV,
+        databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Missing',
+        postgresUrl: process.env.POSTGRES_URL ? 'Set' : 'Missing',
+        timestamp: new Date().toISOString(),
+        platform: process.platform,
+        nodeVersion: process.version,
+        memoryUsage: process.memoryUsage(),
+        uptime: process.uptime()
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Debug handler failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// Auth test handler
+async function handleAuthTest(req: VercelRequest, res: VercelResponse) {
+  return res.json({
+    success: true,
+    message: 'Auth test endpoint working',
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Database test handler
+async function handleDbTest(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { neonDb } = await import('./_lib/neon-database.js');
+    await neonDb.initialize();
+    
+    return res.json({
+      success: true,
+      message: 'Database connection successful',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Database connection failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }
