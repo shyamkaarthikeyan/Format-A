@@ -47,6 +47,12 @@ export interface Document {
   user_id: string;
   title: string;
   content: any; // JSON content
+  document_type?: string;
+  word_count?: number;
+  page_count?: number;
+  section_count?: number;
+  figure_count?: number;
+  reference_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -134,23 +140,47 @@ export class NeonDatabase {
           )
         `;
 
-        // Create documents table with metadata fields
-        await sql`
-          CREATE TABLE IF NOT EXISTS documents (
-            id VARCHAR(255) PRIMARY KEY,
-            user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
-            title VARCHAR(500) NOT NULL,
-            content JSONB NOT NULL,
-            document_type VARCHAR(50) DEFAULT 'ieee_paper',
-            word_count INTEGER DEFAULT 0,
-            page_count INTEGER DEFAULT 0,
-            section_count INTEGER DEFAULT 0,
-            figure_count INTEGER DEFAULT 0,
-            reference_count INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-          )
+        // Check if documents table exists and has the right schema
+        const documentsTableExists = await sql`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'documents' AND table_schema = 'public'
         `;
+
+        if (documentsTableExists.rows.length === 0) {
+          // Create documents table with metadata fields
+          await sql`
+            CREATE TABLE documents (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+              title VARCHAR(500) NOT NULL,
+              content JSONB NOT NULL,
+              document_type VARCHAR(50) DEFAULT 'ieee_paper',
+              word_count INTEGER DEFAULT 0,
+              page_count INTEGER DEFAULT 0,
+              section_count INTEGER DEFAULT 0,
+              figure_count INTEGER DEFAULT 0,
+              reference_count INTEGER DEFAULT 0,
+              created_at TIMESTAMP DEFAULT NOW(),
+              updated_at TIMESTAMP DEFAULT NOW()
+            )
+          `;
+        } else {
+          // Check if content column exists
+          const hasContentColumn = documentsTableExists.rows.some(row => row.column_name === 'content');
+          if (!hasContentColumn) {
+            // Add missing columns to existing table
+            await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS content JSONB NOT NULL DEFAULT '{}'::jsonb`;
+          }
+          
+          // Add other missing columns
+          await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'ieee_paper'`;
+          await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS word_count INTEGER DEFAULT 0`;
+          await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 0`;
+          await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS section_count INTEGER DEFAULT 0`;
+          await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS figure_count INTEGER DEFAULT 0`;
+          await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS reference_count INTEGER DEFAULT 0`;
+        }
 
         // Create downloads table with enhanced tracking
         await sql`
@@ -172,6 +202,10 @@ export class NeonDatabase {
             generation_time_ms INTEGER DEFAULT 0
           )
         `;
+
+        // Add missing columns to downloads table if they don't exist
+        await sql`ALTER TABLE downloads ADD COLUMN IF NOT EXISTS document_metadata JSONB DEFAULT '{}'::jsonb`;
+        await sql`ALTER TABLE downloads ADD COLUMN IF NOT EXISTS generation_time_ms INTEGER DEFAULT 0`;
 
         // Create user sessions table for better session management
         await sql`
@@ -235,9 +269,9 @@ export class NeonDatabase {
     picture?: string;
   }): Promise<User> {
     try {
-      // Check if user exists
+      // Check if user exists by google_id or email
       const existingUser = await sql`
-        SELECT * FROM users WHERE google_id = ${userData.google_id} LIMIT 1
+        SELECT * FROM users WHERE google_id = ${userData.google_id} OR email = ${userData.email} LIMIT 1
       `;
 
       if (existingUser.rows.length > 0) {
@@ -246,10 +280,12 @@ export class NeonDatabase {
           UPDATE users 
           SET name = ${userData.name},
               picture = ${userData.picture || null},
+              google_id = ${userData.google_id},
+              email = ${userData.email},
               last_login_at = NOW(),
               updated_at = NOW(),
               is_active = true
-          WHERE google_id = ${userData.google_id}
+          WHERE id = ${existingUser.rows[0].id}
           RETURNING *
         `;
         console.log('✅ Updated existing user:', userData.email);
@@ -333,7 +369,12 @@ export class NeonDatabase {
 
       const result = await sql`
         UPDATE users 
-        SET ${sql.unsafe(setClause)}, updated_at = NOW()
+        SET name = COALESCE(${updates.name}, name),
+            email = COALESCE(${updates.email}, email),
+            picture = COALESCE(${updates.picture}, picture),
+            is_active = COALESCE(${updates.is_active}, is_active),
+            preferences = COALESCE(${updates.preferences ? JSON.stringify(updates.preferences) : null}, preferences),
+            updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `;

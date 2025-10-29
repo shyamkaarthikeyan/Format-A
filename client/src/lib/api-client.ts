@@ -92,8 +92,22 @@ async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {})
   const adminToken = localStorage.getItem('admin-token');
   const fallbackParams = adminToken ? '' : '?adminEmail=shyamkaarthikeyan@gmail.com';
   
-  // Use admin-simple API with fallback
-  const url = `/api/admin-simple${endpoint}${fallbackParams}`;
+  // Use consolidated admin API with fallback
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+  
+  // Handle query parameters properly
+  const [pathPart, queryPart] = cleanEndpoint.split('?');
+  let url = `/api/admin?path=${pathPart}`;
+  
+  // Add original query parameters
+  if (queryPart) {
+    url += `&${queryPart}`;
+  }
+  
+  // Add fallback parameters
+  if (fallbackParams) {
+    url += fallbackParams.startsWith('&') ? fallbackParams : `&${fallbackParams}`;
+  }
   
   console.log('Making admin request:', {
     endpoint,
@@ -110,7 +124,7 @@ async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {})
     if (!result.success && result.error?.code === 'ADMIN_AUTH_REQUIRED' && !adminToken) {
       console.log('Attempting to create admin token automatically...');
       try {
-        const sessionResponse = await authenticatedFetch('/api/admin-simple/auth/session', {
+        const sessionResponse = await authenticatedFetch('/api/admin?path=auth/session', {
           method: 'POST',
           body: JSON.stringify({
             email: 'shyamkaarthikeyan@gmail.com',
@@ -126,7 +140,7 @@ async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {})
             console.log('Admin token created, retrying request...');
             
             // Retry the original request with the new token
-            const retryResponse = await authenticatedFetch(`/api/admin-simple${endpoint}`, {}, config);
+            const retryResponse = await authenticatedFetch(`/api/admin?path=${endpoint.substring(1)}`, {}, config);
             return await handleApiResponse<ApiResponse<T>>(retryResponse);
           }
         }

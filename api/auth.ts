@@ -1,5 +1,9 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { postgresStorage } from './_lib/postgres-storage';
+import { OAuth2Client } from 'google-auth-library';
+import jwt from 'jsonwebtoken';
+import { neonDb } from './_lib/neon-database.js';
+
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -38,86 +42,145 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { credential, googleId, email, name, picture } = req.body || {};
-  
-  let userInfo;
-  if (credential) {
-    try {
-      const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
-      userInfo = {
-        googleId: payload.sub || 'google_' + Date.now(),
-        email: payload.email || 'user@example.com',
-        name: payload.name || 'Demo User',
-        picture: payload.picture || 'https://via.placeholder.com/150'
-      };
-    } catch (e) {
-      return res.status(400).json({ error: 'Invalid credential format' });
-    }
-  } else if (googleId && email) {
-    userInfo = { googleId, email, name: name || 'User', picture: picture || 'https://via.placeholder.com/150' };
-  } else {
-    return res.status(400).json({ 
-      error: 'Missing authentication data',
-      message: 'Either credential (JWT) or user data (googleId, email) is required'
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed. Use POST.' 
     });
   }
 
-  // Initialize PostgreSQL storage
-  await postgresStorage.initialize();
-  
-  let user = await postgresStorage.getUserByEmail(userInfo.email);
-  
-  if (!user) {
-    user = await postgresStorage.createUser({
+  try {
+    // Check environment variables first
+    if (!process.env.VITE_GOOGLE_CLIENT_ID) {
+      console.error('❌ Missing VITE_GOOGLE_CLIENT_ID environment variable');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error: Missing Google Client ID'
+      });
+    }
+
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ Missing DATABASE_URL environment variable');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error: Missing database URL'
+      });
+    }
+
+    // Initialize database on first request
+    console.log('🔧 Initializing database...');
+    await neonDb.initialize();
+    console.log('✅ Database initialized successfully');
+
+    const { credential, googleId, email, name, picture } = req.body || {};
+
+    let userInfo: {
+      googleId: string;
+      email: string;
+      name: string;
+      picture?: string;
+    };
+
+    if (credential) {
+      // Handle JWT credential format
+      console.log('Processing JWT credential...');
+      try {
+        // Verify the Google ID token
+        const ticket = await client.verifyIdToken({
+          idToken: credential,
+          audience: process.env.VITE_GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+
+        if (!payload || !payload.email_verified) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid or unverified Google token'
+          });
+        }
+
+        userInfo = {
+          googleId: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture
+        };
+      } catch (e) {
+        console.log('JWT verification failed:', e);
+        return res.status(400).json({ 
+          success: false,
+          error: 'Invalid Google credential' 
+        });
+      }
+    } else if (googleId && email && name) {
+      // Handle decoded user data format (from client)
+      console.log('Processing decoded user data...');
+      userInfo = {
+        googleId,
+        email,
+        name,
+        picture: picture || 'https://via.placeholder.com/150'
+      };
+    } else {
+      console.log('Missing required authentication data:', req.body);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Missing authentication data',
+        message: 'Either credential (JWT) or user data (googleId, email, name) is required'
+      });
+    }
+
+    console.log('🔐 Processing Google OAuth for user:', userInfo.email);
+
+    // Create or update user in Neon database
+    const user = await neonDb.createOrUpdateUser({
       google_id: userInfo.googleId,
       email: userInfo.email,
       name: userInfo.name,
-      picture: userInfo.picture,
-      last_login_at: new Date().toISOString(),
-      is_active: true,
-      preferences: {
-        emailNotifications: true,
-        defaultExportFormat: 'pdf',
-        theme: 'light'
-      }
+      picture: userInfo.picture
     });
-  } else {
-    // Update last login for existing user
-    user.last_login_at = new Date().toISOString();
-    user.is_active = true;
+
+    // Create JWT token for our application
+    const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+    const appToken = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        googleId: user.google_id
+      },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
+
+    console.log('✅ User authenticated and saved to database:', user.email);
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        google_id: user.google_id,
+        created_at: user.created_at,
+        last_login_at: user.last_login_at
+      },
+      token: appToken,
+      sessionId: `session_${user.id}_${Date.now()}`, // For compatibility
+      message: user.created_at === user.updated_at ? 'Welcome! Account created.' : 'Welcome back!'
+    });
+
+  } catch (error) {
+    console.error('❌ Google OAuth error:', error);
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Authentication failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
-
-  if (!user) {
-    throw new Error('Failed to create or update user');
-  }
-
-  // For now, create a simple session (PostgreSQL storage doesn't have session management yet)
-  const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const session = {
-    sessionId,
-    userId: user.id,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    isActive: true,
-    lastAccessedAt: new Date().toISOString(),
-    ipAddress: (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress) || 'unknown',
-    userAgent: req.headers['user-agent'] || 'unknown'
-  };
-
-  res.setHeader('Set-Cookie', `sessionId=${session.sessionId}; Path=/; Max-Age=${7 * 24 * 60 * 60}; HttpOnly; SameSite=Lax`);
-
-  return res.json({
-    success: true,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      picture: user.picture
-    },
-    sessionId: session.sessionId
-  });
 }
 
 async function handleVerify(req: VercelRequest, res: VercelResponse) {
@@ -126,43 +189,62 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    let sessionId = req.headers.authorization?.replace('Bearer ', '');
-    if (!sessionId && req.cookies?.sessionId) {
-      sessionId = req.cookies.sessionId;
+    let token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token && req.cookies?.sessionId) {
+      token = req.cookies.sessionId;
     }
 
-    if (!sessionId) {
-      return res.status(401).json({ error: 'No session found' });
+    if (!token) {
+      return res.status(401).json({ error: 'No token found' });
     }
 
-    // For now, we'll do a simple session validation since PostgreSQL storage doesn't have session management
-    // In a production environment, you'd want to implement proper session storage
-    if (!sessionId.startsWith('session_')) {
-      return res.status(401).json({ error: 'Invalid session format' });
-    }
-
-    // Extract user info from session ID (simplified approach)
-    // In production, you'd store sessions in database
-    await postgresStorage.initialize();
-    
-    // For now, we'll just validate that the session exists and return a generic user
-    // This is a simplified approach - in production you'd have proper session management
-    const users = await postgresStorage.getAllUsers();
-    const user = users.length > 0 ? users[0] : null;
-    
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    return res.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        picture: user.picture
+    // Try to verify JWT token first
+    try {
+      const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      
+      // Initialize database and get user
+      await neonDb.initialize();
+      const user = await neonDb.getUserById(decoded.userId);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
       }
-    });
+
+      return res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture
+        }
+      });
+    } catch (jwtError) {
+      // If JWT verification fails, try session ID format
+      if (!token.startsWith('session_')) {
+        return res.status(401).json({ error: 'Invalid token format' });
+      }
+
+      // Initialize database and get first user (simplified approach)
+      await neonDb.initialize();
+      const users = await neonDb.getAllUsers();
+      const user = users.length > 0 ? users[0] : null;
+      
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      return res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture
+        }
+      });
+    }
   } catch (error) {
     console.error('Session verification error:', error);
     return res.status(500).json({ error: 'Verification failed' });

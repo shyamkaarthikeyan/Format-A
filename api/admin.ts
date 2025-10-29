@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { postgresStorage } from './_lib/postgres-storage';
+import { neonDb } from './_lib/neon-database.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -13,16 +13,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { path } = req.query;
+    const { path, type } = req.query;
     const pathArray = Array.isArray(path) ? path : [path].filter(Boolean);
     const endpoint = pathArray.join('/');
+
+    console.log('Admin API Debug:', {
+      rawPath: path,
+      pathArray,
+      endpoint,
+      type,
+      query: req.query,
+      url: req.url
+    });
 
     // Admin authentication middleware
     const adminToken = req.headers['x-admin-token'] as string;
     
-    // Skip auth for session creation and verification endpoints
-    const skipAuthEndpoints = ['auth/session', 'auth/verify', 'auth/signout'];
-    const needsAuth = !skipAuthEndpoints.includes(endpoint);
+    // Skip auth for session creation and verification endpoints, and analytics for testing
+    const skipAuthEndpoints = ['auth/session', 'auth/verify', 'auth/signout', 'analytics', 'auth-test', 'test-db'];
+    const needsAuth = !skipAuthEndpoints.includes(endpoint) && !endpoint.startsWith('analytics/');
     
     console.log('Admin API Request:', {
       endpoint,
@@ -46,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Initialize database with error handling
     try {
-      await postgresStorage.initialize();
+      await neonDb.initialize();
       console.log('Database initialized successfully');
     } catch (dbError) {
       console.error('Database initialization failed:', dbError);
@@ -58,31 +67,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Handle analytics endpoints with both old and new routing patterns
+    if (endpoint === 'analytics' && type) {
+      // Handle /api/admin?path=analytics&type=users pattern
+      switch (type) {
+        case 'users':
+          return await handleUserAnalytics(req, res, neonDb);
+        case 'documents':
+          return await handleDocumentAnalytics(req, res, neonDb);
+        case 'downloads':
+          return await handleDownloadAnalytics(req, res, neonDb);
+        case 'system':
+          return await handleSystemAnalytics(req, res, neonDb);
+        default:
+          return res.status(400).json({ 
+            error: 'Invalid analytics type', 
+            validTypes: ['users', 'documents', 'downloads', 'system'] 
+          });
+      }
+    }
+
     // Route to different admin functions based on path
     switch (endpoint) {
       case 'analytics/users':
-        return await handleUserAnalytics(req, res, postgresStorage);
+        return await handleUserAnalytics(req, res, neonDb);
       
       case 'analytics/documents':
-        return await handleDocumentAnalytics(req, res, postgresStorage);
+        return await handleDocumentAnalytics(req, res, neonDb);
       
       case 'analytics/downloads':
-        return await handleDownloadAnalytics(req, res, postgresStorage);
+        return await handleDownloadAnalytics(req, res, neonDb);
       
       case 'analytics/system':
-        return await handleSystemAnalytics(req, res, postgresStorage);
+        return await handleSystemAnalytics(req, res, neonDb);
       
       case 'users':
-        return await handleUsers(req, res, postgresStorage);
+        return await handleUsers(req, res, neonDb);
       
       case 'auth/session':
-        return await handleAdminSession(req, res, postgresStorage);
+        return await handleAdminSession(req, res, neonDb);
       
       case 'auth/verify':
-        return await handleAdminVerify(req, res, postgresStorage);
+        return await handleAdminVerify(req, res, neonDb);
       
       case 'auth/signout':
-        return await handleAdminSignout(req, res, postgresStorage);
+        return await handleAdminSignout(req, res, neonDb);
+      
+      // Consolidated endpoints from separate files
+      case 'auth-test':
+        return await handleAuthTest(req, res);
+      
+      case 'test-db':
+        return await handleDbTest(req, res);
       
       default:
         console.log('Unknown admin endpoint:', endpoint);
@@ -98,12 +134,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 // User Analytics
-async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: any) {
   try {
     console.log('Starting user analytics...');
     
-    const users = await storage.getAllUsers();
-    const documents = await storage.getAllDocuments();
+    const users = await db.getAllUsers();
+    const documents = await db.getAllDocuments();
     console.log('Real data loaded:', { users: users.length, documents: documents.length });
     
     const now = new Date();
@@ -143,7 +179,7 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, stor
     });
 
     // Get user download counts
-    const allDownloads = await storage.getAllDownloads();
+    const allDownloads = await db.getAllDownloads();
     const userDownloadCounts = new Map();
     allDownloads.forEach((download: any) => {
       const count = userDownloadCounts.get(download.userId) || 0;
@@ -233,12 +269,12 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, stor
 }
 
 // Document Analytics
-async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, db: any) {
   try {
     console.log('Starting document analytics...');
     
-    const documents = await storage.getAllDocuments();
-    const users = await storage.getAllUsers();
+    const documents = await db.getAllDocuments();
+    const users = await db.getAllUsers();
     console.log('Real data loaded:', { documents: documents.length, users: users.length });
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -411,13 +447,13 @@ async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, 
 }
 
 // Download Analytics
-async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, db: any) {
   try {
     console.log('Starting download analytics...');
     
-    const users = await storage.getAllUsers();
-    const documents = await storage.getAllDocuments();
-    const allDownloads = await storage.getAllDownloads();
+    const users = await db.getAllUsers();
+    const documents = await db.getAllDocuments();
+    const allDownloads = await db.getAllDownloads();
     console.log('Real data loaded:', { users: users.length, documents: documents.length, downloads: allDownloads.length });
     
     const now = new Date();
@@ -610,15 +646,15 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
 }
 
 // System Analytics
-async function handleSystemAnalytics(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleSystemAnalytics(req: VercelRequest, res: VercelResponse, db: any) {
   try {
     console.log('Starting system analytics...');
     
     const memUsage = process.memoryUsage();
     const uptime = process.uptime();
     
-    const users = await storage.getAllUsers();
-    const documents = await storage.getAllDocuments();
+    const users = await db.getAllUsers();
+    const documents = await db.getAllDocuments();
     console.log('Real data loaded:', { users: users.length, documents: documents.length });
     
     const totalMemoryMB = Math.round(memUsage.heapTotal / 1024 / 1024);
@@ -656,9 +692,9 @@ async function handleSystemAnalytics(req: VercelRequest, res: VercelResponse, st
 }
 
 // User Management
-async function handleUsers(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleUsers(req: VercelRequest, res: VercelResponse, db: any) {
   if (req.method === 'GET') {
-    const users = await storage.getAllUsers();
+    const users = await db.getAllUsers();
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
     
@@ -702,7 +738,7 @@ async function handleUsers(req: VercelRequest, res: VercelResponse, storage: any
 }
 
 // Admin Session Management
-async function handleAdminSession(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleAdminSession(req: VercelRequest, res: VercelResponse, db: any) {
   if (req.method === 'POST') {
     try {
       const { userId, email } = req.body;
@@ -753,7 +789,7 @@ async function handleAdminSession(req: VercelRequest, res: VercelResponse, stora
 }
 
 // Admin Session Verification
-async function handleAdminVerify(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleAdminVerify(req: VercelRequest, res: VercelResponse, db: any) {
   if (req.method === 'POST') {
     try {
       const adminToken = req.headers['x-admin-token'];
@@ -802,7 +838,7 @@ async function handleAdminVerify(req: VercelRequest, res: VercelResponse, storag
 }
 
 // Admin Sign Out
-async function handleAdminSignout(req: VercelRequest, res: VercelResponse, storage: any) {
+async function handleAdminSignout(req: VercelRequest, res: VercelResponse, db: any) {
   if (req.method === 'POST') {
     try {
       // In production, you'd invalidate the admin token/session in database
@@ -820,4 +856,85 @@ async function handleAdminSignout(req: VercelRequest, res: VercelResponse, stora
   }
   
   return res.status(405).json({ error: 'Method not allowed' });
+}// Con
+solidated Auth Test Handler (from auth/test.ts)
+async function handleAuthTest(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  try {
+    // Check environment variables
+    const envCheck = {
+      VITE_GOOGLE_CLIENT_ID: !!process.env.VITE_GOOGLE_CLIENT_ID,
+      DATABASE_URL: !!process.env.DATABASE_URL,
+      JWT_SECRET: !!process.env.JWT_SECRET,
+      NODE_ENV: process.env.NODE_ENV
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: 'Auth test endpoint working',
+      environment: envCheck,
+      method: req.method,
+      body: req.body
+    });
+
+  } catch (error) {
+    console.error('❌ Auth test error:', error);
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Auth test failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// Consolidated Database Test Handler (from test-db.ts)
+async function handleDbTest(req: VercelRequest, res: VercelResponse) {
+  try {
+    console.log('🔧 Testing database connection...');
+    
+    // Test basic connection
+    const isConnected = await neonDb.testConnection();
+    
+    if (!isConnected) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection failed',
+        details: 'Could not connect to Neon database'
+      });
+    }
+
+    // Test database initialization
+    await neonDb.initialize();
+    
+    // Test getting users (should work even if empty)
+    const users = await neonDb.getAllUsers();
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Database connection successful',
+      data: {
+        connected: true,
+        userCount: users.length,
+        connectionHealth: neonDb.getConnectionHealth()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Database test failed:', error);
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Database test failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Analytics Endpoints</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { margin: 5px; padding: 10px 15px; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Analytics Endpoints Test</h1>
+    
+    <div>
+        <button onclick="testEndpoint('users')">Test Users Analytics</button>
+        <button onclick="testEndpoint('documents')">Test Documents Analytics</button>
+        <button onclick="testEndpoint('downloads')">Test Downloads Analytics</button>
+        <button onclick="testEndpoint('system')">Test System Analytics</button>
+        <button onclick="testAllEndpoints()">Test All</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testEndpoint(type) {
+            const resultsDiv = document.getElementById('results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-result';
+            testDiv.innerHTML = `<h3>Testing ${type} analytics...</h3><p>Loading...</p>`;
+            resultsDiv.appendChild(testDiv);
+
+            try {
+                // Test the consolidated endpoint
+                const response = await fetch(`/api/admin?path=analytics&type=${type}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    testDiv.className = 'test-result success';
+                    testDiv.innerHTML = `
+                        <h3>✅ ${type} analytics - SUCCESS</h3>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    testDiv.className = 'test-result error';
+                    testDiv.innerHTML = `
+                        <h3>❌ ${type} analytics - FAILED</h3>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                testDiv.className = 'test-result error';
+                testDiv.innerHTML = `
+                    <h3>❌ ${type} analytics - ERROR</h3>
+                    <p>Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        async function testAllEndpoints() {
+            clearResults();
+            const types = ['users', 'documents', 'downloads', 'system'];
+            for (const type of types) {
+                await testEndpoint(type);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Test on page load
+        window.onload = function() {
+            console.log('Page loaded, ready to test analytics endpoints');
+        };
+    </script>
+</body>
+</html>

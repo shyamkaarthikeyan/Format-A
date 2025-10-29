@@ -43,6 +43,7 @@ export interface IStorage {
   // Download tracking operations
   recordDownload(download: Omit<DownloadRecord, 'id'>): Promise<DownloadRecord>;
   getUserDownloads(userId: string, pagination?: PaginationOptions): Promise<PaginatedDownloads>;
+  getAllDownloads(): Promise<DownloadRecord[]>;
   getDownloadById(id: string): Promise<DownloadRecord | undefined>;
   updateDownloadStatus(id: string, status: DownloadStatus, emailSent?: boolean, emailError?: string): Promise<void>;
   deleteUserDownloads(userId: string): Promise<boolean>;
@@ -320,6 +321,12 @@ export class MemStorage implements IStorage {
     };
   }
 
+  async getAllDownloads(): Promise<DownloadRecord[]> {
+    return Array.from(this.downloads.values()).sort((a, b) => 
+      new Date(b.downloadedAt).getTime() - new Date(a.downloadedAt).getTime()
+    );
+  }
+
   async getDownloadById(id: string): Promise<DownloadRecord | undefined> {
     return this.downloads.get(id);
   }
@@ -415,11 +422,19 @@ export class MemStorage implements IStorage {
 }
 
 // Database adapter that implements IStorage interface
-import { neonDb } from '../api/_lib/neon-database.js';
-
 export class DatabaseStorage implements IStorage {
+  private _neonDb: any = null;
+  
+  private async getNeonDb() {
+    if (!this._neonDb) {
+      const { neonDb } = await import('../api/_lib/neon-database.js');
+      this._neonDb = neonDb;
+    }
+    return this._neonDb;
+  }
   // Document operations
   async getDocument(id: string): Promise<ServerDocument | undefined> {
+    const neonDb = await this.getNeonDb();
     const doc = await neonDb.getDocumentById(id);
     if (!doc) return undefined;
     
@@ -437,6 +452,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllDocuments(): Promise<ServerDocument[]> {
+    const neonDb = await this.getNeonDb();
     const docs = await neonDb.getAllDocuments();
     return docs.map(doc => ({
       ...doc,
@@ -452,7 +468,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDocument(document: InsertDocument): Promise<ServerDocument> {
+    const neonDb = await this.getNeonDb();
     const id = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    
+    // Get the first available user to assign as document owner
+    const users = await neonDb.getAllUsers();
+    const defaultUserId = users.length > 0 ? users[0].id : null;
+    
+    if (!defaultUserId) {
+      throw new Error('No users available to assign as document owner');
+    }
     
     // Calculate metadata
     const wordCount = this.estimateWordCount(document);
@@ -462,7 +487,7 @@ export class DatabaseStorage implements IStorage {
     
     const doc = await neonDb.createDocument({
       id,
-      user_id: 'system', // Default user for documents created through storage interface
+      user_id: defaultUserId, // Use first available user as document owner
       title: document.title || 'Untitled Document',
       content: document,
       document_type: 'ieee_paper',
@@ -487,6 +512,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocument(id: string, document: UpdateDocument): Promise<ServerDocument | undefined> {
+    const neonDb = await this.getNeonDb();
     const updated = await neonDb.updateDocument(id, {
       title: document.title,
       content: document,
@@ -512,11 +538,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDocument(id: string): Promise<boolean> {
+    const neonDb = await this.getNeonDb();
     return await neonDb.deleteDocument(id);
   }
 
   // User operations
   async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+    const neonDb = await this.getNeonDb();
     return await neonDb.createOrUpdateUser({
       google_id: userData.googleId,
       email: userData.email,
@@ -526,35 +554,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserById(id: string): Promise<User | undefined> {
+    const neonDb = await this.getNeonDb();
     const user = await neonDb.getUserById(id);
     return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
+    const neonDb = await this.getNeonDb();
     const user = await neonDb.getUserByEmail(email);
     return user || undefined;
   }
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const neonDb = await this.getNeonDb();
     const user = await neonDb.getUserByGoogleId(googleId);
     return user || undefined;
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const neonDb = await this.getNeonDb();
     const user = await neonDb.updateUser(id, updates);
     return user || undefined;
   }
 
   async deleteUser(id: string): Promise<boolean> {
+    const neonDb = await this.getNeonDb();
     return await neonDb.deleteUser(id);
   }
 
   async getAllUsers(): Promise<User[]> {
+    const neonDb = await this.getNeonDb();
     return await neonDb.getAllUsers();
   }
 
   // Download tracking operations
   async recordDownload(download: Omit<DownloadRecord, 'id'>): Promise<DownloadRecord> {
+    const neonDb = await this.getNeonDb();
     return await neonDb.recordDownload({
       user_id: download.userId,
       document_id: download.documentId,
@@ -568,6 +603,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserDownloads(userId: string, pagination?: PaginationOptions): Promise<PaginatedDownloads> {
+    const neonDb = await this.getNeonDb();
     const downloads = await neonDb.getUserDownloads(userId);
     
     if (!pagination) {
@@ -602,8 +638,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDownloadById(id: string): Promise<DownloadRecord | undefined> {
+    const neonDb = await this.getNeonDb();
     const download = await neonDb.getDownloadById(id);
     return download || undefined;
+  }
+
+  async getAllDownloads(): Promise<DownloadRecord[]> {
+    const neonDb = await this.getNeonDb();
+    return await neonDb.getAllDownloads();
   }
 
   async updateDownloadStatus(id: string, status: DownloadStatus, emailSent?: boolean, emailError?: string): Promise<void> {

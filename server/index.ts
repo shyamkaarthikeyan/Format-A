@@ -6,7 +6,18 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 
+// Load environment variables from .env.local first, then .env
+dotenv.config({ path: '.env.local' });
 dotenv.config();
+
+// Debug environment variables
+console.log('Environment check:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('POSTGRES_URL exists:', !!process.env.POSTGRES_URL);
+if (process.env.DATABASE_URL) {
+  console.log('DATABASE_URL starts with:', process.env.DATABASE_URL.substring(0, 20) + '...');
+}
 
 const app = express();
 const port = process.env.PORT || 5000;

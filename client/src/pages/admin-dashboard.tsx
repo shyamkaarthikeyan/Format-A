@@ -103,7 +103,7 @@ const AdminDashboard: React.FC = () => {
       if (!adminToken) {
         console.log('No admin token found, attempting to create one...');
         try {
-          const sessionResponse = await fetch('/api/admin-simple/auth/session', {
+          const sessionResponse = await fetch('/api/admin?path=auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -136,9 +136,9 @@ const AdminDashboard: React.FC = () => {
 
 
 
-      // Use admin-simple API with fallback to direct access
-      const baseUrl = '/api/admin-simple';
-      const fallbackParams = adminToken ? '' : '?adminEmail=shyamkaarthikeyan@gmail.com';
+      // Use consolidated admin API with fallback to direct access
+      const baseUrl = '/api/admin';
+      const fallbackParams = adminToken ? '' : '&adminEmail=shyamkaarthikeyan@gmail.com';
       
       console.log('Making admin API requests with:', {
         hasToken: !!adminToken,
@@ -148,22 +148,22 @@ const AdminDashboard: React.FC = () => {
 
       // Fetch real data from admin API endpoints with authentication
       const [userResponse, documentResponse, downloadResponse, systemResponse] = await Promise.allSettled([
-        fetch(`${baseUrl}/analytics/users${fallbackParams}`, { 
+        fetch(`${baseUrl}?path=analytics&type=users${fallbackParams}`, { 
           method: 'GET',
           headers,
           credentials: 'include'
         }),
-        fetch(`${baseUrl}/analytics/documents${fallbackParams}`, { 
+        fetch(`${baseUrl}?path=analytics&type=documents${fallbackParams}`, { 
           method: 'GET',
           headers,
           credentials: 'include'
         }),
-        fetch(`${baseUrl}/analytics/downloads${fallbackParams}`, { 
+        fetch(`${baseUrl}?path=analytics&type=downloads${fallbackParams}`, { 
           method: 'GET',
           headers,
           credentials: 'include'
         }),
-        fetch(`${baseUrl}/analytics/system${fallbackParams}`, { 
+        fetch(`${baseUrl}?path=analytics&type=system${fallbackParams}`, { 
           method: 'GET',
           headers,
           credentials: 'include'
