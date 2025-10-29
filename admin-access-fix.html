@@ -1,301 +1,228 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel Access Fix</title>
+    <title>Admin Access Fix - Vercel</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .status {
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            font-weight: 500;
-        }
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
-        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-        
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 10px 5px;
-            transition: background 0.2s;
-        }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
-        
-        .admin-button { background: #28a745; }
-        .admin-button:hover { background: #218838; }
-        
-        .danger-button { background: #dc3545; }
-        .danger-button:hover { background: #c82333; }
-        
-        pre {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            overflow-x: auto;
-            font-size: 14px;
-        }
-        
-        .step {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #007bff;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .result { margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .loading { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 5px; font-size: 14px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .step { margin: 20px 0; padding: 15px; border-left: 4px solid #007bff; background: #f8f9fa; }
+        .step h3 { margin-top: 0; color: #007bff; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔧 Admin Panel Access Fix</h1>
-        <p>This tool will help you access the admin panel by setting up the required authentication.</p>
-        
-        <div id="status"></div>
+        <h1>🔧 Admin Access Fix for Vercel</h1>
+        <p>This tool will help you get admin access working on your Vercel deployment.</p>
         
         <div class="step">
-            <h3>Step 1: Check Current Status</h3>
-            <button onclick="checkStatus()">Check Authentication Status</button>
-            <div id="statusResult"></div>
+            <h3>Step 1: Test Database Connection</h3>
+            <p>First, let's make sure your Neon database is connected properly.</p>
+            <button class="btn-primary" onclick="testDatabase()">Test Database Connection</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Create Admin Session</h3>
+            <p>Create an admin session with the correct email (shyamkaarthikeyan@gmail.com).</p>
+            <button class="btn-success" onclick="createAdminSession()">Create Admin Session</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Admin APIs</h3>
+            <p>Test all admin analytics endpoints to make sure they work.</p>
+            <button class="btn-warning" onclick="testAllAdminAPIs()">Test All Admin APIs</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Go to Admin Dashboard</h3>
+            <p>Once everything is working, go to your admin dashboard.</p>
+            <button class="btn-primary" onclick="goToAdmin()">Open Admin Dashboard</button>
         </div>
         
-        <div class="step">
-            <h3>Step 2: Create Admin User</h3>
-            <button onclick="createAdminUser()" class="admin-button">Create Admin User</button>
-            <p><small>Creates a user with email: shyamkaarthikeyan@gmail.com</small></p>
-        </div>
-        
-        <div class="step">
-            <h3>Step 3: Create Admin Session</h3>
-            <button onclick="createAdminSession()" class="admin-button">Create Admin Session</button>
-            <p><small>Creates admin session and token for panel access</small></p>
-        </div>
-        
-        <div class="step">
-            <h3>Step 4: Access Admin Panel</h3>
-            <button onclick="openAdminPanel()" class="admin-button">Open Admin Panel</button>
-            <p><small>Opens the admin panel in a new tab</small></p>
-        </div>
-        
-        <div class="step">
-            <h3>Debug Information</h3>
-            <button onclick="showDebugInfo()">Show Debug Info</button>
-            <button onclick="clearAllData()" class="danger-button">Clear All Data</button>
-            <div id="debugInfo"></div>
-        </div>
+        <div id="results"></div>
     </div>
 
     <script>
-        function showStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        const results = document.getElementById('results');
+        let adminToken = null;
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
         }
 
-        async function checkStatus() {
-            const statusResult = document.getElementById('statusResult');
+        async function testDatabase() {
+            clearResults();
+            addResult('🔍 Testing database connection...', 'loading');
             
             try {
-                // Check localStorage
-                const user = localStorage.getItem('format-a-user');
-                const adminSession = localStorage.getItem('admin-session');
-                const adminToken = localStorage.getItem('admin-token');
+                // Test with a simple admin token first
+                const response = await fetch('/api/admin/analytics/system', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': 'admin_token_vercel_test_123'
+                    }
+                });
                 
-                let html = '<h4>Current Status:</h4>';
-                
-                if (user) {
-                    const userData = JSON.parse(user);
-                    html += `<p>✅ User: ${userData.name || userData.email}</p>`;
-                    html += `<p>📧 Email: ${userData.email}</p>`;
-                    html += `<p>🔑 Is Admin: ${userData.email === 'shyamkaarthikeyan@gmail.com' ? 'Yes' : 'No'}</p>`;
-                } else {
-                    html += '<p>❌ No user found in localStorage</p>';
-                }
-                
-                html += `<p>🎫 Admin Session: ${adminSession ? '✅ Present' : '❌ Missing'}</p>`;
-                html += `<p>🔐 Admin Token: ${adminToken ? '✅ Present' : '❌ Missing'}</p>`;
-                
-                // Test API access
-                try {
-                    const response = await fetch('/api/admin/analytics/users');
+                if (response.ok) {
                     const data = await response.json();
-                    html += `<p>🌐 API Access: ${response.ok ? '✅ Working' : '❌ Failed'}</p>`;
-                    if (response.ok) {
-                        html += `<p>👥 Total Users in DB: ${data.data?.totalUsers || 0}</p>`;
+                    addResult('✅ Database connection successful!', 'success');
+                    addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Database connection failed: ${response.status}`, 'error');
+                    addResult(`<pre>${errorText}</pre>`, 'error');
+                    
+                    if (response.status === 401) {
+                        addResult('🔑 Authentication issue detected. Let\'s create an admin session.', 'info');
                     }
-                } catch (error) {
-                    html += `<p>🌐 API Access: ❌ Error - ${error.message}</p>`;
                 }
-                
-                statusResult.innerHTML = html;
-                
             } catch (error) {
-                statusResult.innerHTML = `<div class="status error">Error checking status: ${error.message}</div>`;
-            }
-        }
-
-        async function createAdminUser() {
-            try {
-                showStatus('Creating admin user...', 'info');
-                
-                // Create admin user data
-                const adminUser = {
-                    id: 'admin-user-' + Date.now(),
-                    googleId: 'google-admin-' + Date.now(),
-                    email: 'shyamkaarthikeyan@gmail.com',
-                    name: 'Shyam Kaarthikeyan',
-                    picture: 'https://via.placeholder.com/150',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    lastLoginAt: new Date().toISOString(),
-                    isActive: true,
-                    preferences: {
-                        emailNotifications: true,
-                        defaultExportFormat: 'pdf',
-                        theme: 'light'
-                    }
-                };
-                
-                // Store in localStorage
-                localStorage.setItem('format-a-user', JSON.stringify(adminUser));
-                
-                showStatus('✅ Admin user created successfully!', 'success');
-                
-            } catch (error) {
-                showStatus(`❌ Error creating admin user: ${error.message}`, 'error');
+                addResult(`❌ Network error: ${error.message}`, 'error');
+                addResult('💡 Make sure you\'re accessing this from your Vercel domain, not localhost.', 'info');
             }
         }
 
         async function createAdminSession() {
-            try {
-                showStatus('Creating admin session...', 'info');
-                
-                const user = localStorage.getItem('format-a-user');
-                if (!user) {
-                    throw new Error('No user found. Please create admin user first.');
-                }
-                
-                const userData = JSON.parse(user);
-                if (userData.email !== 'shyamkaarthikeyan@gmail.com') {
-                    throw new Error('User is not admin. Email must be shyamkaarthikeyan@gmail.com');
-                }
-                
-                // Create admin session
-                const adminSession = {
-                    sessionId: 'admin_session_' + Date.now(),
-                    userId: userData.id,
-                    adminPermissions: [
-                        'view_analytics',
-                        'manage_users',
-                        'system_monitoring',
-                        'download_reports',
-                        'admin_panel_access'
-                    ],
-                    createdAt: new Date().toISOString(),
-                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                    lastAccessedAt: new Date().toISOString()
-                };
-                
-                const adminToken = 'admin_token_' + Date.now();
-                
-                // Store admin session and token
-                localStorage.setItem('admin-session', JSON.stringify(adminSession));
-                localStorage.setItem('admin-token', adminToken);
-                
-                showStatus('✅ Admin session created successfully!', 'success');
-                
-            } catch (error) {
-                showStatus(`❌ Error creating admin session: ${error.message}`, 'error');
-            }
-        }
-
-        function openAdminPanel() {
-            try {
-                // Check if admin session exists
-                const adminSession = localStorage.getItem('admin-session');
-                const adminToken = localStorage.getItem('admin-token');
-                
-                if (!adminSession || !adminToken) {
-                    showStatus('❌ Admin session not found. Please create admin session first.', 'error');
-                    return;
-                }
-                
-                // Open admin panel
-                const adminUrl = window.location.origin + '/admin';
-                window.open(adminUrl, '_blank');
-                
-                showStatus('✅ Admin panel opened in new tab!', 'success');
-                
-            } catch (error) {
-                showStatus(`❌ Error opening admin panel: ${error.message}`, 'error');
-            }
-        }
-
-        function showDebugInfo() {
-            const debugDiv = document.getElementById('debugInfo');
+            addResult('🔑 Creating admin session...', 'loading');
             
             try {
-                const user = localStorage.getItem('format-a-user');
-                const adminSession = localStorage.getItem('admin-session');
-                const adminToken = localStorage.getItem('admin-token');
+                const response = await fetch('/api/admin/auth/session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'shyamkaarthikeyan@gmail.com',
+                        userId: 'admin_user_vercel'
+                    })
+                });
                 
-                let html = '<h4>Debug Information:</h4>';
-                html += '<h5>LocalStorage Contents:</h5>';
-                html += `<pre>User Data: ${user || 'null'}</pre>`;
-                html += `<pre>Admin Session: ${adminSession || 'null'}</pre>`;
-                html += `<pre>Admin Token: ${adminToken || 'null'}</pre>`;
-                
-                html += '<h5>Current URL:</h5>';
-                html += `<pre>${window.location.href}</pre>`;
-                
-                html += '<h5>Admin Panel URL:</h5>';
-                html += `<pre>${window.location.origin}/admin</pre>`;
-                
-                debugDiv.innerHTML = html;
-                
+                if (response.ok) {
+                    const data = await response.json();
+                    adminToken = data.adminToken;
+                    
+                    // Store in localStorage
+                    localStorage.setItem('admin-token', adminToken);
+                    localStorage.setItem('admin-session', JSON.stringify(data.adminSession));
+                    
+                    addResult('✅ Admin session created successfully!', 'success');
+                    addResult(`🔑 Admin token: ${adminToken}`, 'success');
+                    addResult('💾 Token saved to localStorage', 'success');
+                    addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Failed to create admin session: ${response.status}`, 'error');
+                    addResult(`<pre>${errorText}</pre>`, 'error');
+                }
             } catch (error) {
-                debugDiv.innerHTML = `<div class="status error">Error getting debug info: ${error.message}</div>`;
+                addResult(`❌ Network error: ${error.message}`, 'error');
             }
         }
 
-        function clearAllData() {
-            if (confirm('Are you sure you want to clear all authentication data?')) {
-                localStorage.removeItem('format-a-user');
-                localStorage.removeItem('admin-session');
-                localStorage.removeItem('admin-token');
-                localStorage.removeItem('auth-session');
-                
-                showStatus('✅ All authentication data cleared!', 'success');
-                
-                // Clear debug info
-                document.getElementById('debugInfo').innerHTML = '';
-                document.getElementById('statusResult').innerHTML = '';
+        async function testAllAdminAPIs() {
+            if (!adminToken) {
+                adminToken = localStorage.getItem('admin-token');
+                if (!adminToken) {
+                    addResult('❌ No admin token found. Please create an admin session first.', 'error');
+                    return;
+                }
             }
+
+            addResult('🧪 Testing all admin APIs...', 'loading');
+            
+            const endpoints = [
+                { name: 'Users Analytics', url: '/api/admin/analytics/users' },
+                { name: 'Documents Analytics', url: '/api/admin/analytics/documents' },
+                { name: 'Downloads Analytics', url: '/api/admin/analytics/downloads' },
+                { name: 'System Analytics', url: '/api/admin/analytics/system' }
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    addResult(`Testing ${endpoint.name}...`, 'loading');
+                    
+                    const response = await fetch(endpoint.url, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Admin-Token': adminToken
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        addResult(`✅ ${endpoint.name}: Working!`, 'success');
+                        
+                        // Show key metrics
+                        if (endpoint.name === 'Users Analytics' && data.data) {
+                            addResult(`👥 Total Users: ${data.data.totalUsers || 0}`, 'info');
+                        }
+                        if (endpoint.name === 'Documents Analytics' && data.data) {
+                            addResult(`📄 Total Documents: ${data.data.totalDocuments || 0}`, 'info');
+                        }
+                        if (endpoint.name === 'Downloads Analytics' && data.data) {
+                            addResult(`⬇️ Total Downloads: ${data.data.totalDownloads || 0}`, 'info');
+                        }
+                        if (endpoint.name === 'System Analytics' && data.data) {
+                            addResult(`⚡ System Status: ${data.data.systemStatus || 'unknown'}`, 'info');
+                        }
+                    } else {
+                        const errorText = await response.text();
+                        addResult(`❌ ${endpoint.name}: Failed (${response.status})`, 'error');
+                        addResult(`<pre>${errorText}</pre>`, 'error');
+                    }
+                } catch (error) {
+                    addResult(`❌ ${endpoint.name}: Network error - ${error.message}`, 'error');
+                }
+                
+                // Small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            addResult('🎉 API testing complete! If all tests passed, your admin dashboard should work.', 'success');
         }
 
-        // Auto-check status on page load
-        window.addEventListener('load', () => {
-            checkStatus();
-        });
+        function goToAdmin() {
+            if (!adminToken) {
+                adminToken = localStorage.getItem('admin-token');
+                if (!adminToken) {
+                    addResult('❌ No admin token found. Please create an admin session first.', 'error');
+                    return;
+                }
+            }
+            
+            addResult('🚀 Opening admin dashboard...', 'success');
+            window.open('/admin', '_blank');
+        }
+
+        // Auto-load admin token if it exists
+        window.onload = function() {
+            const existingToken = localStorage.getItem('admin-token');
+            if (existingToken) {
+                adminToken = existingToken;
+                addResult(`🔑 Found existing admin token: ${existingToken.substring(0, 20)}...`, 'info');
+            }
+        };
     </script>
 </body>
 </html>

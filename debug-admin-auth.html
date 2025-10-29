@@ -1,319 +1,194 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debug Admin Authentication</title>
+    <title>Debug Admin Auth - Vercel</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .button {
-            background: #7c3aed;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin: 10px 5px;
-            font-size: 14px;
-        }
-        .button:hover {
-            background: #6d28d9;
-        }
-        .button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-        .status {
-            padding: 15px;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
-        .success {
-            background: #d1fae5;
-            border: 1px solid #10b981;
-            color: #065f46;
-        }
-        .error {
-            background: #fee2e2;
-            border: 1px solid #ef4444;
-            color: #991b1b;
-        }
-        .info {
-            background: #dbeafe;
-            border: 1px solid #3b82f6;
-            color: #1e40af;
-        }
-        .log {
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        .section {
-            margin: 30px 0;
-            padding: 20px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-        }
-        .token-display {
-            background: #f9fafb;
-            padding: 10px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
-            margin: 10px 0;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .result { margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .loading { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 5px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔧 Admin Authentication Debugger</h1>
-        <p>This tool helps debug admin authentication issues on Vercel.</p>
-
-        <div class="section">
-            <h2>1. Current Authentication Status</h2>
-            <div id="auth-status"></div>
-            <button class="button" onclick="checkAuthStatus()">Check Status</button>
-            <button class="button" onclick="clearAuth()">Clear All Auth Data</button>
-        </div>
-
-        <div class="section">
-            <h2>2. Create Admin Session</h2>
-            <p>Create a new admin session for testing:</p>
-            <input type="email" id="admin-email" placeholder="Enter admin email" value="shyamkaarthikeyan@gmail.com" style="padding: 8px; margin: 10px 0; width: 300px;">
-            <br>
-            <button class="button" onclick="createAdminSession()">Create Admin Session</button>
-            <button class="button" onclick="createLocalSession()">Create Local Session (Fallback)</button>
-        </div>
-
-        <div class="section">
-            <h2>3. Test Admin API Endpoints</h2>
-            <p>Test individual admin API endpoints:</p>
-            <button class="button" onclick="testEndpoint('users')">Test Users API</button>
-            <button class="button" onclick="testEndpoint('documents')">Test Documents API</button>
-            <button class="button" onclick="testEndpoint('downloads')">Test Downloads API</button>
-            <button class="button" onclick="testEndpoint('system')">Test System API</button>
-        </div>
-
-        <div class="section">
-            <h2>4. Debug Information</h2>
-            <div id="debug-info"></div>
-            <button class="button" onclick="showDebugInfo()">Show Debug Info</button>
-        </div>
-
-        <div class="section">
-            <h2>5. Activity Log</h2>
-            <div id="log" class="log"></div>
-            <button class="button" onclick="clearLog()">Clear Log</button>
-        </div>
+        <h1>🔧 Debug Admin Auth Issues</h1>
+        
+        <button class="btn-primary" onclick="testBasicAPI()">1. Test Basic API</button>
+        <button class="btn-success" onclick="createAdminToken()">2. Create Admin Token</button>
+        <button class="btn-primary" onclick="testAdminEndpoints()">3. Test Admin Endpoints</button>
+        
+        <div id="results"></div>
     </div>
 
     <script>
-        let logContent = '';
-
-        function log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
-            logContent += logEntry;
-            document.getElementById('log').textContent = logContent;
-            console.log(logEntry);
+        const results = document.getElementById('results');
+        let adminToken = localStorage.getItem('admin-token') || null;
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
         }
 
-        function clearLog() {
-            logContent = '';
-            document.getElementById('log').textContent = '';
-        }
-
-        function checkAuthStatus() {
-            log('Checking authentication status...');
-            
-            const adminToken = localStorage.getItem('admin-token');
-            const adminSession = localStorage.getItem('admin-session');
-            
-            let status = '<div class="info">';
-            status += '<h3>Authentication Status:</h3>';
-            status += `<p><strong>Admin Token:</strong> ${adminToken ? '✅ Present' : '❌ Missing'}</p>`;
-            status += `<p><strong>Admin Session:</strong> ${adminSession ? '✅ Present' : '❌ Missing'}</p>`;
-            
-            if (adminToken) {
-                status += `<div class="token-display"><strong>Token:</strong> ${adminToken}</div>`;
-            }
-            
-            if (adminSession) {
-                try {
-                    const session = JSON.parse(adminSession);
-                    status += `<div class="token-display"><strong>Session:</strong> ${JSON.stringify(session, null, 2)}</div>`;
-                } catch (e) {
-                    status += `<p class="error">Session data is corrupted: ${e.message}</p>`;
-                }
-            }
-            
-            status += '</div>';
-            document.getElementById('auth-status').innerHTML = status;
-            
-            log(`Auth check complete. Token: ${!!adminToken}, Session: ${!!adminSession}`);
-        }
-
-        function clearAuth() {
-            log('Clearing all authentication data...');
-            localStorage.removeItem('admin-token');
-            localStorage.removeItem('admin-session');
-            document.getElementById('auth-status').innerHTML = '<div class="success">All authentication data cleared.</div>';
-            log('Authentication data cleared');
-        }
-
-        async function createAdminSession() {
-            const email = document.getElementById('admin-email').value;
-            if (!email) {
-                log('Please enter an admin email', 'error');
-                return;
-            }
-
-            log(`Creating admin session for ${email}...`);
+        async function testBasicAPI() {
+            clearResults();
+            addResult('🔍 Testing basic API connectivity...', 'loading');
             
             try {
-                const response = await fetch('/api/admin/auth/session', {
+                // Test the health endpoint first
+                const healthResponse = await fetch('/api/health');
+                if (healthResponse.ok) {
+                    const healthData = await healthResponse.json();
+                    addResult('✅ Health endpoint working', 'success');
+                    addResult(`<pre>${JSON.stringify(healthData, null, 2)}</pre>`, 'info');
+                } else {
+                    addResult('❌ Health endpoint failed', 'error');
+                }
+
+                // Test the index endpoint
+                const indexResponse = await fetch('/api/index');
+                if (indexResponse.ok) {
+                    const indexData = await indexResponse.json();
+                    addResult('✅ Index endpoint working', 'success');
+                    addResult(`<pre>${JSON.stringify(indexData, null, 2)}</pre>`, 'info');
+                } else {
+                    addResult('❌ Index endpoint failed', 'error');
+                }
+
+                // Test admin-simple endpoint without auth
+                const adminResponse = await fetch('/api/admin-simple');
+                addResult(`Admin-simple response: ${adminResponse.status}`, adminResponse.ok ? 'success' : 'error');
+                const adminText = await adminResponse.text();
+                addResult(`<pre>${adminText}</pre>`, 'info');
+
+            } catch (error) {
+                addResult(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAdminToken() {
+            addResult('🔑 Creating admin session...', 'loading');
+            
+            try {
+                const response = await fetch('/api/admin-simple/auth/session', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        userId: 'admin_user',
-                        email: email
+                        email: 'shyamkaarthikeyan@gmail.com',
+                        userId: 'admin_user_debug'
                     })
                 });
-
-                log(`Session API response: ${response.status} ${response.statusText}`);
-
+                
+                addResult(`Session creation response: ${response.status}`, response.ok ? 'success' : 'error');
+                const responseText = await response.text();
+                addResult(`<pre>${responseText}</pre>`, 'info');
+                
                 if (response.ok) {
-                    const data = await response.json();
-                    localStorage.setItem('admin-session', JSON.stringify(data.adminSession));
-                    localStorage.setItem('admin-token', data.adminToken);
+                    try {
+                        const data = JSON.parse(responseText);
+                        if (data.adminToken) {
+                            adminToken = data.adminToken;
+                            localStorage.setItem('admin-token', adminToken);
+                            addResult('✅ Admin token saved!', 'success');
+                        }
+                    } catch (e) {
+                        addResult('❌ Failed to parse response JSON', 'error');
+                    }
+                }
+            } catch (error) {
+                addResult(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAdminEndpoints() {
+            addResult('🧪 Testing admin endpoints...', 'loading');
+            
+            const endpoints = [
+                '/api/admin-simple',
+                '/api/admin-simple/analytics/system',
+                '/api/admin-simple/analytics/users',
+                '/api/admin-simple/analytics/documents',
+                '/api/admin-simple/analytics/downloads',
+                '/api/admin-simple/users'
+            ];
+
+            for (let endpoint of endpoints) {
+                try {
+                    addResult(`Testing ${endpoint}...`, 'loading');
                     
-                    document.getElementById('auth-status').innerHTML = '<div class="success">✅ Admin session created successfully via API!</div>';
-                    log('Admin session created successfully via API');
-                    checkAuthStatus();
-                } else {
-                    const errorText = await response.text();
-                    log(`Session creation failed: ${response.status} - ${errorText}`, 'error');
-                    document.getElementById('auth-status').innerHTML = `<div class="error">❌ Failed to create session: ${response.status} - ${errorText}</div>`;
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    let testUrl = endpoint;
+                    
+                    // Add admin token if available, otherwise use email fallback
+                    if (adminToken) {
+                        headers['X-Admin-Token'] = adminToken;
+                    } else {
+                        // Use direct admin email access for testing
+                        const separator = endpoint.includes('?') ? '&' : '?';
+                        testUrl = `${endpoint}${separator}adminEmail=shyamkaarthikeyan@gmail.com`;
+                    }
+                    
+                    const response = await fetch(testUrl, {
+                        method: 'GET',
+                        headers
+                    });
+                    
+                    const responseText = await response.text();
+                    addResult(`${endpoint}: ${response.status}`, response.ok ? 'success' : 'error');
+                    
+                    if (response.ok) {
+                        try {
+                            const data = JSON.parse(responseText);
+                            // Show condensed version for large responses
+                            if (JSON.stringify(data).length > 2000) {
+                                addResult(`<pre>${JSON.stringify({
+                                    success: data.success,
+                                    message: data.message,
+                                    dataKeys: Object.keys(data.data || {}),
+                                    timestamp: data.timestamp
+                                }, null, 2)}</pre>`, 'success');
+                            } else {
+                                addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                            }
+                        } catch (e) {
+                            addResult(`<pre>${responseText}</pre>`, 'info');
+                        }
+                    } else {
+                        addResult(`<pre>${responseText}</pre>`, 'error');
+                    }
+                } catch (error) {
+                    addResult(`❌ ${endpoint}: ${error.message}`, 'error');
                 }
-            } catch (error) {
-                log(`Session creation error: ${error.message}`, 'error');
-                document.getElementById('auth-status').innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+                
+                // Small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
+            
+            addResult('✅ Admin endpoint testing complete!', 'success');
         }
 
-        function createLocalSession() {
-            log('Creating local admin session...');
-            
-            const localAdminSession = {
-                sessionId: 'local_admin_' + Date.now(),
-                userId: 'admin_user',
-                adminPermissions: [
-                    'view_analytics',
-                    'manage_users',
-                    'system_monitoring',
-                    'download_reports',
-                    'admin_panel_access'
-                ],
-                createdAt: new Date().toISOString(),
-                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                lastAccessedAt: new Date().toISOString()
-            };
-            
-            const adminToken = 'admin_token_' + Date.now();
-            
-            localStorage.setItem('admin-session', JSON.stringify(localAdminSession));
-            localStorage.setItem('admin-token', adminToken);
-            
-            document.getElementById('auth-status').innerHTML = '<div class="success">✅ Local admin session created successfully!</div>';
-            log('Local admin session created successfully');
-            checkAuthStatus();
+        // Show existing token if available
+        if (adminToken) {
+            addResult(`🔑 Found existing admin token: ${adminToken.substring(0, 20)}...`, 'info');
         }
-
-        async function testEndpoint(endpoint) {
-            const adminToken = localStorage.getItem('admin-token');
-            if (!adminToken) {
-                log(`Cannot test ${endpoint} - no admin token`, 'error');
-                return;
-            }
-
-            log(`Testing ${endpoint} endpoint...`);
-            
-            try {
-                const response = await fetch(`/api/admin/analytics/${endpoint}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Admin-Token': adminToken
-                    },
-                    credentials: 'include'
-                });
-
-                log(`${endpoint} API response: ${response.status} ${response.statusText}`);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    log(`${endpoint} API success: ${JSON.stringify(data).substring(0, 200)}...`);
-                    document.getElementById('debug-info').innerHTML = `<div class="success">✅ ${endpoint} API working correctly!</div>`;
-                } else {
-                    const errorText = await response.text();
-                    log(`${endpoint} API failed: ${response.status} - ${errorText}`, 'error');
-                    document.getElementById('debug-info').innerHTML = `<div class="error">❌ ${endpoint} API failed: ${response.status} - ${errorText}</div>`;
-                }
-            } catch (error) {
-                log(`${endpoint} API error: ${error.message}`, 'error');
-                document.getElementById('debug-info').innerHTML = `<div class="error">❌ ${endpoint} API network error: ${error.message}</div>`;
-            }
-        }
-
-        function showDebugInfo() {
-            log('Gathering debug information...');
-            
-            const debugInfo = {
-                userAgent: navigator.userAgent,
-                currentUrl: window.location.href,
-                localStorage: {
-                    adminToken: localStorage.getItem('admin-token'),
-                    adminSession: localStorage.getItem('admin-session')
-                },
-                cookies: document.cookie,
-                timestamp: new Date().toISOString()
-            };
-            
-            let html = '<div class="info">';
-            html += '<h3>Debug Information:</h3>';
-            html += `<div class="token-display">${JSON.stringify(debugInfo, null, 2)}</div>`;
-            html += '</div>';
-            
-            document.getElementById('debug-info').innerHTML = html;
-            log('Debug information displayed');
-        }
-
-        // Initialize
-        window.onload = function() {
-            log('Admin Authentication Debugger loaded');
-            checkAuthStatus();
-        };
     </script>
 </body>
 </html>

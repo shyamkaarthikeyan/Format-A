@@ -54,6 +54,7 @@
     "@types/multer": "^1.4.12",
     "@types/nodemailer": "^6.4.17",
     "@vercel/node": "^5.2.2",
+    "@vercel/postgres": "^0.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
