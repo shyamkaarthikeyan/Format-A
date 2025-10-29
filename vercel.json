@@ -7,11 +7,11 @@
   "rewrites": [
     {
       "source": "/api/admin/analytics/(.*)",
-      "destination": "/api/admin?path=analytics/$1"
+      "destination": "/api/admin-simple?path=analytics/$1"
     },
     {
       "source": "/api/admin/(.*)",
-      "destination": "/api/admin?path=$1"
+      "destination": "/api/admin-simple?path=$1"
     },
     {
       "source": "/api/auth/(.*)",
