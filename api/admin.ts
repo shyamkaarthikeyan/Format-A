@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { simpleAdminStorage } from './_lib/simple-admin-storage';
+import { postgresStorage } from './_lib/postgres-storage';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -61,31 +61,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     console.log('Admin API processing endpoint:', endpoint);
 
+    // Initialize database on first request
+    await postgresStorage.initialize();
+
     // Route to different admin functions based on path
     switch (endpoint) {
       case 'analytics/users':
-        return await handleUserAnalytics(req, res, simpleAdminStorage);
+        return await handleUserAnalytics(req, res, postgresStorage);
       
       case 'analytics/documents':
-        return await handleDocumentAnalytics(req, res, simpleAdminStorage);
+        return await handleDocumentAnalytics(req, res, postgresStorage);
       
       case 'analytics/downloads':
-        return await handleDownloadAnalytics(req, res, simpleAdminStorage);
+        return await handleDownloadAnalytics(req, res, postgresStorage);
       
       case 'analytics/system':
-        return await handleSystemAnalytics(req, res, simpleAdminStorage);
+        return await handleSystemAnalytics(req, res, postgresStorage);
       
       case 'users':
-        return await handleUsers(req, res, simpleAdminStorage);
+        return await handleUsers(req, res, postgresStorage);
       
       case 'auth/session':
-        return await handleAdminSession(req, res, simpleAdminStorage);
+        return await handleAdminSession(req, res, postgresStorage);
       
       case 'auth/verify':
-        return await handleAdminVerify(req, res, simpleAdminStorage);
+        return await handleAdminVerify(req, res, postgresStorage);
       
       case 'auth/signout':
-        return await handleAdminSignout(req, res, simpleAdminStorage);
+        return await handleAdminSignout(req, res, postgresStorage);
       
       default:
         console.log('Unknown admin endpoint:', endpoint);
