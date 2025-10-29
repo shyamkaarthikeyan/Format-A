@@ -31,8 +31,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Check environment variables first
+    if (!process.env.VITE_GOOGLE_CLIENT_ID) {
+      console.error('❌ Missing VITE_GOOGLE_CLIENT_ID environment variable');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error: Missing Google Client ID'
+      });
+    }
+
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ Missing DATABASE_URL environment variable');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error: Missing database URL'
+      });
+    }
+
     // Initialize database on first request
+    console.log('🔧 Initializing database...');
     await neonDb.initialize();
+    console.log('✅ Database initialized successfully');
 
     const { credential, googleId, email, name, picture } = req.body || {};
 
