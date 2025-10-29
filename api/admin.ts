@@ -158,22 +158,27 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: 
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
     const totalUsers = users.length;
-    const activeUsers24h = users.filter((user: any) => 
-      user.lastLoginAt && new Date(user.lastLoginAt) > twentyFourHoursAgo
-    ).length;
-    const activeUsers7d = users.filter((user: any) => 
-      user.lastLoginAt && new Date(user.lastLoginAt) > sevenDaysAgo
-    ).length;
-    const activeUsers30d = users.filter((user: any) => 
-      user.lastLoginAt && new Date(user.lastLoginAt) > thirtyDaysAgo
-    ).length;
+    const activeUsers24h = users.filter((user: any) => {
+      const lastLogin = user.last_login_at || user.lastLoginAt;
+      return lastLogin && new Date(lastLogin) > twentyFourHoursAgo;
+    }).length;
+    const activeUsers7d = users.filter((user: any) => {
+      const lastLogin = user.last_login_at || user.lastLoginAt;
+      return lastLogin && new Date(lastLogin) > sevenDaysAgo;
+    }).length;
+    const activeUsers30d = users.filter((user: any) => {
+      const lastLogin = user.last_login_at || user.lastLoginAt;
+      return lastLogin && new Date(lastLogin) > thirtyDaysAgo;
+    }).length;
     
-    const newUsersThisMonth = users.filter((user: any) => 
-      user.createdAt && new Date(user.createdAt) >= thisMonth
-    ).length;
-    const newUsersLastMonth = users.filter((user: any) => 
-      user.createdAt && new Date(user.createdAt) >= lastMonth && new Date(user.createdAt) < thisMonth
-    ).length;
+    const newUsersThisMonth = users.filter((user: any) => {
+      const createdAt = user.created_at || user.createdAt;
+      return createdAt && new Date(createdAt) >= thisMonth;
+    }).length;
+    const newUsersLastMonth = users.filter((user: any) => {
+      const createdAt = user.created_at || user.createdAt;
+      return createdAt && new Date(createdAt) >= lastMonth && new Date(createdAt) < thisMonth;
+    }).length;
     
     const growthRate = newUsersLastMonth > 0 
       ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100 
@@ -182,16 +187,18 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: 
     // Get user document counts
     const userDocCounts = new Map();
     documents.forEach((doc: any) => {
-      const count = userDocCounts.get(doc.userId) || 0;
-      userDocCounts.set(doc.userId, count + 1);
+      const userId = doc.user_id || doc.userId; // Handle both naming conventions
+      const count = userDocCounts.get(userId) || 0;
+      userDocCounts.set(userId, count + 1);
     });
 
     // Get user download counts
     const allDownloads = await db.getAllDownloads();
     const userDownloadCounts = new Map();
     allDownloads.forEach((download: any) => {
-      const count = userDownloadCounts.get(download.userId) || 0;
-      userDownloadCounts.set(download.userId, count + 1);
+      const userId = download.user_id || download.userId; // Handle both naming conventions
+      const count = userDownloadCounts.get(userId) || 0;
+      userDownloadCounts.set(userId, count + 1);
     });
 
     // Create top users list
@@ -202,7 +209,7 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: 
         email: user.email,
         documentsCreated: userDocCounts.get(user.id) || 0,
         downloadsCount: userDownloadCounts.get(user.id) || 0,
-        lastActive: user.lastLoginAt || user.createdAt
+        lastActive: user.last_login_at || user.lastLoginAt || user.created_at || user.createdAt
       }))
       .sort((a: any, b: any) => (b.documentsCreated + b.downloadsCount) - (a.documentsCreated + a.downloadsCount))
       .slice(0, 10);
@@ -212,18 +219,31 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: 
     for (let i = 29; i >= 0; i--) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
       const dateStr = date.toISOString().split('T')[0];
-      const count = users.filter((user: any) => 
-        user.createdAt && user.createdAt.startsWith(dateStr)
-      ).length;
+      const count = users.filter((user: any) => {
+        const createdAt = user.created_at || user.createdAt;
+        return createdAt && createdAt.startsWith(dateStr);
+      }).length;
       dailyRegistrations.push({ date: dateStr, count });
     }
 
     // User distribution by registration period
     const registrationDistribution = [
-      { period: 'Last 7 days', count: users.filter((u: any) => new Date(u.createdAt) > sevenDaysAgo).length },
-      { period: 'Last 30 days', count: users.filter((u: any) => new Date(u.createdAt) > thirtyDaysAgo).length },
-      { period: 'Last 3 months', count: users.filter((u: any) => new Date(u.createdAt) > new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))).length },
-      { period: 'Older', count: users.filter((u: any) => new Date(u.createdAt) <= new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))).length }
+      { period: 'Last 7 days', count: users.filter((u: any) => {
+        const createdAt = u.created_at || u.createdAt;
+        return createdAt && new Date(createdAt) > sevenDaysAgo;
+      }).length },
+      { period: 'Last 30 days', count: users.filter((u: any) => {
+        const createdAt = u.created_at || u.createdAt;
+        return createdAt && new Date(createdAt) > thirtyDaysAgo;
+      }).length },
+      { period: 'Last 3 months', count: users.filter((u: any) => {
+        const createdAt = u.created_at || u.createdAt;
+        return createdAt && new Date(createdAt) > new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      }).length },
+      { period: 'Older', count: users.filter((u: any) => {
+        const createdAt = u.created_at || u.createdAt;
+        return createdAt && new Date(createdAt) <= new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      }).length }
     ];
 
     // Activity distribution
@@ -290,15 +310,18 @@ async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, 
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
     
     const totalDocuments = documents.length;
-    const documentsThisMonth = documents.filter((doc: any) => 
-      doc.createdAt && new Date(doc.createdAt) >= thisMonthStart
-    ).length;
-    const documentsLastMonth = documents.filter((doc: any) => 
-      doc.createdAt && new Date(doc.createdAt) >= lastMonthStart && new Date(doc.createdAt) < thisMonthStart
-    ).length;
-    const documentsThisWeek = documents.filter((doc: any) => 
-      doc.createdAt && new Date(doc.createdAt) >= sevenDaysAgo
-    ).length;
+    const documentsThisMonth = documents.filter((doc: any) => {
+      const createdAt = doc.created_at || doc.createdAt;
+      return createdAt && new Date(createdAt) >= thisMonthStart;
+    }).length;
+    const documentsLastMonth = documents.filter((doc: any) => {
+      const createdAt = doc.created_at || doc.createdAt;
+      return createdAt && new Date(createdAt) >= lastMonthStart && new Date(createdAt) < thisMonthStart;
+    }).length;
+    const documentsThisWeek = documents.filter((doc: any) => {
+      const createdAt = doc.created_at || doc.createdAt;
+      return createdAt && new Date(createdAt) >= sevenDaysAgo;
+    }).length;
 
     // Calculate growth rate
     const growthRate = documentsLastMonth > 0 
@@ -352,17 +375,19 @@ async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, 
     for (let i = 29; i >= 0; i--) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
       const dateStr = date.toISOString().split('T')[0];
-      const count = documents.filter((doc: any) => 
-        doc.createdAt && doc.createdAt.startsWith(dateStr)
-      ).length;
+      const count = documents.filter((doc: any) => {
+        const createdAt = doc.created_at || doc.createdAt;
+        return createdAt && createdAt.startsWith(dateStr);
+      }).length;
       dailyCreation.push({ date: dateStr, count });
     }
 
     // Document distribution by user
     const userDocCounts = new Map();
     documents.forEach((doc: any) => {
-      const count = userDocCounts.get(doc.userId) || 0;
-      userDocCounts.set(doc.userId, count + 1);
+      const userId = doc.user_id || doc.userId;
+      const count = userDocCounts.get(userId) || 0;
+      userDocCounts.set(userId, count + 1);
     });
 
     const documentsByUser = Array.from(userDocCounts.entries())
@@ -468,16 +493,19 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     
     const totalDownloads = allDownloads.length;
-    const downloadsThisMonth = allDownloads.filter((download: any) => 
-      new Date(download.downloadedAt) >= thisMonthStart
-    ).length;
+    const downloadsThisMonth = allDownloads.filter((download: any) => {
+      const downloadedAt = download.downloaded_at || download.downloadedAt;
+      return downloadedAt && new Date(downloadedAt) >= thisMonthStart;
+    }).length;
     
-    const pdfDownloads = allDownloads.filter((download: any) => 
-      download.fileFormat === 'pdf'
-    ).length;
-    const docxDownloads = allDownloads.filter((download: any) => 
-      download.fileFormat === 'docx'
-    ).length;
+    const pdfDownloads = allDownloads.filter((download: any) => {
+      const fileFormat = download.file_format || download.fileFormat;
+      return fileFormat === 'pdf';
+    }).length;
+    const docxDownloads = allDownloads.filter((download: any) => {
+      const fileFormat = download.file_format || download.fileFormat;
+      return fileFormat === 'docx';
+    }).length;
 
     // Calculate format distribution
     const downloadsByFormat = [
@@ -498,17 +526,21 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
     for (let i = 29; i >= 0; i--) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
       const dateStr = date.toISOString().split('T')[0];
-      const count = allDownloads.filter((download: any) => 
-        download.downloadedAt && download.downloadedAt.startsWith(dateStr)
-      ).length;
+      const count = allDownloads.filter((download: any) => {
+        const downloadedAt = download.downloaded_at || download.downloadedAt;
+        return downloadedAt && downloadedAt.startsWith(dateStr);
+      }).length;
       dailyTrends.push({ date: dateStr, count });
     }
 
     // Calculate peak hours (0-23)
     const hourCounts = new Array(24).fill(0);
     allDownloads.forEach((download: any) => {
-      const hour = new Date(download.downloadedAt).getHours();
-      hourCounts[hour]++;
+      const downloadedAt = download.downloaded_at || download.downloadedAt;
+      if (downloadedAt) {
+        const hour = new Date(downloadedAt).getHours();
+        hourCounts[hour]++;
+      }
     });
     const peakHours = hourCounts
       .map((count, hour) => ({ hour, count }))
@@ -519,8 +551,11 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayCounts = new Array(7).fill(0);
     allDownloads.forEach((download: any) => {
-      const day = new Date(download.downloadedAt).getDay();
-      dayCounts[day]++;
+      const downloadedAt = download.downloaded_at || download.downloadedAt;
+      if (downloadedAt) {
+        const day = new Date(downloadedAt).getDay();
+        dayCounts[day]++;
+      }
     });
     const peakDays = dayCounts
       .map((count, index) => ({ day: dayNames[index], count }))
@@ -529,8 +564,9 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
     // Calculate user behavior metrics
     const userDownloadCounts = new Map();
     allDownloads.forEach((download: any) => {
-      const count = userDownloadCounts.get(download.userId) || 0;
-      userDownloadCounts.set(download.userId, count + 1);
+      const userId = download.user_id || download.userId;
+      const count = userDownloadCounts.get(userId) || 0;
+      userDownloadCounts.set(userId, count + 1);
     });
 
     const totalUniqueUsers = userDownloadCounts.size;
