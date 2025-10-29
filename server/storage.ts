@@ -414,7 +414,268 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database adapter that implements IStorage interface
+import { neonDb } from '../api/_lib/neon-database.js';
+
+export class DatabaseStorage implements IStorage {
+  // Document operations
+  async getDocument(id: string): Promise<ServerDocument | undefined> {
+    const doc = await neonDb.getDocumentById(id);
+    if (!doc) return undefined;
+    
+    return {
+      ...doc,
+      createdAt: doc.created_at,
+      updatedAt: doc.updated_at,
+      receivedDate: null,
+      revisedDate: null,
+      acceptedDate: null,
+      funding: null,
+      acknowledgments: null,
+      doi: null
+    } as ServerDocument;
+  }
+
+  async getAllDocuments(): Promise<ServerDocument[]> {
+    const docs = await neonDb.getAllDocuments();
+    return docs.map(doc => ({
+      ...doc,
+      createdAt: doc.created_at,
+      updatedAt: doc.updated_at,
+      receivedDate: null,
+      revisedDate: null,
+      acceptedDate: null,
+      funding: null,
+      acknowledgments: null,
+      doi: null
+    })) as ServerDocument[];
+  }
+
+  async createDocument(document: InsertDocument): Promise<ServerDocument> {
+    const id = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    
+    // Calculate metadata
+    const wordCount = this.estimateWordCount(document);
+    const sectionCount = document.sections?.length || 0;
+    const referenceCount = document.references?.length || 0;
+    const figureCount = document.figures?.length || 0;
+    
+    const doc = await neonDb.createDocument({
+      id,
+      user_id: 'system', // Default user for documents created through storage interface
+      title: document.title || 'Untitled Document',
+      content: document,
+      document_type: 'ieee_paper',
+      word_count: wordCount,
+      page_count: Math.ceil(sectionCount / 2) || 1,
+      section_count: sectionCount,
+      figure_count: figureCount,
+      reference_count: referenceCount
+    });
+
+    return {
+      ...doc,
+      createdAt: doc.created_at,
+      updatedAt: doc.updated_at,
+      receivedDate: null,
+      revisedDate: null,
+      acceptedDate: null,
+      funding: null,
+      acknowledgments: null,
+      doi: null
+    } as ServerDocument;
+  }
+
+  async updateDocument(id: string, document: UpdateDocument): Promise<ServerDocument | undefined> {
+    const updated = await neonDb.updateDocument(id, {
+      title: document.title,
+      content: document,
+      word_count: document.sections ? this.estimateWordCount(document) : undefined,
+      section_count: document.sections?.length,
+      reference_count: document.references?.length,
+      figure_count: document.figures?.length
+    });
+
+    if (!updated) return undefined;
+
+    return {
+      ...updated,
+      createdAt: updated.created_at,
+      updatedAt: updated.updated_at,
+      receivedDate: null,
+      revisedDate: null,
+      acceptedDate: null,
+      funding: null,
+      acknowledgments: null,
+      doi: null
+    } as ServerDocument;
+  }
+
+  async deleteDocument(id: string): Promise<boolean> {
+    return await neonDb.deleteDocument(id);
+  }
+
+  // User operations
+  async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+    return await neonDb.createOrUpdateUser({
+      google_id: userData.googleId,
+      email: userData.email,
+      name: userData.name,
+      picture: userData.picture
+    });
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const user = await neonDb.getUserById(id);
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const user = await neonDb.getUserByEmail(email);
+    return user || undefined;
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const user = await neonDb.getUserByGoogleId(googleId);
+    return user || undefined;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const user = await neonDb.updateUser(id, updates);
+    return user || undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return await neonDb.deleteUser(id);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await neonDb.getAllUsers();
+  }
+
+  // Download tracking operations
+  async recordDownload(download: Omit<DownloadRecord, 'id'>): Promise<DownloadRecord> {
+    return await neonDb.recordDownload({
+      user_id: download.userId,
+      document_id: download.documentId,
+      document_title: download.documentTitle,
+      file_format: download.fileFormat,
+      file_size: download.fileSize,
+      ip_address: download.ipAddress,
+      user_agent: download.userAgent,
+      document_metadata: download.documentMetadata
+    });
+  }
+
+  async getUserDownloads(userId: string, pagination?: PaginationOptions): Promise<PaginatedDownloads> {
+    const downloads = await neonDb.getUserDownloads(userId);
+    
+    if (!pagination) {
+      return {
+        downloads,
+        pagination: {
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: downloads.length,
+          hasNext: false,
+          hasPrev: false
+        }
+      };
+    }
+
+    const { page = 1, limit = 10 } = pagination;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedDownloads = downloads.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(downloads.length / limit);
+
+    return {
+      downloads: paginatedDownloads,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: downloads.length,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    };
+  }
+
+  async getDownloadById(id: string): Promise<DownloadRecord | undefined> {
+    const download = await neonDb.getDownloadById(id);
+    return download || undefined;
+  }
+
+  async updateDownloadStatus(id: string, status: DownloadStatus, emailSent?: boolean, emailError?: string): Promise<void> {
+    await neonDb.updateDownloadStatus(id, status, emailSent, emailError);
+  }
+
+  async deleteUserDownloads(userId: string): Promise<boolean> {
+    return await neonDb.deleteUserDownloads(userId);
+  }
+
+  // Session operations
+  async createSession(session: Omit<UserSession, 'sessionId' | 'createdAt'>): Promise<UserSession> {
+    // For now, return a mock session since we're not implementing full session management in this migration
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    return {
+      sessionId,
+      createdAt: new Date().toISOString(),
+      ...session,
+      lastAccessedAt: new Date().toISOString()
+    };
+  }
+
+  async getSession(sessionId: string): Promise<UserSession | undefined> {
+    // Mock implementation for backward compatibility
+    return undefined;
+  }
+
+  async updateSessionAccess(sessionId: string): Promise<void> {
+    // Mock implementation for backward compatibility
+  }
+
+  async deleteSession(sessionId: string): Promise<boolean> {
+    // Mock implementation for backward compatibility
+    return true;
+  }
+
+  async deleteUserSessions(userId: string): Promise<boolean> {
+    // Mock implementation for backward compatibility
+    return true;
+  }
+
+  async getUserBySessionId(sessionId: string): Promise<User | undefined> {
+    // Mock implementation for backward compatibility
+    return undefined;
+  }
+
+  // Helper method to estimate word count
+  private estimateWordCount(document: any): number {
+    let wordCount = 0;
+
+    if (document.abstract) {
+      wordCount += document.abstract.split(' ').length;
+    }
+
+    if (document.sections) {
+      document.sections.forEach((section: any) => {
+        if (section.contentBlocks) {
+          section.contentBlocks.forEach((block: any) => {
+            if (block.type === 'text' && block.content) {
+              wordCount += block.content.split(' ').length;
+            }
+          });
+        }
+      });
+    }
+
+    return wordCount;
+  }
+}
+
+// Replace the in-memory storage with database storage
+export const storage = new DatabaseStorage();
 
 // Initialize with real data for admin panel
 async function initializeServerData() {

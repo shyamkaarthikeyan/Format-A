@@ -1,147 +1,147 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../_lib/storage.js';
+import { OAuth2Client } from 'google-auth-library';
+import jwt from 'jsonwebtoken';
+import { neonDb } from '../_lib/neon-database.js';
+
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
+
+interface GoogleTokenPayload {
+  sub: string;
+  email: string;
+  name: string;
+  picture?: string;
+  email_verified: boolean;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed. Use POST.' 
+    });
   }
 
   try {
-    console.log('Google auth handler called:', {
-      method: req.method,
-      hasBody: !!req.body,
-      bodyKeys: req.body ? Object.keys(req.body) : []
-    });
+    // Initialize database on first request
+    await neonDb.initialize();
 
-    // Accept either credential (JWT) or decoded user data
     const { credential, googleId, email, name, picture } = req.body || {};
-    
-    console.log('Request body contents:', {
-      hasCredential: !!credential,
-      hasGoogleId: !!googleId,
-      hasEmail: !!email,
-      hasName: !!name
-    });
 
-    // Test storage connection
-    console.log('Testing storage connection...');
-    const testUsers = await storage.getAllUsers();
-    console.log('Storage test successful, user count:', testUsers.length);
-
-    let userInfo;
+    let userInfo: {
+      googleId: string;
+      email: string;
+      name: string;
+      picture?: string;
+    };
 
     if (credential) {
       // Handle JWT credential format
       console.log('Processing JWT credential...');
       try {
-        // Use Buffer.from instead of atob for Node.js compatibility
-        const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
+        // Verify the Google ID token
+        const ticket = await client.verifyIdToken({
+          idToken: credential,
+          audience: process.env.VITE_GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload() as GoogleTokenPayload;
+
+        if (!payload || !payload.email_verified) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid or unverified Google token'
+          });
+        }
+
         userInfo = {
-          googleId: payload.sub || 'google_' + Date.now(),
-          email: payload.email || 'user@example.com',
-          name: payload.name || 'Demo User',
-          picture: payload.picture || 'https://via.placeholder.com/150'
+          googleId: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture
         };
       } catch (e) {
-        console.log('JWT decode failed:', e);
-        return res.status(400).json({ error: 'Invalid credential format' });
+        console.log('JWT verification failed:', e);
+        return res.status(400).json({ 
+          success: false,
+          error: 'Invalid Google credential' 
+        });
       }
-    } else if (googleId && email) {
+    } else if (googleId && email && name) {
       // Handle decoded user data format (from client)
       console.log('Processing decoded user data...');
       userInfo = {
         googleId,
         email,
-        name: name || 'User',
+        name,
         picture: picture || 'https://via.placeholder.com/150'
       };
     } else {
       console.log('Missing required authentication data:', req.body);
       return res.status(400).json({ 
+        success: false,
         error: 'Missing authentication data',
-        message: 'Either credential (JWT) or user data (googleId, email) is required'
+        message: 'Either credential (JWT) or user data (googleId, email, name) is required'
       });
     }
 
-    console.log('Attempting to find/create user with info:', userInfo);
+    console.log('🔐 Processing Google OAuth for user:', userInfo.email);
 
-    // Check if user exists
-    let user = await storage.getUserByGoogleId(userInfo.googleId);
-    console.log('Existing user found:', !!user);
-    
-    if (!user) {
-      console.log('Creating new user...');
-      // Create new user
-      user = await storage.createUser({
-        googleId: userInfo.googleId,
-        email: userInfo.email,
-        name: userInfo.name,
-        picture: userInfo.picture,
-        lastLoginAt: new Date().toISOString(),
-        isActive: true,
-        preferences: {
-          emailNotifications: true,
-          defaultExportFormat: 'pdf',
-          theme: 'light'
-        }
-      });
-      console.log('New user created:', user.id);
-    } else {
-      console.log('Updating existing user login time...');
-      // Update last login
-      user = await storage.updateUser(user.id, {
-        lastLoginAt: new Date().toISOString(),
-        isActive: true
-      });
-      console.log('User updated:', user?.id);
-    }
-
-    if (!user) {
-      throw new Error('Failed to create or update user');
-    }
-
-    console.log('Creating session for user:', user.id);
-    // Create session
-    const session = await storage.createSession({
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-      isActive: true,
-      lastAccessedAt: new Date().toISOString(),
-      ipAddress: (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress) || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown'
+    // Create or update user in Neon database
+    const user = await neonDb.createOrUpdateUser({
+      google_id: userInfo.googleId,
+      email: userInfo.email,
+      name: userInfo.name,
+      picture: userInfo.picture
     });
-    console.log('Session created:', session.sessionId);
 
-    // Set session cookie
-    res.setHeader('Set-Cookie', `sessionId=${session.sessionId}; Path=/; Max-Age=${7 * 24 * 60 * 60}; HttpOnly; SameSite=Lax`);
+    // Create JWT token for our application
+    const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+    const appToken = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        googleId: user.google_id
+      },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
 
-    console.log('Returning successful auth response');
-    return res.json({
+    console.log('✅ User authenticated and saved to database:', user.email);
+
+    return res.status(200).json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        picture: user.picture
+        picture: user.picture,
+        google_id: user.google_id,
+        created_at: user.created_at,
+        last_login_at: user.last_login_at
       },
-      sessionId: session.sessionId
+      token: appToken,
+      sessionId: `session_${user.id}_${Date.now()}`, // For compatibility
+      message: user.created_at === user.updated_at ? 'Welcome! Account created.' : 'Welcome back!'
     });
 
   } catch (error) {
-    console.error('Google auth error:', error);
+    console.error('❌ Google OAuth error:', error);
+    
     return res.status(500).json({
-      error: 'Authentication failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: 'Authentication failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 }

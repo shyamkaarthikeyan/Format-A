@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../_lib/storage.js';
+import { neonDb } from '../_lib/neon-database.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -26,13 +26,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Initialize database
+    await neonDb.initialize();
+
+    // Get user from JWT token (if provided)
     let user = null;
-    if (sessionId) {
-      user = await storage.getUserBySessionId(sessionId);
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const jwt = await import('jsonwebtoken');
+        const decoded = jwt.default.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+        user = await neonDb.getUserById(decoded.userId);
+      } catch (error) {
+        console.log('Invalid or expired token, proceeding as anonymous user');
+      }
     }
 
     // Allow downloads without authentication for better UX
-    // Authentication is optional - we'll track anonymous downloads
     console.log('Generating DOCX for:', user ? `user: ${user.email}` : 'anonymous user');
 
     const documentData = req.body;
@@ -49,21 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate actual DOCX using Node.js IEEE generator
     const docxBuffer = await generateIEEEDocx(documentData);
 
-    // Record download in storage (only if user is authenticated)
+    // Record download in Neon database (only if user is authenticated)
     if (user) {
       try {
-        const downloadRecord = await storage.recordDownload({
-          userId: user.id,
-          documentId: `doc_${Date.now()}`,
-          documentTitle: documentData.title,
-          fileFormat: 'docx',
-          fileSize: docxBuffer.length,
-          downloadedAt: new Date().toISOString(),
-          ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
-          userAgent: req.headers['user-agent'] || 'unknown',
-          status: 'completed',
-          emailSent: false,
-          documentMetadata: {
+        const downloadRecord = await neonDb.recordDownload({
+          user_id: user.id,
+          document_id: `doc_${Date.now()}`,
+          document_title: documentData.title,
+          file_format: 'docx',
+          file_size: docxBuffer.length,
+          ip_address: (req.headers['x-forwarded-for'] as string) || 'unknown',
+          user_agent: req.headers['user-agent'] || 'unknown',
+          document_metadata: {
             pageCount: Math.ceil(documentData.sections?.length || 1),
             wordCount: estimateWordCount(documentData),
             sectionCount: documentData.sections?.length || 1,
@@ -72,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             generationTime: 2.5
           }
         });
-        console.log('Download recorded:', downloadRecord.id);
+        console.log('✅ Download recorded in Neon database:', downloadRecord.id);
       } catch (recordError) {
         console.warn('Failed to record download:', recordError);
         // Continue with download even if recording fails
