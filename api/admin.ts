@@ -1,5 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { neonDb } from './_lib/neon-database';
+import test from 'node:test';
+import { auth } from 'google-auth-library';
+import { auth } from 'google-auth-library';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -13,6 +16,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Debug environment variables in production
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
+      POSTGRES_URL_EXISTS: !!process.env.POSTGRES_URL,
+      DATABASE_URL_PREFIX: process.env.DATABASE_URL?.substring(0, 20) + '...'
+    });
     const { path, type } = req.query;
     const pathArray = Array.isArray(path) ? path : [path].filter(Boolean);
     const endpoint = pathArray.join('/');
@@ -55,15 +65,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Initialize database with error handling
     try {
+      console.log('Attempting to initialize database...');
       await neonDb.initialize();
       console.log('Database initialized successfully');
     } catch (dbError) {
       console.error('Database initialization failed:', dbError);
+      
+      // Provide more detailed error information for debugging
+      const errorDetails = {
+        message: dbError instanceof Error ? dbError.message : 'Unknown database error',
+        stack: dbError instanceof Error ? dbError.stack : undefined,
+        name: dbError instanceof Error ? dbError.name : undefined,
+        hasDbUrl: !!process.env.DATABASE_URL,
+        hasPostgresUrl: !!process.env.POSTGRES_URL,
+        nodeEnv: process.env.NODE_ENV
+      };
+      
+      console.error('Detailed error info:', errorDetails);
+      
       return res.status(500).json({
         success: false,
         error: 'DATABASE_INIT_FAILED',
         message: 'Failed to initialize database',
-        details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        details: errorDetails
       });
     }
 
