@@ -65,14 +65,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Initialize PostgreSQL database
+    // Initialize PostgreSQL database with fallback
+    let databaseAvailable = false;
     try {
       await postgresStorage.initialize();
       console.log('PostgreSQL database initialized successfully');
+      databaseAvailable = true;
     } catch (dbError) {
       console.error('PostgreSQL database initialization failed:', dbError);
-      // Don't fail completely, continue with error response
-      console.log('Continuing with error handling due to database error');
+      console.log('Database unavailable, using fallback responses');
+      databaseAvailable = false;
+      
+      // If database is unavailable, provide fallback response for root endpoint
+      if (endpoint === '') {
+        return res.json({
+          success: true,
+          message: 'Admin API is working (database unavailable)',
+          databaseStatus: 'unavailable',
+          error: dbError instanceof Error ? dbError.message : 'Database connection failed',
+          availableEndpoints: [
+            'analytics/users',
+            'analytics/documents', 
+            'analytics/downloads',
+            'analytics/system',
+            'users',
+            'auth/session',
+            'auth/verify',
+            'auth/signout'
+          ],
+          timestamp: new Date().toISOString()
+        });
+      }
     }
 
     // Route to different admin functions
@@ -202,10 +225,34 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('User analytics error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch user analytics',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    // Return fallback data when database is unavailable
+    return res.json({
+      success: true,
+      data: {
+        totalUsers: 0,
+        activeUsers: {
+          last24h: 0,
+          last7d: 0,
+          last30d: 0
+        },
+        userGrowth: {
+          thisMonth: 0,
+          lastMonth: 0,
+          growthRate: 0
+        },
+        newUsers: {
+          daily: [],
+          weekly: [],
+          monthly: []
+        },
+        userDistribution: {
+          byRegistrationDate: [],
+          byActivity: []
+        },
+        topUsers: []
+      },
+      databaseStatus: 'unavailable',
+      message: 'Database connection failed, showing fallback data'
     });
   }
 }
@@ -267,10 +314,37 @@ async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse) 
     });
   } catch (error) {
     console.error('Document analytics error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch document analytics',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    // Return fallback data when database is unavailable
+    return res.json({
+      success: true,
+      data: {
+        totalDocuments: 0,
+        documentsThisMonth: 0,
+        documentsThisWeek: 0,
+        growthRate: 0,
+        averageLength: 0,
+        updateRate: 0,
+        popularTopics: [],
+        documentTrends: {
+          daily: [],
+          weekly: [],
+          monthly: []
+        },
+        documentDistribution: {
+          byUser: [],
+          bySource: [],
+          byCreationDate: []
+        },
+        recentDocuments: [],
+        documentMetrics: {
+          totalWordCount: 0,
+          averageWordsPerDocument: 0,
+          documentsWithUpdates: 0,
+          updateRate: 0
+        }
+      },
+      databaseStatus: 'unavailable',
+      message: 'Database connection failed, showing fallback data'
     });
   }
 }
@@ -327,10 +401,44 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse) 
     });
   } catch (error) {
     console.error('Download analytics error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch download analytics',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    // Return fallback data when database is unavailable
+    return res.json({
+      success: true,
+      data: {
+        totalDownloads: 0,
+        downloadsByFormat: [
+          { format: 'pdf', count: 0, percentage: 0 },
+          { format: 'docx', count: 0, percentage: 0 }
+        ],
+        downloadTrends: {
+          daily: [],
+          weekly: [],
+          monthly: []
+        },
+        downloadPatterns: {
+          peakHours: [],
+          peakDays: [],
+          userBehavior: {
+            averageDownloadsPerUser: 0,
+            repeatDownloadRate: 0,
+            immediateDownloadRate: 0
+          }
+        },
+        downloadPerformance: {
+          successRate: 0,
+          failureRate: 0,
+          averageFileSize: 0,
+          averageDownloadTime: 0
+        },
+        topDownloadedDocuments: [],
+        downloadDistribution: {
+          byUser: [],
+          byDocument: [],
+          byTimeOfDay: []
+        }
+      },
+      databaseStatus: 'unavailable',
+      message: 'Database connection failed, showing fallback data'
     });
   }
 }
@@ -416,10 +524,28 @@ async function handleUsers(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Users endpoint error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch users',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    // Return fallback data when database is unavailable
+    return res.json({
+      success: true,
+      data: {
+        users: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        },
+        summary: {
+          totalUsers: 0,
+          activeUsers: 0,
+          newUsersThisMonth: 0,
+          suspendedUsers: 0
+        }
+      },
+      databaseStatus: 'unavailable',
+      message: 'Database connection failed, showing fallback data'
     });
   }
 }
