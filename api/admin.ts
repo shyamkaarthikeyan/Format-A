@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminStorage } from './_lib/admin-storage';
+import { simpleAdminStorage } from './_lib/simple-admin-storage';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -64,28 +64,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Route to different admin functions based on path
     switch (endpoint) {
       case 'analytics/users':
-        return await handleUserAnalytics(req, res, adminStorage);
+        return await handleUserAnalytics(req, res, simpleAdminStorage);
       
       case 'analytics/documents':
-        return await handleDocumentAnalytics(req, res, adminStorage);
+        return await handleDocumentAnalytics(req, res, simpleAdminStorage);
       
       case 'analytics/downloads':
-        return await handleDownloadAnalytics(req, res, adminStorage);
+        return await handleDownloadAnalytics(req, res, simpleAdminStorage);
       
       case 'analytics/system':
-        return await handleSystemAnalytics(req, res, adminStorage);
+        return await handleSystemAnalytics(req, res, simpleAdminStorage);
       
       case 'users':
-        return await handleUsers(req, res, adminStorage);
+        return await handleUsers(req, res, simpleAdminStorage);
       
       case 'auth/session':
-        return await handleAdminSession(req, res, adminStorage);
+        return await handleAdminSession(req, res, simpleAdminStorage);
       
       case 'auth/verify':
-        return await handleAdminVerify(req, res, adminStorage);
+        return await handleAdminVerify(req, res, simpleAdminStorage);
       
       case 'auth/signout':
-        return await handleAdminSignout(req, res, adminStorage);
+        return await handleAdminSignout(req, res, simpleAdminStorage);
       
       default:
         console.log('Unknown admin endpoint:', endpoint);
@@ -146,16 +146,12 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, stor
     });
 
     // Get user download counts
+    const allDownloads = await storage.getAllDownloads();
     const userDownloadCounts = new Map();
-    for (const user of users) {
-      try {
-        const userDownloads = await storage.getUserDownloads(user.id);
-        userDownloadCounts.set(user.id, userDownloads.downloads.length);
-      } catch (downloadError) {
-        console.warn('Failed to get downloads for user:', user.id, downloadError);
-        userDownloadCounts.set(user.id, 0);
-      }
-    }
+    allDownloads.forEach((download: any) => {
+      const count = userDownloadCounts.get(download.userId) || 0;
+      userDownloadCounts.set(download.userId, count + 1);
+    });
 
     // Create top users list
     const topUsers = users
@@ -424,16 +420,7 @@ async function handleDownloadAnalytics(req: VercelRequest, res: VercelResponse, 
     
     const users = await storage.getAllUsers();
     const documents = await storage.getAllDocuments();
-    let allDownloads: any[] = [];
-    
-    for (const user of users) {
-      try {
-        const userDownloads = await storage.getUserDownloads(user.id);
-        allDownloads = allDownloads.concat(userDownloads.downloads);
-      } catch (downloadError) {
-        console.warn('Failed to get downloads for user:', user.id, downloadError);
-      }
-    }
+    const allDownloads = await storage.getAllDownloads();
     console.log('Real data loaded:', { users: users.length, documents: documents.length, downloads: allDownloads.length });
     
     const now = new Date();
