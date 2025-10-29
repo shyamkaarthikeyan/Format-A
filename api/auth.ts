@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { neonDb } from './_lib/neon-database.js';
+import { neonDb } from './_lib/neon-database';
 
 const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 

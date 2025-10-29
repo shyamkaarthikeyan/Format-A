@@ -230,7 +230,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Success Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.downloadPerformance.successRate}%</p>
+              <p className="text-2xl font-bold text-gray-900">{analytics.downloadPerformance?.successRate || 0}%</p>
             </div>
           </div>
         </div>
@@ -242,7 +242,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg per User</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.downloadPatterns.userBehavior.averageDownloadsPerUser}</p>
+              <p className="text-2xl font-bold text-gray-900">{analytics.downloadPatterns?.userBehavior?.averageDownloadsPerUser || 0}</p>
             </div>
           </div>
         </div>
@@ -254,7 +254,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg File Size</p>
-              <p className="text-2xl font-bold text-gray-900">{formatFileSize(analytics.downloadPerformance.averageFileSize)}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatFileSize(analytics.downloadPerformance?.averageFileSize || 0)}</p>
             </div>
           </div>
         </div>
@@ -269,7 +269,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-4">
-            {analytics.downloadsByFormat.map((format, index) => {
+            {analytics.downloadsByFormat?.length > 0 ? analytics.downloadsByFormat.map((format, index) => {
               const colors = ['bg-red-500', 'bg-blue-500'];
               const bgColors = ['bg-red-100', 'bg-blue-100'];
               const textColors = ['text-red-700', 'text-blue-700'];
@@ -296,7 +296,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                   </div>
                 </div>
               );
-            })}
+            }) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No format data available</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -314,11 +318,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${analytics.downloadPerformance.successRate}%` }}
+                    style={{ width: `${analytics.downloadPerformance?.successRate || 0}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {analytics.downloadPerformance.successRate}%
+                  {analytics.downloadPerformance?.successRate || 0}%
                 </span>
               </div>
             </div>
@@ -329,11 +333,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${analytics.downloadPatterns.userBehavior.repeatDownloadRate}%` }}
+                    style={{ width: `${analytics.downloadPatterns?.userBehavior?.repeatDownloadRate || 0}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {analytics.downloadPatterns.userBehavior.repeatDownloadRate}%
+                  {analytics.downloadPatterns?.userBehavior?.repeatDownloadRate || 0}%
                 </span>
               </div>
             </div>
@@ -344,11 +348,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${analytics.downloadPatterns.userBehavior.immediateDownloadRate}%` }}
+                    style={{ width: `${analytics.downloadPatterns?.userBehavior?.immediateDownloadRate || 0}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {analytics.downloadPatterns.userBehavior.immediateDownloadRate}%
+                  {analytics.downloadPatterns?.userBehavior?.immediateDownloadRate || 0}%
                 </span>
               </div>
             </div>
@@ -359,11 +363,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min((analytics.downloadPerformance.averageDownloadTime / 30) * 100, 100)}%` }}
+                    style={{ width: `${Math.min(((analytics.downloadPerformance?.averageDownloadTime || 0) / 30) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {formatTime(analytics.downloadPerformance.averageDownloadTime)}
+                  {formatTime(analytics.downloadPerformance?.averageDownloadTime || 0)}
                 </span>
               </div>
             </div>
@@ -379,8 +383,8 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
         </div>
         
         <div className="h-64 flex items-end justify-between space-x-1">
-          {analytics.downloadTrends.daily.slice(-30).map((day, index) => {
-            const maxCount = Math.max(...analytics.downloadTrends.daily.map(d => d.count));
+          {analytics.downloadTrends?.daily?.length > 0 ? analytics.downloadTrends.daily.slice(-30).map((day, index) => {
+            const maxCount = Math.max(...(analytics.downloadTrends?.daily?.map(d => d.count) || [1]));
             const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
             
             return (
@@ -404,7 +408,14 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                 )}
               </div>
             );
-          })}
+          }) : (
+            <div className="flex items-center justify-center w-full h-full">
+              <div className="text-center text-gray-500">
+                <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p>No daily download data available</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -418,8 +429,8 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-2">
-            {analytics.downloadPatterns.peakHours.slice(0, 8).map((hour, index) => {
-              const maxCount = Math.max(...analytics.downloadPatterns.peakHours.map(h => h.count));
+            {analytics.downloadPatterns?.peakHours?.slice(0, 8).map((hour, index) => {
+              const maxCount = Math.max(...(analytics.downloadPatterns?.peakHours?.map(h => h.count) || [1]));
               const percentage = maxCount > 0 ? (hour.count / maxCount) * 100 : 0;
               
               return (
@@ -448,8 +459,8 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-2">
-            {analytics.downloadPatterns.peakDays.map((day, index) => {
-              const maxCount = Math.max(...analytics.downloadPatterns.peakDays.map(d => d.count));
+            {analytics.downloadPatterns?.peakDays?.map((day, index) => {
+              const maxCount = Math.max(...(analytics.downloadPatterns?.peakDays?.map(d => d.count) || [1]));
               const percentage = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
               
               return (
@@ -500,7 +511,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analytics.topDownloadedDocuments.map((doc, index) => (
+              {analytics.topDownloadedDocuments?.map((doc, index) => (
                 <tr key={doc.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
@@ -556,7 +567,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
             </tbody>
           </table>
           
-          {analytics.topDownloadedDocuments.length === 0 && (
+          {(analytics.topDownloadedDocuments?.length || 0) === 0 && (
             <div className="text-center py-8">
               <Download className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No downloads found</p>
@@ -588,7 +599,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analytics.downloadDistribution.byUser.slice(0, 10).map((user, index) => (
+              {analytics.downloadDistribution?.byUser?.slice(0, 10).map((user, index) => (
                 <tr key={user.userId} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -625,7 +636,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
             </tbody>
           </table>
           
-          {analytics.downloadDistribution.byUser.length === 0 && (
+          {(analytics.downloadDistribution?.byUser?.length || 0) === 0 && (
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No user download data found</p>
@@ -641,25 +652,25 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           <div>
             <p className="text-gray-600">Most Popular Format</p>
             <p className="font-semibold text-green-600">
-              {analytics.downloadsByFormat[0]?.format.toUpperCase() || 'N/A'} ({analytics.downloadsByFormat[0]?.percentage || 0}%)
+              {analytics.downloadsByFormat?.[0]?.format.toUpperCase() || 'N/A'} ({analytics.downloadsByFormat?.[0]?.percentage || 0}%)
             </p>
           </div>
           <div>
             <p className="text-gray-600">Peak Download Hour</p>
             <p className="font-semibold text-blue-600">
-              {getHourLabel(analytics.downloadPatterns.peakHours[0]?.hour || 0)}
+              {getHourLabel(analytics.downloadPatterns?.peakHours?.[0]?.hour || 0)}
             </p>
           </div>
           <div>
             <p className="text-gray-600">Top Document</p>
             <p className="font-semibold text-purple-600">
-              {analytics.topDownloadedDocuments[0]?.downloadCount || 0} downloads
+              {analytics.topDownloadedDocuments?.[0]?.downloadCount || 0} downloads
             </p>
           </div>
           <div>
             <p className="text-gray-600">User Engagement</p>
             <p className="font-semibold text-orange-600">
-              {analytics.downloadPatterns.userBehavior.repeatDownloadRate}% repeat users
+              {analytics.downloadPatterns?.userBehavior?.repeatDownloadRate || 0}% repeat users
             </p>
           </div>
         </div>

@@ -8,10 +8,22 @@ const connectionConfig = {
   retryDelay: 1000
 };
 
-const sql = neon(process.env.DATABASE_URL!, {
-  fullResults: true,
-  arrayMode: false
-});
+// Lazy initialization of SQL connection
+let sql: any = null;
+
+function getSqlConnection() {
+  if (!sql) {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error('DATABASE_URL environment variable is not set. Please check your .env.local file.');
+    }
+    sql = neon(databaseUrl, {
+      fullResults: true,
+      arrayMode: false
+    });
+  }
+  return sql;
+}
 
 // Connection health monitoring
 interface ConnectionHealth {
@@ -78,6 +90,7 @@ export class NeonDatabase {
   async testConnection(): Promise<boolean> {
     const startTime = Date.now();
     try {
+      const sql = getSqlConnection();
       await sql`SELECT 1 as test`;
       const responseTime = Date.now() - startTime;
       
@@ -123,6 +136,8 @@ export class NeonDatabase {
         if (!isConnected) {
           throw new Error('Database connection failed');
         }
+
+        const sql = getSqlConnection();
 
         // Create users table with enhanced fields
         await sql`
@@ -269,6 +284,7 @@ export class NeonDatabase {
     picture?: string;
   }): Promise<User> {
     try {
+      const sql = getSqlConnection();
       // Check if user exists by google_id or email
       const existingUser = await sql`
         SELECT * FROM users WHERE google_id = ${userData.google_id} OR email = ${userData.email} LIMIT 1
@@ -310,6 +326,7 @@ export class NeonDatabase {
 
   async getUserByGoogleId(googleId: string): Promise<User | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT * FROM users WHERE google_id = ${googleId} LIMIT 1
       `;
@@ -322,6 +339,7 @@ export class NeonDatabase {
 
   async getUserById(id: string): Promise<User | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT * FROM users WHERE id = ${id} LIMIT 1
       `;
@@ -334,6 +352,7 @@ export class NeonDatabase {
 
   async getAllUsers(): Promise<User[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT * FROM users ORDER BY created_at DESC
       `;
@@ -346,6 +365,7 @@ export class NeonDatabase {
 
   async getUserByEmail(email: string): Promise<User | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT * FROM users WHERE email = ${email} LIMIT 1
       `;

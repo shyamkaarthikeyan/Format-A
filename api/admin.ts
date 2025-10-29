@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { neonDb } from './_lib/neon-database.js';
+import { neonDb } from './_lib/neon-database';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -984,7 +984,7 @@ async function handleAuthTest(req: VercelRequest, res: VercelResponse) {
 // Database test handler
 async function handleDbTest(req: VercelRequest, res: VercelResponse) {
   try {
-    const { neonDb } = await import('./_lib/neon-database.js');
+    const { neonDb } = await import('./_lib/neon-database');
     await neonDb.initialize();
     
     return res.json({

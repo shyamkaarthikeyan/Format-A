@@ -196,7 +196,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Completion Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.documentPerformance.completionRate}%</p>
+              <p className="text-2xl font-bold text-gray-900">{analytics.documentPerformance?.completionRate || 0}%</p>
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg Creation Time</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatDuration(analytics.documentPerformance.averageCreationTime)}
+                {formatDuration(analytics.documentPerformance?.averageCreationTime || 0)}
               </p>
             </div>
           </div>
@@ -222,7 +222,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg Page Count</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.documentPerformance.averagePageCount}</p>
+              <p className="text-2xl font-bold text-gray-900">{analytics.documentPerformance?.averagePageCount || 0}</p>
             </div>
           </div>
         </div>
@@ -237,7 +237,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-3">
-            {analytics.documentTypes.map((type, index) => {
+            {analytics.documentTypes?.length > 0 ? analytics.documentTypes.map((type, index) => {
               const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-purple-500'];
               const bgColors = ['bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-red-100', 'bg-purple-100'];
               const textColors = ['text-blue-700', 'text-green-700', 'text-yellow-700', 'text-red-700', 'text-purple-700'];
@@ -258,7 +258,11 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
                   </div>
                 </div>
               );
-            })}
+            }) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No document type data available</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -276,11 +280,11 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min((analytics.documentPerformance.averageWordCount / 5000) * 100, 100)}%` }}
+                    style={{ width: `${Math.min(((analytics.documentPerformance?.averageWordCount || 0) / 5000) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {analytics.documentPerformance.averageWordCount.toLocaleString()}
+                  {(analytics.documentPerformance?.averageWordCount || 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -291,11 +295,11 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min((analytics.documentPerformance.averagePageCount / 20) * 100, 100)}%` }}
+                    style={{ width: `${Math.min(((analytics.documentPerformance?.averagePageCount || 0) / 20) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {analytics.documentPerformance.averagePageCount}
+                  {analytics.documentPerformance?.averagePageCount || 0}
                 </span>
               </div>
             </div>
@@ -306,11 +310,11 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${analytics.documentPerformance.completionRate}%` }}
+                    style={{ width: `${analytics.documentPerformance?.completionRate || 0}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {analytics.documentPerformance.completionRate}%
+                  {analytics.documentPerformance?.completionRate || 0}%
                 </span>
               </div>
             </div>
@@ -321,11 +325,11 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
                 <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                   <div 
                     className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min((analytics.documentPerformance.averageCreationTime / 120) * 100, 100)}%` }}
+                    style={{ width: `${Math.min(((analytics.documentPerformance?.averageCreationTime || 0) / 120) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                  {formatDuration(analytics.documentPerformance.averageCreationTime)}
+                  {formatDuration(analytics.documentPerformance?.averageCreationTime || 0)}
                 </span>
               </div>
             </div>
@@ -341,8 +345,8 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
         </div>
         
         <div className="h-64 flex items-end justify-between space-x-1">
-          {analytics.documentsCreated.daily.slice(-30).map((day, index) => {
-            const maxCount = Math.max(...analytics.documentsCreated.daily.map(d => d.count));
+          {analytics.documentsCreated?.daily?.slice(-30).map((day, index) => {
+            const maxCount = Math.max(...(analytics.documentsCreated?.daily?.map(d => d.count) || [1]));
             const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
             
             return (
@@ -389,7 +393,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {analytics.documentTrends.slice(-10).map((trend, index) => {
+              {analytics.documentTrends?.slice(-10).map((trend, index) => {
                 const completionRate = trend.created > 0 ? (trend.completed / trend.created) * 100 : 0;
                 
                 return (
@@ -452,7 +456,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analytics.topDocuments.map((doc, index) => (
+              {analytics.topDocuments?.map((doc, index) => (
                 <tr key={doc.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
@@ -495,7 +499,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
             </tbody>
           </table>
           
-          {analytics.topDocuments.length === 0 && (
+          {(analytics.topDocuments?.length || 0) === 0 && (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No documents with downloads found</p>
@@ -511,19 +515,19 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
           <div>
             <p className="text-gray-600">Most Popular Type</p>
             <p className="font-semibold text-blue-600">
-              {analytics.documentTypes[0]?.type || 'N/A'} ({analytics.documentTypes[0]?.percentage || 0}%)
+              {analytics.documentTypes?.[0]?.type || 'N/A'} ({analytics.documentTypes?.[0]?.percentage || 0}%)
             </p>
           </div>
           <div>
             <p className="text-gray-600">Average Quality</p>
             <p className="font-semibold text-green-600">
-              {analytics.documentPerformance.averagePageCount} pages, {analytics.documentPerformance.averageWordCount.toLocaleString()} words
+              {analytics.documentPerformance?.averagePageCount || 0} pages, {(analytics.documentPerformance?.averageWordCount || 0).toLocaleString()} words
             </p>
           </div>
           <div>
             <p className="text-gray-600">Top Document</p>
             <p className="font-semibold text-purple-600">
-              {analytics.topDocuments[0]?.downloadCount || 0} downloads
+              {analytics.topDocuments?.[0]?.downloadCount || 0} downloads
             </p>
           </div>
         </div>

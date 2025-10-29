@@ -232,7 +232,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
           </div>
           
           <div className="space-y-4">
-            {analytics.userDistribution.byRegistrationDate.slice(-6).map((item, index) => (
+            {analytics.userDistribution?.byRegistrationDate?.slice(-6).map((item, index) => (
               <div key={item.period} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{item.period}</span>
                 <div className="flex items-center">
@@ -240,14 +240,18 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
                     <div 
                       className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                       style={{ 
-                        width: `${Math.max((item.count / Math.max(...analytics.userDistribution.byRegistrationDate.map(d => d.count))) * 100, 5)}%` 
+                        width: `${Math.max((item.count / Math.max(...(analytics.userDistribution?.byRegistrationDate?.map(d => d.count) || [1]))) * 100, 5)}%` 
                       }}
                     ></div>
                   </div>
                   <span className="text-sm font-medium text-gray-900 w-8 text-right">{item.count}</span>
                 </div>
               </div>
-            ))}
+            )) || (
+              <div className="text-center py-4 text-gray-500">
+                <p>No registration data available</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -259,7 +263,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
           </div>
           
           <div className="space-y-3">
-            {analytics.userDistribution.byActivity.map((item, index) => {
+            {analytics.userDistribution?.byActivity?.map((item, index) => {
               const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-red-500'];
               const bgColors = ['bg-green-100', 'bg-blue-100', 'bg-yellow-100', 'bg-red-100'];
               const textColors = ['text-green-700', 'text-blue-700', 'text-yellow-700', 'text-red-700'];
@@ -280,7 +284,11 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
                   </div>
                 </div>
               );
-            })}
+            }) || (
+              <div className="text-center py-4 text-gray-500">
+                <p>No activity data available</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -293,32 +301,41 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
         </div>
         
         <div className="h-64 flex items-end justify-between space-x-1">
-          {analytics.newUsers.daily.slice(-30).map((day, index) => {
-            const maxCount = Math.max(...analytics.newUsers.daily.map(d => d.count));
-            const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
-            
-            return (
-              <div key={day.date} className="flex flex-col items-center group">
-                <div className="relative">
-                  <div 
-                    className="w-2 bg-purple-600 rounded-t transition-all duration-300 hover:bg-purple-700"
-                    style={{ height: `${Math.max(height, 2)}%` }}
-                  ></div>
-                  
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {formatDate(day.date)}: {day.count} users
+          {analytics.newUsers?.daily?.length > 0 ? (
+            analytics.newUsers.daily.slice(-30).map((day, index) => {
+              const maxCount = Math.max(...(analytics.newUsers?.daily?.map(d => d.count) || [1]));
+              const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
+              
+              return (
+                <div key={day.date} className="flex flex-col items-center group">
+                  <div className="relative">
+                    <div 
+                      className="w-2 bg-purple-600 rounded-t transition-all duration-300 hover:bg-purple-700"
+                      style={{ height: `${Math.max(height, 2)}%` }}
+                    ></div>
+                    
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {formatDate(day.date)}: {day.count} users
+                    </div>
                   </div>
+                  
+                  {index % 5 === 0 && (
+                    <span className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-left">
+                      {formatDate(day.date)}
+                    </span>
+                  )}
                 </div>
-                
-                {index % 5 === 0 && (
-                  <span className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-left">
-                    {formatDate(day.date)}
-                  </span>
-                )}
+              );
+            })
+          ) : (
+            <div className="flex items-center justify-center w-full h-full">
+              <div className="text-center text-gray-500">
+                <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p>No daily registration data available</p>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       </div>
 

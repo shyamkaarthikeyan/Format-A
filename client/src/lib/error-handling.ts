@@ -249,7 +249,7 @@ export async function handleApiResponse<T>(response: Response): Promise<T> {
     throw new Error(data.error?.message || 'Request failed');
   }
   
-  return data.data as T;
+  return data as T;
 }
 
 export function getUserFriendlyErrorMessage(error: unknown): string {

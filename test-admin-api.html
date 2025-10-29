@@ -2,125 +2,102 @@
 <html>
 <head>
     <title>Test Admin API</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
-        .success { background: #d4edda; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
-        .loading { background: #fff3cd; border: 1px solid #ffeaa7; }
-        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
-    </style>
 </head>
 <body>
     <h1>Admin API Test</h1>
-    
-    <div>
-        <button onclick="testConnection()">Test Database Connection</button>
-        <button onclick="testUserAnalytics()">Test User Analytics</button>
-        <button onclick="createAdminSession()">Create Admin Session</button>
-    </div>
-    
+    <button onclick="testUserAnalytics()">Test User Analytics</button>
+    <button onclick="testDirectAPI()">Test Direct API</button>
     <div id="results"></div>
 
     <script>
-        const results = document.getElementById('results');
-        
-        function addResult(message, type = 'info') {
-            const div = document.createElement('div');
-            div.className = `result ${type}`;
-            div.innerHTML = message;
-            results.appendChild(div);
-        }
-        
-        function clearResults() {
-            results.innerHTML = '';
-        }
-
-        async function testConnection() {
-            clearResults();
-            addResult('Testing database connection...', 'loading');
-            
-            try {
-                const response = await fetch('/api/admin/analytics/system', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Admin-Token': 'admin_token_test_123'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    addResult('✅ Database connection successful!', 'success');
-                    addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
-                } else {
-                    const errorText = await response.text();
-                    addResult(`❌ Connection failed: ${response.status} - ${errorText}`, 'error');
-                }
-            } catch (error) {
-                addResult(`❌ Network error: ${error.message}`, 'error');
-            }
-        }
-
         async function testUserAnalytics() {
-            clearResults();
-            addResult('Testing user analytics...', 'loading');
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing user analytics via frontend API client...</p>';
             
             try {
-                const response = await fetch('/api/admin/analytics/users', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Admin-Token': 'admin_token_test_123'
-                    }
-                });
+                // Test the exact same call the frontend makes
+                console.log('Testing admin API call...');
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    addResult('✅ User analytics working!', 'success');
-                    addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
-                } else {
-                    const errorText = await response.text();
-                    addResult(`❌ Analytics failed: ${response.status} - ${errorText}`, 'error');
-                }
-            } catch (error) {
-                addResult(`❌ Network error: ${error.message}`, 'error');
-            }
-        }
-
-        async function createAdminSession() {
-            clearResults();
-            addResult('Creating admin session...', 'loading');
-            
-            try {
-                const response = await fetch('/api/admin/auth/session', {
-                    method: 'POST',
+                const response = await fetch('/api/admin?path=analytics&type=users', {
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        email: 'shyamkaarthikeyan@gmail.com',
-                        userId: 'admin_user'
-                    })
+                    credentials: 'include'
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Raw response data:', data);
+                    console.log('Data success:', data.success);
+                    console.log('Data.data:', data.data);
+                    
+                    // Test the same logic as handleApiResponse
+                    if (!data.success) {
+                        throw new Error(data.error?.message || 'Request failed');
+                    }
+                    
+                    results.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p><strong>Success:</strong> ${data.success}</p>
+                        <p><strong>Total Users:</strong> ${data.data?.totalUsers || 'N/A'}</p>
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    results.innerHTML = `
+                        <h3>❌ Error (${response.status})</h3>
+                        <pre>${errorText}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                results.innerHTML = `
+                    <h3>❌ Network Error</h3>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testDirectAPI() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing direct API call...</p>';
+            
+            try {
+                const response = await fetch('/api/admin?path=analytics&type=users', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    addResult('✅ Admin session created!', 'success');
-                    addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
-                    
-                    // Store the token for future requests
-                    if (data.adminToken) {
-                        localStorage.setItem('admin-token', data.adminToken);
-                        addResult('✅ Admin token saved to localStorage', 'success');
-                    }
+                    results.innerHTML = `
+                        <h3>✅ Direct API Success!</h3>
+                        <p>Total Users: ${data.data?.totalUsers || 'N/A'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
                 } else {
                     const errorText = await response.text();
-                    addResult(`❌ Session creation failed: ${response.status} - ${errorText}`, 'error');
+                    results.innerHTML = `
+                        <h3>❌ Direct API Error (${response.status})</h3>
+                        <pre>${errorText}</pre>
+                    `;
                 }
             } catch (error) {
-                addResult(`❌ Network error: ${error.message}`, 'error');
+                results.innerHTML = `
+                    <h3>❌ Direct API Network Error</h3>
+                    <pre>${error.message}</pre>
+                `;
             }
         }
     </script>

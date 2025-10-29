@@ -1,24 +1,22 @@
 // Test database connection
 import dotenv from 'dotenv';
+import { neonDb } from './api/_lib/neon-database';
 
 // Load environment variables from .env.local first, then .env
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 
-// Debug environment variables
-console.log('Environment check:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-if (process.env.DATABASE_URL) {
-  console.log('DATABASE_URL starts with:', process.env.DATABASE_URL.substring(0, 30) + '...');
-}
-
-// Import the TypeScript module using dynamic import
-const { neonDb } = await import('./api/_lib/neon-database.ts');
-
 async function testConnection() {
   try {
     console.log('🔧 Testing database connection...');
+    
+    // Debug environment variables
+    console.log('Environment check:');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    if (process.env.DATABASE_URL) {
+      console.log('DATABASE_URL starts with:', process.env.DATABASE_URL.substring(0, 30) + '...');
+    }
     
     // Test basic connection
     const isConnected = await neonDb.testConnection();
@@ -43,12 +41,21 @@ async function testConnection() {
       });
       
       console.log('✅ All database operations working correctly');
+      
+      // Test a specific analytics query
+      console.log('🔍 Testing analytics query...');
+      const userAnalytics = await neonDb.getUserAnalytics();
+      console.log('User analytics:', userAnalytics);
+      
     } else {
       console.log('❌ Database connection failed');
     }
   } catch (error) {
     console.error('❌ Database test failed:', error);
-    console.error('Error details:', error.message);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    if (error instanceof Error && error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
   }
 }
 

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Admin Routes</title>
+</head>
+<body>
+    <h1>Debug Admin API Routes</h1>
+    <div id="results"></div>
+    
+    <button onclick="testRoute1()">Test Route 1: /api/admin?path=analytics&type=users</button><br><br>
+    <button onclick="testRoute2()">Test Route 2: /api/admin/analytics/users</button><br><br>
+    <button onclick="testRoute3()">Test Route 3: /api/admin (no params)</button><br><br>
+    <button onclick="testRoute4()">Test Route 4: Check server logs</button><br><br>
+
+    <script>
+        async function testRoute1() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Testing Route 1: /api/admin?path=analytics&type=users</h3>';
+            
+            try {
+                console.log('Testing route 1...');
+                const response = await fetch('/api/admin?path=analytics&type=users', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                console.log('Route 1 - Status:', response.status);
+                console.log('Route 1 - Headers:', [...response.headers.entries()]);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Route 1 - Data:', data);
+                    results.innerHTML += `<p>✅ Success: ${JSON.stringify(data.data?.totalUsers || 'No data')}</p>`;
+                } else {
+                    const errorText = await response.text();
+                    console.log('Route 1 - Error:', errorText);
+                    results.innerHTML += `<p>❌ Error ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                console.error('Route 1 - Exception:', error);
+                results.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
+            }
+        }
+
+        async function testRoute2() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Testing Route 2: /api/admin/analytics/users</h3>';
+            
+            try {
+                console.log('Testing route 2...');
+                const response = await fetch('/api/admin/analytics/users', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                console.log('Route 2 - Status:', response.status);
+                console.log('Route 2 - Headers:', [...response.headers.entries()]);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Route 2 - Data:', data);
+                    results.innerHTML += `<p>✅ Success: ${JSON.stringify(data.data?.totalUsers || 'No data')}</p>`;
+                } else {
+                    const errorText = await response.text();
+                    console.log('Route 2 - Error:', errorText);
+                    results.innerHTML += `<p>❌ Error ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                console.error('Route 2 - Exception:', error);
+                results.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
+            }
+        }
+
+        async function testRoute3() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Testing Route 3: /api/admin (no params)</h3>';
+            
+            try {
+                console.log('Testing route 3...');
+                const response = await fetch('/api/admin', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                console.log('Route 3 - Status:', response.status);
+                console.log('Route 3 - Headers:', [...response.headers.entries()]);
+                
+                const responseText = await response.text();
+                console.log('Route 3 - Response:', responseText);
+                results.innerHTML += `<p>Status ${response.status}: ${responseText}</p>`;
+            } catch (error) {
+                console.error('Route 3 - Exception:', error);
+                results.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
+            }
+        }
+
+        async function testRoute4() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Check the server console for logs</h3>';
+            results.innerHTML += '<p>Look at your terminal where you ran "npm run dev" to see which routes are being hit and any error messages.</p>';
+        }
+    </script>
+</body>
+</html>

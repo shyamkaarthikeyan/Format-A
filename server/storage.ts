@@ -427,7 +427,7 @@ export class DatabaseStorage implements IStorage {
   
   private async getNeonDb() {
     if (!this._neonDb) {
-      const { neonDb } = await import('../api/_lib/neon-database.js');
+      const { neonDb } = await import('../api/_lib/neon-database');
       this._neonDb = neonDb;
     }
     return this._neonDb;

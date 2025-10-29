@@ -9,6 +9,9 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { neonDb } from "api/_lib/neon-database";
+import { neonDb } from "api/_lib/neon-database";
+import { neonDb } from "api/_lib/neon-database";
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -480,6 +483,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       path: req.path,
       headers: req.headers
     });
+  });
+
+  // Admin test endpoint
+  app.get('/api/admin-test', async (req, res) => {
+    try {
+      console.log('🔧 Admin test endpoint called');
+      
+      // Test database connection
+      await neonDb.initialize();
+      const users = await neonDb.getAllUsers();
+      const userAnalytics = await neonDb.getUserAnalytics();
+      
+      res.status(200).json({
+        success: true,
+        message: 'Admin API test successful',
+        data: {
+          userCount: users.length,
+          analytics: userAnalytics,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Admin test error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Simple HTML test page
+  app.get('/test-page', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Test Page</title></head>
+      <body>
+        <h1>Server is working!</h1>
+        <p>If you can see this, the server is serving HTML correctly.</p>
+        <button onclick="testAdmin()">Test Admin API</button>
+        <div id="result"></div>
+        <script>
+          async function testAdmin() {
+            try {
+              const response = await fetch('/api/admin?path=analytics&type=users');
+              const data = await response.json();
+              document.getElementById('result').innerHTML = 
+                '<h3>Admin API Result:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+              document.getElementById('result').innerHTML = 
+                '<h3>Error:</h3><p>' + error.message + '</p>';
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `);
   });
 
   // API status endpoint (moved from root to /api)
