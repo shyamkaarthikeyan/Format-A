@@ -8,9 +8,11 @@ import AdminAuthService, { AdminUser, AdminSession } from '@/lib/admin-auth';
 interface AuthContextType {
   user: User | null;
   setUser: (user: User | null) => void;
+  login: (credential: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => void;
   isAuthenticated: boolean;
   loading: boolean;
+  isLoading: boolean;
   isGuestMode: boolean;
   hasGuestDocument: boolean;
   preserveGuestDocument: () => string | null;
@@ -33,6 +35,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [hasGuestDocument, setHasGuestDocument] = useState(false);
   const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
 
@@ -127,11 +130,76 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const login = async (credential: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    
+    try {
+      console.log('🔐 Processing Google credential response...');
+      
+      // Decode the JWT token to get user info (optional, but helpful for debugging)
+      try {
+        const payload = JSON.parse(atob(credential.split('.')[1]));
+        console.log('✅ Google payload decoded:', payload);
+        console.log('📤 Sending user data to server...');
+      } catch (e) {
+        console.log('Note: Could not decode JWT for debugging:', e);
+      }
+
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          credential: credential
+        }),
+      });
+
+      console.log('📥 Server response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log('❌ Server error response:', errorData);
+        throw new Error(`Server authentication failed (${response.status}): ${JSON.stringify(errorData)}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Server response:', result);
+
+      if (result.success && result.user) {
+        setUser(result.user);
+        
+        // Store the token if provided
+        if (result.token) {
+          localStorage.setItem('auth-token', result.token);
+        }
+        
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: result.error || 'Authentication failed' 
+        };
+      }
+    } catch (error) {
+      console.error('❌ Authentication error:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Authentication failed' 
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const signOut = () => {
     setUser(null);
     
     // Clear any cookies
     document.cookie = 'sessionId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    
+    // Clear auth token
+    localStorage.removeItem('auth-token');
     
     // Optionally revoke Google tokens (if we stored them)
     // This would require additional Google API calls
@@ -227,9 +295,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     user,
     setUser,
+    login,
     signOut,
     isAuthenticated,
     loading,
+    isLoading,
     isGuestMode,
     hasGuestDocument,
     preserveGuestDocument,

@@ -18,6 +18,44 @@ function getSql() {
   return sql;
 }
 
+// Database initialization flag
+let isInitialized = false;
+
+// Initialize database tables
+async function initializeDatabase() {
+  if (isInitialized) return;
+  
+  try {
+    const sql = getSql();
+    
+    // Create users table
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        google_id VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        picture TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        last_login_at TIMESTAMP DEFAULT NOW(),
+        is_active BOOLEAN DEFAULT true,
+        preferences JSONB DEFAULT '{"emailNotifications": true, "defaultExportFormat": "pdf", "theme": "light"}'::jsonb
+      )
+    `;
+
+    // Create indexes
+    await sql`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
+    
+    isInitialized = true;
+    console.log('✅ Database tables initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize database tables:', error);
+    throw error;
+  }
+}
+
 // Database helper functions
 async function createOrUpdateUser(userData: {
   google_id: string;
@@ -27,44 +65,72 @@ async function createOrUpdateUser(userData: {
 }) {
   const sql = getSql();
   
-  // Try to find existing user
-  const existingUsers = await sql`
-    SELECT * FROM users WHERE google_id = ${userData.google_id} OR email = ${userData.email}
-  `;
-  
-  if (existingUsers.length > 0) {
-    // Update existing user
-    const updated = await sql`
-      UPDATE users 
-      SET name = ${userData.name}, 
-          picture = ${userData.picture || 'https://via.placeholder.com/150'},
-          last_login_at = NOW(),
-          updated_at = NOW()
-      WHERE id = ${existingUsers[0].id}
-      RETURNING *
+  try {
+    // Try to find existing user
+    const existingUsersResult = await sql`
+      SELECT * FROM users WHERE google_id = ${userData.google_id} OR email = ${userData.email}
     `;
-    return updated[0];
-  } else {
-    // Create new user
-    const created = await sql`
-      INSERT INTO users (google_id, email, name, picture, created_at, updated_at, last_login_at)
-      VALUES (${userData.google_id}, ${userData.email}, ${userData.name}, 
-              ${userData.picture || 'https://via.placeholder.com/150'}, NOW(), NOW(), NOW())
-      RETURNING *
-    `;
-    return created[0];
+    
+    // Handle both Neon result formats (with and without .rows)
+    const existingUsers = existingUsersResult.rows || existingUsersResult;
+    console.log('Found existing users:', existingUsers.length);
+    
+    if (existingUsers && existingUsers.length > 0) {
+      console.log('Updating existing user:', userData.email);
+      // Update existing user
+      const updateResult = await sql`
+        UPDATE users 
+        SET name = ${userData.name}, 
+            picture = ${userData.picture || 'https://via.placeholder.com/150'},
+            last_login_at = NOW(),
+            updated_at = NOW()
+        WHERE id = ${existingUsers[0].id}
+        RETURNING *
+      `;
+      const updatedUser = (updateResult.rows || updateResult)[0];
+      console.log('User updated successfully');
+      return updatedUser;
+    } else {
+      console.log('Creating new user:', userData.email);
+      // Create new user
+      const createResult = await sql`
+        INSERT INTO users (id, google_id, email, name, picture, created_at, updated_at, last_login_at)
+        VALUES (gen_random_uuid()::text, ${userData.google_id}, ${userData.email}, ${userData.name}, 
+                ${userData.picture || 'https://via.placeholder.com/150'}, NOW(), NOW(), NOW())
+        RETURNING *
+      `;
+      const newUser = (createResult.rows || createResult)[0];
+      console.log('New user created successfully');
+      return newUser;
+    }
+  } catch (error) {
+    console.error('Database operation error in createOrUpdateUser:', error);
+    console.error('Error details:', error.message);
+    throw error;
   }
 }
 
 async function getUserById(userId: string) {
   const sql = getSql();
-  const users = await sql`SELECT * FROM users WHERE id = ${userId}`;
-  return users.length > 0 ? users[0] : null;
+  try {
+    const result = await sql`SELECT * FROM users WHERE id = ${userId}`;
+    const users = result.rows || result;
+    return users.length > 0 ? users[0] : null;
+  } catch (error) {
+    console.error('Database error in getUserById:', error);
+    return null;
+  }
 }
 
 async function getAllUsers() {
   const sql = getSql();
-  return await sql`SELECT * FROM users ORDER BY created_at DESC`;
+  try {
+    const result = await sql`SELECT * FROM users ORDER BY created_at DESC`;
+    return result.rows || result;
+  } catch (error) {
+    console.error('Database error in getAllUsers:', error);
+    return [];
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -83,6 +149,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const endpoint = pathArray.join('/');
 
   try {
+    // Ensure database is initialized for all endpoints
+    await initializeDatabase();
+    
     switch (endpoint) {
       case 'google':
         return await handleGoogleAuth(req, res);
@@ -96,8 +165,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error('Auth API error:', error);
     return res.status(500).json({
-      error: 'Authentication error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: 'Authentication failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 }
@@ -191,14 +261,40 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log('🔐 Processing Google OAuth for user:', userInfo.email);
-
-    // Create or update user in Neon database
-    const user = await createOrUpdateUser({
-      google_id: userInfo.googleId,
+    console.log('User info received:', {
+      googleId: userInfo.googleId,
       email: userInfo.email,
       name: userInfo.name,
-      picture: userInfo.picture
+      hasPicture: !!userInfo.picture
     });
+
+    // Create or update user in Neon database
+    let user;
+    try {
+      console.log('📝 Calling createOrUpdateUser...');
+      user = await createOrUpdateUser({
+        google_id: userInfo.googleId,
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture
+      });
+      
+      if (!user) {
+        console.error('❌ createOrUpdateUser returned null/undefined');
+        throw new Error('Failed to create or retrieve user from database');
+      }
+      
+      console.log('✅ User successfully created/updated in database:', user.email);
+      console.log('User object keys:', Object.keys(user));
+    } catch (dbError) {
+      console.error('❌ Database error during user creation:', dbError);
+      console.error('Error stack:', dbError.stack);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error during authentication',
+        details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+      });
+    }
 
     // Create JWT token for our application
     const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
@@ -326,7 +422,8 @@ async function handleSignout(req: VercelRequest, res: VercelResponse) {
       console.log('Session signed out:', sessionId);
     }
 
-    res.clearCookie('sessionId');
+    // Clear cookie by setting it to expire
+    res.setHeader('Set-Cookie', 'sessionId=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict');
     return res.json({ success: true, message: 'Successfully signed out' });
   } catch (error) {
     console.error('Sign-out error:', error);
