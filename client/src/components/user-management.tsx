@@ -72,7 +72,7 @@ const UserManagement: React.FC = () => {
         limit: '20'
       });
       
-      const response = await apiClient.adminGet(`/users?${params}`);
+      const response = await apiClient.get(`/api/simple-users?${params}`);
       
       if (response.success) {
         setData(response.data as UserManagementData);
