@@ -1,9 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { neonDb } from './_lib/neon-database';
-import { auth } from 'google-auth-library';
-import test from 'node:test';
-import { auth } from 'google-auth-library';
-import { auth } from 'google-auth-library';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
