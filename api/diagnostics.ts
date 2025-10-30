@@ -115,8 +115,9 @@ async function handleTestDb(req: VercelRequest, res: VercelResponse) {
       message: error instanceof Error ? error.message : 'Unknown database error'
     });
   }
-}/
-/ Analytics Handler
+}
+
+// Analytics Handler
 async function handleAnalytics(req: VercelRequest, res: VercelResponse, type: string) {
   try {
     if (!process.env.DATABASE_URL) {
