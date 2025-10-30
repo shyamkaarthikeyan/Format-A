@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { neonDb } from './_lib/neon-database';
+import { auth } from 'google-auth-library';
 import test from 'node:test';
 import { auth } from 'google-auth-library';
 import { auth } from 'google-auth-library';
@@ -170,9 +171,16 @@ async function handleUserAnalytics(req: VercelRequest, res: VercelResponse, db: 
       throw new Error('Database connection not available');
     }
     
-    const users = await db.getAllUsers();
-    const documents = await db.getAllDocuments();
-    console.log('Real data loaded:', { users: users.length, documents: documents.length });
+    // Add timeout protection for serverless
+    const timeout = setTimeout(() => {
+      throw new Error('Analytics query timeout - operation took too long');
+    }, 8000); // 8 second timeout
+    
+    try {
+      const users = await db.getAllUsers();
+      const documents = await db.getAllDocuments();
+      clearTimeout(timeout);
+      console.log('Real data loaded:', { users: users.length, documents: documents.length });
     
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
@@ -442,21 +450,24 @@ async function handleDocumentAnalytics(req: VercelRequest, res: VercelResponse, 
     const recentDocuments = documents
       .slice(0, 10)
       .map((doc: any) => {
-        const author = users.find((u: any) => u.id === doc.userId);
+        const userId = doc.user_id || doc.userId;
+        const author = users.find((u: any) => u.id === userId);
         return {
           id: doc.id,
           title: doc.title,
           author: author?.name || 'Unknown',
-          createdAt: doc.createdAt,
-          updatedAt: doc.updatedAt,
-          source: doc.source
+          createdAt: doc.created_at || doc.createdAt,
+          updatedAt: doc.updated_at || doc.updatedAt,
+          source: doc.source || 'web'
         };
       });
 
     // Document activity metrics
-    const documentsWithUpdates = documents.filter((doc: any) => 
-      doc.updatedAt && doc.createdAt && doc.updatedAt !== doc.createdAt
-    ).length;
+    const documentsWithUpdates = documents.filter((doc: any) => {
+      const createdAt = doc.created_at || doc.createdAt;
+      const updatedAt = doc.updated_at || doc.updatedAt;
+      return updatedAt && createdAt && updatedAt !== createdAt;
+    }).length;
 
     const updateRate = totalDocuments > 0 ? Math.round((documentsWithUpdates / totalDocuments) * 100) : 0;
 
