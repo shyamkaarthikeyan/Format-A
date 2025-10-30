@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 // Debug Environment Handler
-async function handleDebugEnv(req: VercelRequest, res: VercelResponse) {
+function handleDebugEnv(req: VercelRequest, res: VercelResponse) {
   try {
     const envCheck = {
       NODE_ENV: process.env.NODE_ENV,
@@ -58,8 +58,6 @@ async function handleDebugEnv(req: VercelRequest, res: VercelResponse) {
       memoryUsage: process.memoryUsage(),
       uptime: process.uptime()
     };
-
-    console.log('Environment diagnostic:', envCheck);
 
     return res.status(200).json({
       success: true,
@@ -79,16 +77,11 @@ async function handleDebugEnv(req: VercelRequest, res: VercelResponse) {
 // Test Database Handler
 async function handleTestDb(req: VercelRequest, res: VercelResponse) {
   try {
-    console.log('Testing database connection...');
-    
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({
         success: false,
         error: 'MISSING_DATABASE_URL',
-        message: 'DATABASE_URL environment variable is not set',
-        availableEnvVars: Object.keys(process.env).filter(key => 
-          key.includes('DATABASE') || key.includes('POSTGRES') || key.includes('NEON')
-        )
+        message: 'DATABASE_URL environment variable is not set'
       });
     }
 
@@ -97,12 +90,9 @@ async function handleTestDb(req: VercelRequest, res: VercelResponse) {
       arrayMode: false
     });
 
-    console.log('Attempting database query...');
     const startTime = Date.now();
     const result = await sql`SELECT 1 as test, NOW() as current_time`;
     const responseTime = Date.now() - startTime;
-
-    console.log('Database query successful:', result);
 
     return res.status(200).json({
       success: true,
@@ -119,22 +109,14 @@ async function handleTestDb(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Database test error:', error);
-    
     return res.status(500).json({
       success: false,
       error: 'DATABASE_CONNECTION_FAILED',
-      message: error instanceof Error ? error.message : 'Unknown database error',
-      details: {
-        name: error instanceof Error ? error.name : undefined,
-        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined,
-        hasUrl: !!process.env.DATABASE_URL,
-        nodeEnv: process.env.NODE_ENV
-      }
+      message: error instanceof Error ? error.message : 'Unknown database error'
     });
   }
-}
-//
- Analytics Handler
+}/
+/ Analytics Handler
 async function handleAnalytics(req: VercelRequest, res: VercelResponse, type: string) {
   try {
     if (!process.env.DATABASE_URL) {
