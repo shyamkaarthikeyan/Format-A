@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuth2Client } from 'google-auth-library';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 // Import database functions directly
 import { neon } from '@neondatabase/serverless';
 
