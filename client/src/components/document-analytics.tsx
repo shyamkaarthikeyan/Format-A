@@ -63,7 +63,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get(`/api/simple-admin?type=documents&timeRange=${selectedTimeRange}`);
+      const response = await apiClient.get(`/api/diagnostics?endpoint=analytics&type=documents&timeRange=${selectedTimeRange}`);
       
       if (response.success) {
         setAnalytics(response.data as DocumentAnalytics);
