@@ -1,9 +1,71 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuth2Client } from 'google-auth-library';
-import jwt from 'jsonwebtoken';
-import { neonDb } from './_lib/neon-database';
+import * as jwt from 'jsonwebtoken';
+// Import database functions directly
+import { neon } from '@neondatabase/serverless';
 
 const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
+
+// Initialize SQL connection
+let sql: any = null;
+function getSql() {
+  if (!sql) {
+    sql = neon(process.env.DATABASE_URL!, {
+      fullResults: true,
+      arrayMode: false
+    });
+  }
+  return sql;
+}
+
+// Database helper functions
+async function createOrUpdateUser(userData: {
+  google_id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}) {
+  const sql = getSql();
+  
+  // Try to find existing user
+  const existingUsers = await sql`
+    SELECT * FROM users WHERE google_id = ${userData.google_id} OR email = ${userData.email}
+  `;
+  
+  if (existingUsers.length > 0) {
+    // Update existing user
+    const updated = await sql`
+      UPDATE users 
+      SET name = ${userData.name}, 
+          picture = ${userData.picture || 'https://via.placeholder.com/150'},
+          last_login_at = NOW(),
+          updated_at = NOW()
+      WHERE id = ${existingUsers[0].id}
+      RETURNING *
+    `;
+    return updated[0];
+  } else {
+    // Create new user
+    const created = await sql`
+      INSERT INTO users (google_id, email, name, picture, created_at, updated_at, last_login_at)
+      VALUES (${userData.google_id}, ${userData.email}, ${userData.name}, 
+              ${userData.picture || 'https://via.placeholder.com/150'}, NOW(), NOW(), NOW())
+      RETURNING *
+    `;
+    return created[0];
+  }
+}
+
+async function getUserById(userId: string) {
+  const sql = getSql();
+  const users = await sql`SELECT * FROM users WHERE id = ${userId}`;
+  return users.length > 0 ? users[0] : null;
+}
+
+async function getAllUsers() {
+  const sql = getSql();
+  return await sql`SELECT * FROM users ORDER BY created_at DESC`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -66,10 +128,8 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Initialize database on first request
-    console.log('🔧 Initializing database...');
-    await neonDb.initialize();
-    console.log('✅ Database initialized successfully');
+    // Database connection is initialized lazily
+    console.log('🔧 Database connection ready...');
 
     const { credential, googleId, email, name, picture } = req.body || {};
 
@@ -133,7 +193,7 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
     console.log('🔐 Processing Google OAuth for user:', userInfo.email);
 
     // Create or update user in Neon database
-    const user = await neonDb.createOrUpdateUser({
+    const user = await createOrUpdateUser({
       google_id: userInfo.googleId,
       email: userInfo.email,
       name: userInfo.name,
@@ -203,9 +263,8 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
       const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
       const decoded = jwt.verify(token, jwtSecret) as any;
       
-      // Initialize database and get user
-      await neonDb.initialize();
-      const user = await neonDb.getUserById(decoded.userId);
+      // Get user from database
+      const user = await getUserById(decoded.userId);
       
       if (!user) {
         return res.status(401).json({ error: 'User not found' });
@@ -226,9 +285,8 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ error: 'Invalid token format' });
       }
 
-      // Initialize database and get first user (simplified approach)
-      await neonDb.initialize();
-      const users = await neonDb.getAllUsers();
+      // Get first user (simplified approach for session fallback)
+      const users = await getAllUsers();
       const user = users.length > 0 ? users[0] : null;
       
       if (!user) {
