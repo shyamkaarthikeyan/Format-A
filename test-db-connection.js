@@ -1,55 +1,41 @@
-// Test database connection
-import dotenv from 'dotenv';
+// Test database connection with neonDb.initialize()
+import https from 'https';
 
-// Load environment variables from .env.local first, then .env
-dotenv.config({ path: '.env.local' });
-dotenv.config();
+const testData = JSON.stringify({
+  testInit: true
+});
 
-// Debug environment variables
-console.log('Environment check:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-if (process.env.DATABASE_URL) {
-  console.log('DATABASE_URL starts with:', process.env.DATABASE_URL.substring(0, 30) + '...');
-}
+const options = {
+  hostname: 'format-a.vercel.app',
+  port: 443,
+  path: '/api/diagnostics?endpoint=test-db',
+  method: 'GET'
+};
 
-// Import the TypeScript module using dynamic import
-const { neonDb } = await import('./api/_lib/neon-database.ts');
+console.log('🔍 Testing database initialization...');
 
-async function testConnection() {
-  try {
-    console.log('🔧 Testing database connection...');
+const req = https.request(options, (res) => {
+  console.log(`Status: ${res.statusCode}`);
+  
+  let data = '';
+  res.on('data', (chunk) => {
+    data += chunk;
+  });
+  
+  res.on('end', () => {
+    console.log('Response:', data);
     
-    // Test basic connection
-    const isConnected = await neonDb.testConnection();
-    console.log('Connection test result:', isConnected);
-    
-    if (isConnected) {
-      console.log('✅ Database connection successful');
-      
-      // Try to initialize tables
-      await neonDb.initialize();
-      console.log('✅ Database initialization successful');
-      
-      // Test basic queries
-      const users = await neonDb.getAllUsers();
-      const documents = await neonDb.getAllDocuments();
-      const downloads = await neonDb.getAllDownloads();
-      
-      console.log('📊 Data counts:', {
-        users: users.length,
-        documents: documents.length,
-        downloads: downloads.length
-      });
-      
-      console.log('✅ All database operations working correctly');
+    if (res.statusCode === 200) {
+      console.log('✅ Database test endpoint works');
+      console.log('The issue might be in the auth-specific database initialization');
     } else {
-      console.log('❌ Database connection failed');
+      console.log('❌ Database test endpoint also failing');
     }
-  } catch (error) {
-    console.error('❌ Database test failed:', error);
-    console.error('Error details:', error.message);
-  }
-}
+  });
+});
 
-testConnection();
+req.on('error', (error) => {
+  console.error('Error:', error);
+});
+
+req.end();

@@ -1,18 +1,16 @@
-// Test database connection specifically
+// Test all environment variables
 import https from 'https';
 
 const options = {
   hostname: 'format-a.vercel.app',
   port: 443,
-  path: '/api/diagnostics?endpoint=test-db',
+  path: '/api/diagnostics?endpoint=debug-env',
   method: 'GET'
 };
 
-console.log('🔍 Testing database connection...');
+console.log('🔍 Testing all environment variables...');
 
 const req = https.request(options, (res) => {
-  console.log(`Status: ${res.statusCode}`);
-  
   let data = '';
   res.on('data', (chunk) => {
     data += chunk;
@@ -21,13 +19,8 @@ const req = https.request(options, (res) => {
   res.on('end', () => {
     try {
       const response = JSON.parse(data);
-      if (response.success) {
-        console.log('✅ Database connection is working');
-        console.log('Response time:', response.data.responseTime);
-      } else {
-        console.log('❌ Database connection failed');
-        console.log('Error:', response.error);
-      }
+      console.log('Full environment response:');
+      console.log(JSON.stringify(response.data, null, 2));
     } catch (e) {
       console.log('Raw response:', data);
     }

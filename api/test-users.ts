@@ -19,11 +19,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Get all users from the database
     const result = await sql`SELECT id, email, name, google_id, created_at, last_login_at, is_active FROM users ORDER BY created_at DESC`;
-    const users = result.rows || result;
+    const users = (result.rows || result) as any[];
 
     // Get user count
     const countResult = await sql`SELECT COUNT(*) as total FROM users`;
-    const totalUsers = (countResult.rows || countResult)[0]?.total || 0;
+    const totalUsers = ((countResult.rows || countResult) as any[])[0]?.total || 0;
 
     // Get recent users (last 24 hours)
     const recentResult = await sql`
@@ -31,16 +31,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       FROM users 
       WHERE created_at > NOW() - INTERVAL '24 hours'
     `;
-    const recentUsers = (recentResult.rows || recentResult)[0]?.recent || 0;
+    const recentUsers = ((recentResult.rows || recentResult) as any[])[0]?.recent || 0;
+
+    // Format users for the component
+    const formattedUsers = users.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.created_at,
+      lastLoginAt: user.last_login_at,
+      documentCount: 0, // TODO: Get actual document count
+      downloadCount: 0, // TODO: Get actual download count
+      isActive: user.is_active,
+      status: user.is_active ? 'active' : 'inactive'
+    }));
 
     return res.status(200).json({
       success: true,
       data: {
-        users,
-        stats: {
+        users: formattedUsers,
+        pagination: {
+          page: 1,
+          limit: 20,
           total: totalUsers,
-          recent: recentUsers,
-          timestamp: new Date().toISOString()
+          totalPages: Math.ceil(totalUsers / 20),
+          hasNext: false,
+          hasPrev: false
+        },
+        summary: {
+          totalUsers: totalUsers,
+          activeUsers: formattedUsers.filter(u => u.isActive).length,
+          newUsersThisMonth: recentUsers,
+          suspendedUsers: formattedUsers.filter(u => !u.isActive).length
         }
       }
     });
