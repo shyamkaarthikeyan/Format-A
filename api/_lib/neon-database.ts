@@ -378,6 +378,7 @@ export class NeonDatabase {
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     try {
+      const sql = getSqlConnection();
       const setClause = Object.keys(updates)
         .filter(key => key !== 'id' && updates[key as keyof User] !== undefined)
         .map(key => `${key} = $${key}`)
@@ -408,6 +409,7 @@ export class NeonDatabase {
 
   async updateUserPreferences(userId: string, preferences: any): Promise<User | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         UPDATE users 
         SET preferences = ${JSON.stringify(preferences)}, updated_at = NOW()
@@ -424,6 +426,7 @@ export class NeonDatabase {
 
   async deactivateUser(userId: string): Promise<boolean> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         UPDATE users 
         SET is_active = false, updated_at = NOW()
@@ -440,6 +443,7 @@ export class NeonDatabase {
 
   async deleteUser(userId: string): Promise<boolean> {
     try {
+      const sql = getSqlConnection();
       // This will cascade delete related records due to foreign key constraints
       const result = await sql`
         DELETE FROM users WHERE id = ${userId}
@@ -455,6 +459,7 @@ export class NeonDatabase {
 
   async getUserStats(userId: string): Promise<any> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT 
           u.*,
@@ -490,6 +495,7 @@ export class NeonDatabase {
     reference_count?: number;
   }): Promise<Document> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         INSERT INTO documents (id, user_id, title, content, document_type, word_count, page_count, 
                              section_count, figure_count, reference_count, created_at, updated_at)
@@ -509,6 +515,7 @@ export class NeonDatabase {
 
   async getDocumentById(id: string): Promise<Document | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT d.*, u.name as user_name, u.email as user_email
         FROM documents d
@@ -525,6 +532,7 @@ export class NeonDatabase {
 
   async getUserDocuments(userId: string): Promise<Document[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT d.*, 
                COUNT(dl.id) as download_count,
@@ -544,6 +552,7 @@ export class NeonDatabase {
 
   async getAllDocuments(): Promise<Document[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT d.*, u.name as user_name, u.email as user_email,
                COUNT(dl.id) as download_count,
@@ -563,6 +572,7 @@ export class NeonDatabase {
 
   async updateDocument(id: string, updates: Partial<Document>): Promise<Document | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         UPDATE documents 
         SET title = COALESCE(${updates.title}, title),
@@ -586,6 +596,7 @@ export class NeonDatabase {
 
   async deleteDocument(id: string): Promise<boolean> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         DELETE FROM documents WHERE id = ${id}
         RETURNING id
@@ -600,6 +611,7 @@ export class NeonDatabase {
 
   async searchDocuments(query: string, userId?: string): Promise<Document[]> {
     try {
+      const sql = getSqlConnection();
       const searchQuery = `%${query}%`;
       const result = userId 
         ? await sql`
@@ -636,6 +648,7 @@ export class NeonDatabase {
     document_metadata?: any;
   }): Promise<Download> {
     try {
+      const sql = getSqlConnection();
       const id = `download_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       
       const result = await sql`
@@ -658,6 +671,7 @@ export class NeonDatabase {
 
   async getUserDownloads(userId: string): Promise<Download[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT * FROM downloads 
         WHERE user_id = ${userId} 
@@ -672,6 +686,7 @@ export class NeonDatabase {
 
   async getAllDownloads(): Promise<Download[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT d.*, u.name as user_name, u.email as user_email
         FROM downloads d
@@ -687,6 +702,7 @@ export class NeonDatabase {
 
   async getDownloadById(id: string): Promise<Download | null> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT d.*, u.name as user_name, u.email as user_email
         FROM downloads d
@@ -703,6 +719,7 @@ export class NeonDatabase {
 
   async updateDownloadStatus(id: string, status: string, emailSent?: boolean, emailError?: string): Promise<void> {
     try {
+      const sql = getSqlConnection();
       await sql`
         UPDATE downloads 
         SET status = ${status},
@@ -719,6 +736,7 @@ export class NeonDatabase {
 
   async deleteUserDownloads(userId: string): Promise<boolean> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         DELETE FROM downloads WHERE user_id = ${userId}
         RETURNING id
@@ -733,6 +751,7 @@ export class NeonDatabase {
 
   async getDownloadTrends(days: number = 30): Promise<any[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT 
           DATE(downloaded_at) as date,
@@ -754,6 +773,7 @@ export class NeonDatabase {
 
   async getTopDownloadedDocuments(limit: number = 10): Promise<any[]> {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT 
           document_title,
@@ -776,6 +796,7 @@ export class NeonDatabase {
   // Analytics operations
   async getUserAnalytics() {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT 
           COUNT(*) as total_users,
@@ -804,6 +825,7 @@ export class NeonDatabase {
 
   async getDocumentAnalytics() {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT 
           COUNT(*) as total_documents,
@@ -826,6 +848,7 @@ export class NeonDatabase {
 
   async getDownloadAnalytics() {
     try {
+      const sql = getSqlConnection();
       const result = await sql`
         SELECT 
           COUNT(*) as total_downloads,
