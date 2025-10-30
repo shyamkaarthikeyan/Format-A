@@ -385,7 +385,10 @@ export class PostgresStorage {
   // Initialize database on first use
   async initialize() {
     await this.initializeTables();
-    await this.seedSampleData();
+    // Disable sample data seeding in production
+    if (process.env.NODE_ENV === 'development' && process.env.SEED_SAMPLE_DATA === 'true') {
+      await this.seedSampleData();
+    }
   }
 }
 
