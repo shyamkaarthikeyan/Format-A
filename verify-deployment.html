@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Vercel Deployment</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; max-height: 200px; }
+        .url { background: #e7f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Vercel Deployment Verification</h1>
+    <p>Testing your deployed admin dashboard at <strong>https://format-a.vercel.app</strong></p>
+    
+    <div class="url">
+        <h3>📍 Quick Access Links:</h3>
+        <ul>
+            <li><a href="https://format-a.vercel.app/" target="_blank">Main App</a></li>
+            <li><a href="https://format-a.vercel.app/admin" target="_blank">Admin Dashboard</a></li>
+            <li><a href="https://format-a.vercel.app/api/health" target="_blank">API Health Check</a></li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h3>1. Test Basic API Health</h3>
+        <button onclick="testHealth()">Test API Health</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Test Admin Analytics</h3>
+        <button onclick="testAdminAnalytics()">Test Admin Endpoints</button>
+        <div id="admin-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Test Database Connection</h3>
+        <button onclick="testDatabase()">Test Database</button>
+        <div id="database-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. Environment Variables Check</h3>
+        <button onclick="testEnvironment()">Check Environment</button>
+        <div id="env-result"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://format-a.vercel.app';
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': 'admin_token_test',
+                        ...options.headers
+                    }
+                });
+                
+                const data = await response.text();
+                let jsonData;
+                try {
+                    jsonData = JSON.parse(data);
+                } catch (e) {
+                    jsonData = { error: 'Invalid JSON', rawResponse: data };
+                }
+                
+                return {
+                    status: response.status,
+                    success: response.ok,
+                    data: jsonData
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    success: false,
+                    data: { error: error.message }
+                };
+            }
+        }
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<div class="warning">Testing API health...</div>';
+            
+            const result = await makeRequest(`${BASE_URL}/api/health`);
+            
+            if (result.success) {
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ API is healthy!</h4>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ API health check failed</h4>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testAdminAnalytics() {
+            const resultDiv = document.getElementById('admin-result');
+            resultDiv.innerHTML = '<div class="warning">Testing admin endpoints...</div>';
+            
+            const endpoints = [
+                { path: 'analytics&type=users', name: 'User Analytics' },
+                { path: 'users', name: 'User Management' }
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                const result = await makeRequest(`${BASE_URL}/api/admin?path=${endpoint.path}`);
+                results.push({
+                    name: endpoint.name,
+                    status: result.success ? '✅ Working' : '❌ Failed',
+                    statusCode: result.status,
+                    hasData: result.success && !!result.data.data
+                });
+            }
+            
+            const allWorking = results.every(r => r.status.includes('✅'));
+            
+            resultDiv.innerHTML = `
+                <div class="${allWorking ? 'success' : 'error'}">
+                    <h4>${allWorking ? '🎉 Admin endpoints working!' : '⚠️ Some admin endpoints failed'}</h4>
+                    <ul>
+                        ${results.map(r => `
+                            <li><strong>${r.name}:</strong> ${r.status} (${r.statusCode}) ${r.hasData ? '📊 Has Data' : ''}</li>
+                        `).join('')}
+                    </ul>
+                    ${allWorking ? '<p><strong>✅ Your admin dashboard should work!</strong></p>' : ''}
+                </div>
+            `;
+        }
+
+        async function testDatabase() {
+            const resultDiv = document.getElementById('database-result');
+            resultDiv.innerHTML = '<div class="warning">Testing database connection...</div>';
+            
+            const result = await makeRequest(`${BASE_URL}/api/admin?path=analytics&type=users`);
+            
+            if (result.success && result.data.data) {
+                const userData = result.data.data;
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Database connected!</h4>
+                        <p><strong>Total Users:</strong> ${userData.totalUsers || 'N/A'}</p>
+                        <p><strong>Active Users:</strong> ${userData.activeUsers?.last30d || 'N/A'}</p>
+                        <p><strong>Database Status:</strong> Connected and returning data</p>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Database connection issue</h4>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        <p><strong>Error:</strong> ${result.data.error || 'Unknown error'}</p>
+                        <p><strong>Possible Issue:</strong> Environment variables not set in Vercel</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testEnvironment() {
+            const resultDiv = document.getElementById('env-result');
+            resultDiv.innerHTML = '<div class="warning">Checking environment...</div>';
+            
+            // Test if we can create an admin session (this will tell us if env vars are set)
+            const result = await makeRequest(`${BASE_URL}/api/admin?path=auth/session`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: 'shyamkaarthikeyan@gmail.com',
+                    userId: 'admin_test'
+                })
+            });
+            
+            if (result.success) {
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Environment configured correctly!</h4>
+                        <p><strong>Admin Auth:</strong> Working</p>
+                        <p><strong>Database:</strong> Accessible</p>
+                        <p><strong>Status:</strong> Ready for admin access</p>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>⚠️ Environment issues detected</h4>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        <p><strong>Error:</strong> ${result.data.error || 'Unknown'}</p>
+                        <p><strong>Action Needed:</strong> Check Vercel environment variables</p>
+                        <details>
+                            <summary>Required Environment Variables</summary>
+                            <pre>DATABASE_URL
+VITE_GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+JWT_SECRET
+SESSION_SECRET
+NODE_ENV=production</pre>
+                        </details>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run basic tests
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testHealth();
+                setTimeout(() => testDatabase(), 1000);
+            }, 500);
+        });
+    </script>
+</body>
+</html>

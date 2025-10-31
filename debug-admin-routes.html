@@ -1,103 +1,122 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Debug Admin Routes</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; max-height: 300px; }
+    </style>
 </head>
 <body>
-    <h1>Debug Admin API Routes</h1>
-    <div id="results"></div>
+    <h1>Debug Admin Routes</h1>
+    <p>Testing different ways to call the users endpoint to see which function is being called.</p>
     
-    <button onclick="testRoute1()">Test Route 1: /api/admin?path=analytics&type=users</button><br><br>
-    <button onclick="testRoute2()">Test Route 2: /api/admin/analytics/users</button><br><br>
-    <button onclick="testRoute3()">Test Route 3: /api/admin (no params)</button><br><br>
-    <button onclick="testRoute4()">Test Route 4: Check server logs</button><br><br>
+    <div class="test-section">
+        <h3>Test 1: Direct Admin Users Endpoint</h3>
+        <button onclick="testAdminUsers()">Test /api/admin?path=users</button>
+        <div id="admin-users-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Test Users Endpoint</h3>
+        <button onclick="testTestUsers()">Test /api/test-users</button>
+        <div id="test-users-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Admin Users with Query Params</h3>
+        <button onclick="testAdminUsersWithParams()">Test /api/admin?path=users&search=test</button>
+        <div id="admin-users-params-result"></div>
+    </div>
 
     <script>
-        async function testRoute1() {
-            const results = document.getElementById('results');
-            results.innerHTML = '<h3>Testing Route 1: /api/admin?path=analytics&type=users</h3>';
+        async function makeRequest(url, resultId, description) {
+            const resultDiv = document.getElementById(resultId);
+            resultDiv.innerHTML = `<div style="background: #fff3cd; padding: 10px; border-radius: 5px;">Testing ${description}...</div>`;
             
             try {
-                console.log('Testing route 1...');
-                const response = await fetch('/api/admin?path=analytics&type=users', {
+                const response = await fetch(url, {
                     method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': 'admin_token_test'
+                    }
                 });
                 
-                console.log('Route 1 - Status:', response.status);
-                console.log('Route 1 - Headers:', [...response.headers.entries()]);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Route 1 - Data:', data);
-                    results.innerHTML += `<p>✅ Success: ${JSON.stringify(data.data?.totalUsers || 'No data')}</p>`;
-                } else {
-                    const errorText = await response.text();
-                    console.log('Route 1 - Error:', errorText);
-                    results.innerHTML += `<p>❌ Error ${response.status}: ${errorText}</p>`;
+                const data = await response.text();
+                let jsonData;
+                try {
+                    jsonData = JSON.parse(data);
+                } catch (e) {
+                    jsonData = { error: 'Invalid JSON', rawResponse: data };
                 }
-            } catch (error) {
-                console.error('Route 1 - Exception:', error);
-                results.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
-            }
-        }
-
-        async function testRoute2() {
-            const results = document.getElementById('results');
-            results.innerHTML = '<h3>Testing Route 2: /api/admin/analytics/users</h3>';
-            
-            try {
-                console.log('Testing route 2...');
-                const response = await fetch('/api/admin/analytics/users', {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
                 
-                console.log('Route 2 - Status:', response.status);
-                console.log('Route 2 - Headers:', [...response.headers.entries()]);
+                const isSuccess = response.ok && jsonData.success !== false;
+                const cssClass = isSuccess ? 'success' : 'error';
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Route 2 - Data:', data);
-                    results.innerHTML += `<p>✅ Success: ${JSON.stringify(data.data?.totalUsers || 'No data')}</p>`;
-                } else {
-                    const errorText = await response.text();
-                    console.log('Route 2 - Error:', errorText);
-                    results.innerHTML += `<p>❌ Error ${response.status}: ${errorText}</p>`;
+                // Check data structure to identify which endpoint was called
+                let endpointIdentification = '';
+                if (jsonData.data) {
+                    if (Array.isArray(jsonData.data)) {
+                        // Raw array - likely from direct DB call or test-users
+                        const firstUser = jsonData.data[0];
+                        if (firstUser && firstUser.google_id) {
+                            endpointIdentification = '🔍 Raw database data (has google_id field)';
+                        }
+                    } else if (jsonData.data.users) {
+                        // Formatted structure - likely from handleUsers
+                        const firstUser = jsonData.data.users[0];
+                        if (firstUser && firstUser.createdAt && !firstUser.google_id) {
+                            endpointIdentification = '✅ Formatted data from handleUsers (has createdAt, no google_id)';
+                        } else if (firstUser && firstUser.google_id) {
+                            endpointIdentification = '🔍 Raw data in users array (has google_id)';
+                        }
+                    }
                 }
+                
+                resultDiv.innerHTML = `
+                    <div class="${cssClass}">
+                        <h4>${isSuccess ? '✅' : '❌'} ${description}</h4>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Data Type:</strong> ${Array.isArray(jsonData.data) ? 'Array' : typeof jsonData.data}</p>
+                        <p><strong>Endpoint Identification:</strong> ${endpointIdentification}</p>
+                        ${jsonData.data && Array.isArray(jsonData.data) ? 
+                            `<p><strong>User Count:</strong> ${jsonData.data.length}</p>` : 
+                            jsonData.data && jsonData.data.users ? 
+                            `<p><strong>User Count:</strong> ${jsonData.data.users.length}</p>` : ''
+                        }
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(jsonData, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
             } catch (error) {
-                console.error('Route 2 - Exception:', error);
-                results.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Error Testing ${description}</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
             }
         }
 
-        async function testRoute3() {
-            const results = document.getElementById('results');
-            results.innerHTML = '<h3>Testing Route 3: /api/admin (no params)</h3>';
-            
-            try {
-                console.log('Testing route 3...');
-                const response = await fetch('/api/admin', {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                console.log('Route 3 - Status:', response.status);
-                console.log('Route 3 - Headers:', [...response.headers.entries()]);
-                
-                const responseText = await response.text();
-                console.log('Route 3 - Response:', responseText);
-                results.innerHTML += `<p>Status ${response.status}: ${responseText}</p>`;
-            } catch (error) {
-                console.error('Route 3 - Exception:', error);
-                results.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
-            }
+        async function testAdminUsers() {
+            await makeRequest('/api/admin?path=users', 'admin-users-result', 'Admin Users Endpoint');
         }
 
-        async function testRoute4() {
-            const results = document.getElementById('results');
-            results.innerHTML = '<h3>Check the server console for logs</h3>';
-            results.innerHTML += '<p>Look at your terminal where you ran "npm run dev" to see which routes are being hit and any error messages.</p>';
+        async function testTestUsers() {
+            await makeRequest('/api/test-users', 'test-users-result', 'Test Users Endpoint');
+        }
+
+        async function testAdminUsersWithParams() {
+            await makeRequest('/api/admin?path=users&search=test', 'admin-users-params-result', 'Admin Users with Params');
         }
     </script>
 </body>
