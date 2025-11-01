@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Function Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-result { margin: 10px 0; padding: 15px; border-radius: 5px; border-left: 4px solid #ccc; }
+        .success { background: #d4edda; border-color: #28a745; }
+        .error { background: #f8d7da; border-color: #dc3545; }
+        .loading { background: #fff3cd; border-color: #ffc107; }
+        .info { background: #d1ecf1; border-color: #17a2b8; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        .status { font-weight: bold; }
+        .timestamp { color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Serverless Function Diagnostic</h1>
+        <p>This tool tests your Vercel serverless functions to identify and fix crashes.</p>
+        
+        <div class="controls">
+            <button onclick="runAllTests()" id="testBtn">Run All Tests</button>
+            <button onclick="clearResults()">Clear Results</button>
+            <button onclick="testSpecificEndpoint()">Test Custom Endpoint</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+        let testCount = 0;
+        
+        function addResult(testName, status, data, timestamp = new Date()) {
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            div.innerHTML = `
+                <div class="status">${getStatusIcon(status)} ${testName}</div>
+                <div class="timestamp">${timestamp.toLocaleTimeString()}</div>
+                <pre>${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</pre>
+            `;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function getStatusIcon(status) {
+            switch(status) {
+                case 'success': return '✅';
+                case 'error': return '❌';
+                case 'loading': return '⏳';
+                case 'info': return 'ℹ️';
+                default: return '📋';
+            }
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+            testCount = 0;
+        }
+        
+        async function testEndpoint(name, url, options = {}) {
+            const testId = ++testCount;
+            addResult(`${testId}. ${name}`, 'loading', 'Testing...');
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                const responseTime = Date.now() - startTime;
+                const contentType = response.headers.get('content-type') || '';
+                
+                let data;
+                if (contentType.includes('application/json')) {
+                    data = await response.json();
+                } else if (contentType.includes('application/pdf')) {
+                    data = `PDF Response (${response.headers.get('content-length')} bytes)`;
+                } else {
+                    data = await response.text();
+                }
+                
+                // Remove loading result
+                results.removeChild(results.lastChild);
+                
+                const resultData = {
+                    status: response.status,
+                    responseTime: `${responseTime}ms`,
+                    contentType: contentType,
+                    data: data
+                };
+                
+                if (response.ok) {
+                    addResult(`${testId}. ${name}`, 'success', resultData);
+                } else {
+                    addResult(`${testId}. ${name}`, 'error', resultData);
+                }
+                
+                return { success: response.ok, data: resultData };
+                
+            } catch (error) {
+                // Remove loading result
+                if (results.lastChild) results.removeChild(results.lastChild);
+                
+                addResult(`${testId}. ${name}`, 'error', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                
+                return { success: false, error: error.message };
+            }
+        }
+        
+        async function runAllTests() {
+            const testBtn = document.getElementById('testBtn');
+            testBtn.disabled = true;
+            testBtn.textContent = 'Running Tests...';
+            
+            clearResults();
+            addResult('Test Session Started', 'info', `Testing ${window.location.origin} serverless functions`);
+            
+            const tests = [
+                { name: 'Health Check', url: '/api/health' },
+                { name: 'Root API', url: '/api/' },
+                { name: 'Debug Endpoint', url: '/api/debug' },
+                { name: 'Minimal Test', url: '/api/test-minimal' },
+                { name: 'Auth Verify', url: '/api/auth/verify' },
+                { 
+                    name: 'PDF Generation (Simple)', 
+                    url: '/api/generate/docx-to-pdf?preview=true',
+                    options: {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            title: 'Test Document',
+                            authors: [{ name: 'Test Author' }]
+                        })
+                    }
+                },
+                { name: 'Admin Analytics', url: '/api/admin/analytics/users' },
+                { name: 'Non-existent (Should 404)', url: '/api/nonexistent' }
+            ];
+            
+            let successCount = 0;
+            let totalTests = tests.length;
+            
+            for (const test of tests) {
+                const result = await testEndpoint(test.name, test.url, test.options);
+                if (result.success) successCount++;
+                
+                // Small delay between tests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Summary
+            addResult('Test Summary', successCount === totalTests ? 'success' : 'error', 
+                `${successCount}/${totalTests} tests passed`);
+            
+            testBtn.disabled = false;
+            testBtn.textContent = 'Run All Tests';
+        }
+        
+        async function testSpecificEndpoint() {
+            const endpoint = prompt('Enter endpoint to test (e.g., /api/custom):');
+            if (endpoint) {
+                await testEndpoint('Custom Test', endpoint);
+            }
+        }
+        
+        // Auto-run tests on page load
+        window.onload = () => {
+            addResult('Page Loaded', 'info', 'Ready to test serverless functions');
+        };
+    </script>
+</body>
+</html>

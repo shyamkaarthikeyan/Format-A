@@ -13,6 +13,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Extract path from query parameters
+    const { path } = req.query;
+    const pathArray = Array.isArray(path) ? path : [path].filter(Boolean);
+    const endpoint = pathArray.join('/');
+
+    console.log('Core API processing endpoint:', endpoint);
+
+    // Route to appropriate handler
+    switch (endpoint) {
+      case 'health':
+        return await handleHealth(req, res);
+      case 'diagnostics':
+        return await handleDiagnostics(req, res);
+      case '':
+      case 'index':
+        return await handleIndex(req, res);
+      default:
+        return res.status(404).json({ 
+          error: 'Core endpoint not found', 
+          endpoint,
+          availableEndpoints: ['health', 'diagnostics', 'index']
+        });
+    }
+  } catch (error) {
+    console.error('Core API error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// Health endpoint handler - extracted from api/health.ts
+async function handleHealth(req: VercelRequest, res: VercelResponse) {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.version,
+    platform: process.platform,
+    environment: process.env.NODE_ENV || 'development'
+  });
+}
+
+// Index endpoint handler - extracted from api/index.ts
+async function handleIndex(req: VercelRequest, res: VercelResponse) {
+  res.status(200).json({ 
+    message: 'StreamlitToReact IEEE Paper Generator API',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      auth: {
+        google: '/api/auth/google',
+        verify: '/api/auth/verify',
+        signout: '/api/auth/signout'
+      },
+      downloads: {
+        history: '/api/downloads?action=history',
+        byId: '/api/downloads?id={id}'
+      },
+      admin: '/api/admin',
+      health: '/api/health'
+    }
+  });
+}
+
+// Diagnostics endpoint handler - extracted from api/diagnostics.ts
+async function handleDiagnostics(req: VercelRequest, res: VercelResponse) {
+  try {
     const { type, endpoint } = req.query;
     
     // Route based on endpoint parameter
