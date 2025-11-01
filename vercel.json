@@ -1,4 +1,5 @@
 {
+  "buildCommand": "rm -rf node_modules/.cache && npm install --include=optional && npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
 
