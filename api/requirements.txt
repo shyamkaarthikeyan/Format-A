@@ -1,3 +1,0 @@
-python-docx==1.1.2
-Pillow==9.5.0
-# PDF preview handled client-side with PDF.js
