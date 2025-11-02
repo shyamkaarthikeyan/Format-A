@@ -395,7 +395,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       };
 
       // Title (24pt, centered, bold, Times New Roman) - IEEE standard
-      pdf.setFont('Times Roman', 'bold');
+      pdf.setFont('times', 'bold');
       pdf.setFontSize(24);
       checkPageBreak(10);
       const titleLines = pdf.splitTextToSize(document.title, maxWidth);
@@ -406,7 +406,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       yPosition += lineHeights.title;
 
       // Authors (10pt, centered, Times New Roman)
-      pdf.setFont('Times Roman', 'normal');
+      pdf.setFont('times', 'normal');
       pdf.setFontSize(10);
       const authors = document.authors.map((a: any) => a.name).join(', ');
       const authorLines = pdf.splitTextToSize(authors, maxWidth);
@@ -424,7 +424,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         .join('; ');
       
       if (affiliations) {
-        pdf.setFont('Times Roman', 'italic');
+        pdf.setFont('times', 'italic');
         pdf.setFontSize(9);
         const affLines = pdf.splitTextToSize(affiliations, maxWidth);
         checkPageBreak(affLines.length * lineHeights.body + 3);
@@ -437,11 +437,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       // Abstract (10pt, italic) - IEEE format with "Abstract—" prefix
       if (document.abstract) {
-        pdf.setFont('Times Roman', 'normal');
+        pdf.setFont('times', 'normal');
         pdf.setFontSize(10);
         pdf.text('Abstract—', margin, yPosition);
         
-        pdf.setFont('Times Roman', 'italic');
+        pdf.setFont('times', 'italic');
         const abstractLines = pdf.splitTextToSize(document.abstract, maxWidth - 15);
         checkPageBreak(abstractLines.length * lineHeights.body + 6);
         
@@ -462,11 +462,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       // Keywords (10pt, italic) - IEEE format with "Keywords—" prefix
       if (document.keywords && document.keywords.length > 0) {
         const keywordsText = Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords;
-        pdf.setFont('Times Roman', 'normal');
+        pdf.setFont('times', 'normal');
         pdf.setFontSize(10);
         pdf.text('Keywords—', margin, yPosition);
         
-        pdf.setFont('Times Roman', 'italic');
+        pdf.setFont('times', 'italic');
         const keywordLines = pdf.splitTextToSize(keywordsText, maxWidth - 15);
         checkPageBreak(keywordLines.length * lineHeights.body + 6);
         
@@ -488,7 +488,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           yPosition += lineHeights.section;
 
           // Section title (9.5pt, NOT bold - IEEE standard)
-          pdf.setFont('Times Roman', 'normal');
+          pdf.setFont('times', 'normal');
           pdf.setFontSize(9.5);
           const sectionTitle = `${index + 1}. ${section.title}`;
           const sectionTitleLines = pdf.splitTextToSize(sectionTitle, maxWidth);
@@ -502,7 +502,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
           // Section content (9.5pt, justified-like appearance)
           if (section.content) {
-            pdf.setFont('Times Roman', 'normal');
+            pdf.setFont('times', 'normal');
             pdf.setFontSize(9.5);
             const contentLines = pdf.splitTextToSize(section.content, maxWidth);
             checkPageBreak(contentLines.length * lineHeights.body + 3);
@@ -521,7 +521,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         yPosition += lineHeights.section;
         
         // References heading
-        pdf.setFont('Times Roman', 'normal');
+        pdf.setFont('times', 'normal');
         pdf.setFontSize(9.5);
         pdf.text('References', margin, yPosition);
         yPosition += lineHeights.body + 1;
