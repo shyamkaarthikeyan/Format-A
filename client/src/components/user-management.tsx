@@ -72,54 +72,10 @@ const UserManagement: React.FC = () => {
         limit: '20'
       });
       
-      const response = await apiClient.adminGet(`users?${params}`);
+      const response = await apiClient.get(`/api/utils?action=test-users&${params}`);
       
       if (response.success) {
-        // Handle both raw array and formatted object structures
-        let formattedData: UserManagementData;
-        
-        if (Array.isArray(response.data)) {
-          // Raw array from database - format it
-          const users = response.data.map((user: any) => ({
-            id: user.id,
-            name: user.name || 'Anonymous',
-            email: user.email,
-            createdAt: user.created_at || user.createdAt || new Date().toISOString(),
-            lastLoginAt: user.last_login_at || user.lastLoginAt || null,
-            documentCount: 0,
-            downloadCount: 0,
-            isActive: user.is_active !== undefined ? user.is_active : true,
-            status: (user.is_active !== undefined ? user.is_active : true) ? 'active' : 'inactive'
-          }));
-          
-          const now = new Date();
-          const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-          
-          formattedData = {
-            users,
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: users.length,
-              totalPages: Math.ceil(users.length / 20),
-              hasNext: false,
-              hasPrev: false
-            },
-            summary: {
-              totalUsers: users.length,
-              activeUsers: users.filter(u => u.isActive).length,
-              newUsersThisMonth: users.filter(u => 
-                new Date(u.createdAt) > thirtyDaysAgo
-              ).length,
-              suspendedUsers: users.filter(u => !u.isActive).length
-            }
-          };
-        } else {
-          // Already formatted object
-          formattedData = response.data as UserManagementData;
-        }
-        
-        setData(formattedData);
+        setData(response.data as UserManagementData);
       } else {
         const errorMessage = typeof response.error === 'string' 
           ? response.error 

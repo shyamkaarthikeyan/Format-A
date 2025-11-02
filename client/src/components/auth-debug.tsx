@@ -67,7 +67,7 @@ const AuthDebug: React.FC = () => {
         settings: { fontSize: '10pt', columns: '2', exportFormat: 'docx' }
       };
 
-      const generateResult = await fetch('/api/generate/docx', {
+      const generateResult = await fetch('/api/generate?type=docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

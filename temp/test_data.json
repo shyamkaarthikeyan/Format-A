@@ -1,0 +1,20 @@
+{
+  "title": "Test IEEE Paper",
+  "authors": [
+    {
+      "name": "John Doe",
+      "affiliation": "University of Test",
+      "email": "john@test.com"
+    }
+  ],
+  "abstract": "This is a test abstract for the IEEE paper format.",
+  "keywords": ["test", "ieee", "pdf"],
+  "sections": [
+    {
+      "title": "Introduction",
+      "content": "This is the introduction section content."
+    }
+  ],
+  "references": ["Test Reference 1"],
+  "output_path": "./temp/test_weasyprint.pdf"
+}

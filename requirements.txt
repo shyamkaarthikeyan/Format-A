@@ -1,4 +1,8 @@
-reportlab==4.2.5
 python-docx==1.1.2
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
 Pillow==10.1.0
-docx2pdf==0.1.8
+lxml==5.1.0
+# For PDF preview - we return DOCX and let client handle conversion
+# Server-side PDF generation requires system libraries not available in Vercel

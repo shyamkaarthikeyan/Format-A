@@ -1,20 +1,15 @@
 {
-  "buildCommand": "rm -rf node_modules/.cache && npm install --include=optional && npm run build",
+  "buildCommand": "rm -rf node_modules package-lock.json && npm install && npm run build",
   "outputDirectory": "dist",
+  "installCommand": "npm install",
   "framework": "vite",
 
-  "build": {
-    "env": {
-      "PYTHONPATH": "/var/task:/var/task/api",
-      "PYTHON_UNBUFFERED": "1",
-      "TMPDIR": "/tmp"
+  "functions": {
+    "api/generate.ts": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**"
     }
-  },
-  "env": {
-    "PYTHONPATH": "/var/task:/var/task/api",
-    "PYTHON_UNBUFFERED": "1",
-    "TMPDIR": "/tmp",
-    "PYTHON_ENV": "production"
   },
 
   "rewrites": [
@@ -29,90 +24,6 @@
     {
       "source": "/api/auth/(.*)",
       "destination": "/api/auth?path=$1"
-    },
-    {
-      "source": "/api/health",
-      "destination": "/api/core?path=health"
-    },
-    {
-      "source": "/api/health-python",
-      "destination": "/api/health-python"
-    },
-    {
-      "source": "/api/test-python",
-      "destination": "/api/test-python"
-    },
-    {
-      "source": "/api/test-production-validation",
-      "destination": "/api/test-production-validation"
-    },
-    {
-      "source": "/api/health-monitoring",
-      "destination": "/api/health-monitoring"
-    },
-    {
-      "source": "/api/generate-pdf",
-      "destination": "/api/generate-pdf"
-    },
-    {
-      "source": "/api/convert-docx-pdf",
-      "destination": "/api/convert-docx-pdf"
-    },
-    {
-      "source": "/api/python-utils",
-      "destination": "/api/python_utils"
-    },
-    {
-      "source": "/api/generate/preview-images",
-      "destination": "/api/generate/preview-images"
-    },
-    {
-      "source": "/api/generate/docx-to-pdf",
-      "destination": "/api/generate/docx-to-pdf"
-    },
-    {
-      "source": "/api/generate/docx",
-      "destination": "/api/generate/docx"
-    },
-    {
-      "source": "/api/generate/email",
-      "destination": "/api/generate/email"
-    },
-    {
-      "source": "/api/generate/(.*)",
-      "destination": "/api/documents?path=$1"
-    },
-    {
-      "source": "/api/generate",
-      "destination": "/api/documents?path=generate"
-    },
-    {
-      "source": "/api/diagnostics",
-      "destination": "/api/core?path=diagnostics"
-    },
-    {
-      "source": "/api/index",
-      "destination": "/api/core?path=index"
-    },
-    {
-      "source": "/api/test-auth-dependencies",
-      "destination": "/api/testing?path=auth-dependencies"
-    },
-    {
-      "source": "/api/test-simple-auth",
-      "destination": "/api/testing?path=simple-auth"
-    },
-    {
-      "source": "/api/test-users",
-      "destination": "/api/testing?path=users"
-    },
-    {
-      "source": "/api/utils",
-      "destination": "/api/testing?path=utils"
-    },
-    {
-      "source": "/api/cleanup-fake-data",
-      "destination": "/api/testing?path=cleanup-fake-data"
     },
     {
       "source": "/api/(.*)",

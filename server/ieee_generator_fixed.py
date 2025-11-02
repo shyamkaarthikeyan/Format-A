@@ -553,7 +553,15 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
             # Process content blocks if they exist
             if child_sub.get('contentBlocks'):
                 for block in child_sub['contentBlocks']:
-                    process_content_block(doc, block)
+                    if block.get('type') == 'text' and block.get('content'):
+                        add_justified_paragraph(
+                            doc, 
+                            sanitize_text(block['content']),
+                            indent_left=IEEE_CONFIG['column_indent'] + Inches(0.1 * level),
+                            indent_right=IEEE_CONFIG['column_indent'],
+                            space_before=Pt(3),
+                            space_after=Pt(12)
+                        )
             
             # Recursively handle even deeper nesting
             if level < 5:  # Limit depth to prevent excessive nesting
@@ -860,8 +868,16 @@ def main():
         # Generate IEEE document
         doc_data = generate_ieee_document(form_data)
         
-        # Write binary data to stdout
-        sys.stdout.buffer.write(doc_data)
+        # Check if output_path is specified
+        output_path = form_data.get('output_path')
+        if output_path:
+            # Write DOCX to specified file path
+            with open(output_path, 'wb') as f:
+                f.write(doc_data)
+            print(f"IEEE DOCX generated successfully at: {output_path}")
+        else:
+            # Write binary data to stdout as fallback
+            sys.stdout.buffer.write(doc_data)
         
     except Exception as e:
         import traceback

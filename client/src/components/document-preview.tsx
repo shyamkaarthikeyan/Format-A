@@ -65,7 +65,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     referencesCount: document.references?.length || 0,
   });
 
-  // Mutations for generating and emailing documents with improved error handling
+  // Mutations for generating and emailing documents
   const generateDocxMutation = useMutation({
     mutationFn: async () => {
       if (!document.title) throw new Error("Please enter a title.");
@@ -73,26 +73,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      const response = await fetch('/api/generate/docx', {
+      const response = await fetch('/api/generate?type=docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(document),
       });
 
-      if (!response.ok) {
-        // Parse error response for better error messages
-        let errorMessage = `Failed to generate document: ${response.statusText}`;
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType?.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          }
-        } catch (e) {
-          console.warn('Could not parse error response');
-        }
-        throw new Error(errorMessage);
-      }
+      if (!response.ok) throw new Error(`Failed to generate document: ${response.statusText}`);
 
       const blob = await response.blob();
       if (blob.size === 0) throw new Error('Generated document is empty');
@@ -114,7 +101,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     },
     onError: (error: Error) => {
       toast({
-        title: "Download Failed",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -128,7 +115,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      const response = await fetch('/api/generate/docx-to-pdf', {
+      const response = await fetch('/api/generate?type=pdf', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -138,15 +125,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       if (!response.ok) {
-        // Parse error response for better error messages
+        // If PDF generation fails, try to get detailed error message
         let errorMessage = `Failed to generate PDF: ${response.statusText}`;
-        let errorData: any = null;
-        
         try {
           const contentType = response.headers.get('content-type');
-          if (contentType?.includes('application/json')) {
-            errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
           } else {
             const errorText = await response.text();
             if (errorText && errorText.length < 500) {
@@ -156,15 +141,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         } catch (e) {
           console.warn('Could not parse error details');
         }
-
-        // Handle specific error cases
-        if (response.status === 503 || (errorData?.code === 'PDF_UNAVAILABLE_SERVERLESS')) {
-          const fallbackMsg = errorData?.message || 
-            "PDF generation is not available on this deployment due to serverless limitations.";
-          const suggestion = errorData?.suggestion || "Please use the Download Word button instead.";
-          throw new Error(`${fallbackMsg} ${suggestion}`);
-        }
-
         throw new Error(errorMessage);
       }
 
@@ -178,7 +154,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       let filename = "ieee_paper.pdf";
       let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
       
-      if (contentType?.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
         filename = "ieee_paper.docx";
         downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
       }
@@ -215,7 +191,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
       if (!emailAddress) throw new Error("Please enter an email address.");
 
-      const response = await fetch('/api/generate/email', {
+      const response = await fetch('/api/generate?type=email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,39 +201,21 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       if (!response.ok) {
-        // Parse error response for better error messages
-        let errorMessage = `Failed to send email: ${response.statusText}`;
-        let errorData: any = null;
-        
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType?.includes('application/json')) {
-            errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } else {
-            // If it's not JSON (likely HTML error page), get text content
-            const errorText = await response.text();
-            if (errorText && errorText.length < 500) {
-              errorMessage = errorText;
-            }
+        // Check if response is JSON or HTML
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to send email: ${response.statusText}`);
+          } catch (jsonError) {
+            throw new Error(`Failed to send email: ${response.statusText}`);
           }
-        } catch (e) {
-          console.warn('Could not parse error response');
+        } else {
+          // If it's not JSON (likely HTML error page), get text content
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          throw new Error(`Server error: ${response.statusText}`);
         }
-
-        // Handle specific error cases
-        if (response.status === 400 && errorData?.code === 'INVALID_EMAIL') {
-          throw new Error('Please enter a valid email address.');
-        }
-        
-        if (response.status === 503 || (errorData?.code === 'PDF_UNAVAILABLE_SERVERLESS')) {
-          const fallbackMsg = errorData?.message || 
-            "Email service is temporarily unavailable due to serverless limitations.";
-          const suggestion = errorData?.suggestion || "Please try downloading the document instead.";
-          throw new Error(`${fallbackMsg} ${suggestion}`);
-        }
-
-        throw new Error(errorMessage);
       }
 
       // Parse successful response
@@ -269,10 +227,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error('Email may have been sent but response parsing failed');
       }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: "Email Sent Successfully!",
-        description: data?.message || `IEEE paper has been sent to ${email}`,
+        description: `IEEE paper has been sent to ${email}`,
       });
       setEmail("");
     },
@@ -329,8 +287,63 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview with retry logic and improved error handling
-  const generateDocxPreview = async (retryCount = 0) => {
+  // Helper function to create HTML preview from JSON data
+  const createPreviewFromData = (data: any) => {
+    const authors = data.authors?.map((author: any) => author.name).join(', ') || 'No authors';
+    const affiliations = data.authors?.map((author: any) => author.organization).filter(Boolean).join(', ') || '';
+    
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>IEEE Paper Preview</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; margin: 40px; line-height: 1.6; background: white; }
+        .preview-header { background: #f0f8ff; padding: 15px; border-left: 4px solid #007acc; margin-bottom: 20px; }
+        .title { text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 12pt; color: #333; }
+        .authors { text-align: center; font-size: 12pt; margin-bottom: 6pt; color: #555; }
+        .affiliations { text-align: center; font-size: 10pt; font-style: italic; margin-bottom: 18pt; color: #666; }
+        .section-title { font-size: 12pt; font-weight: bold; margin-top: 18pt; margin-bottom: 8pt; color: #007acc; }
+        .abstract { font-size: 11pt; margin-bottom: 12pt; text-align: justify; background: #f9f9f9; padding: 10px; border-radius: 5px; }
+        .keywords { font-size: 11pt; margin-bottom: 12pt; font-style: italic; color: #666; }
+        .content { font-size: 11pt; text-align: justify; color: #333; }
+        .format-info { background: #e8f5e8; padding: 10px; border-radius: 5px; font-size: 10pt; color: #2d5a2d; }
+    </style>
+</head>
+<body>
+    <div class="preview-header">
+        <strong>📄 IEEE Conference Paper Preview</strong><br>
+        <small>This is a live preview of your formatted paper. The actual document will be generated with proper IEEE formatting.</small>
+    </div>
+    
+    <div class="title">${data.title || 'Untitled Paper'}</div>
+    <div class="authors">${authors}</div>
+    ${affiliations ? `<div class="affiliations">${affiliations}</div>` : ''}
+    
+    <div class="section-title">Abstract</div>
+    <div class="abstract">${data.abstract || 'Abstract will appear here when you add it in the Abstract section.'}</div>
+    
+    <div class="keywords"><strong>Keywords:</strong> ${data.keywords || 'Keywords will appear here when you add them.'}</div>
+    
+    <div class="section-title">Document Structure</div>
+    <div class="content">
+        <strong>Authors:</strong> ${data.authors?.length || 0} author(s)<br>
+        <strong>Sections:</strong> ${data.sections || 0} section(s)<br>
+        <strong>Format:</strong> ${data.format || 'IEEE Conference Paper'}<br>
+        <strong>Type:</strong> ${data.type?.toUpperCase() || 'PDF'} Preview
+    </div>
+    
+    <div class="format-info">
+        <strong>✓ IEEE Formatting Applied</strong><br>
+        This preview shows your paper with proper IEEE conference paper formatting including title placement, author information, abstract formatting, and section structure.
+    </div>
+</body>
+</html>`;
+  };
+
+  // Generate PDF preview (works on both localhost and Vercel)
+  const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
       return;
@@ -340,10 +353,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log(`Attempting PDF preview generation (attempt ${retryCount + 1})...`);
+      console.log('Attempting document preview generation...');
       
-      // Use the updated API endpoint with proper error handling
-      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Request DOCX which works in both localhost and Vercel
+      let response = await fetch('/api/generate?type=pdf&preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -352,64 +365,153 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         body: JSON.stringify(document),
       });
 
-      console.log('PDF preview response:', response.status, response.statusText);
+      console.log('Preview response:', response.status, response.statusText);
+      const contentType = response.headers.get('content-type');
+      console.log('Content-Type:', contentType);
 
       if (!response.ok) {
-        // Handle different types of failures with improved error parsing
-        const contentType = response.headers.get('content-type');
-        let errorData: any = null;
-        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
+        let errorMessage = `Failed to generate preview: ${response.statusText}`;
         
-        // Try to parse error response
-        if (contentType?.includes('application/json')) {
+        if (contentType && contentType.includes('application/json')) {
           try {
-            errorData = await response.json();
+            const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
           } catch (e) {
-            console.warn('Could not parse JSON error response');
+            console.warn('Could not parse error JSON');
           }
         }
-
-        // Handle specific error cases
-        if (response.status === 503 || (errorData?.code === 'PDF_UNAVAILABLE_SERVERLESS')) {
-          console.log('PDF not available in serverless environment');
-          const fallbackMsg = errorData?.message || 
-            "PDF preview is not available on this deployment due to serverless limitations. " +
-            "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-            "identical formatting to what you see on localhost!";
-          const suggestion = errorData?.suggestion || "Use the Download Word button above.";
-          setPreviewError(`${fallbackMsg} ${suggestion}`);
-          return;
-        }
-
-        // Handle timeout errors with retry logic
-        if (response.status === 408 || errorData?.code === 'TIMEOUT_ERROR') {
-          if (retryCount < 2) {
-            console.log(`Request timed out, retrying... (${retryCount + 1}/2)`);
-            setTimeout(() => generateDocxPreview(retryCount + 1), 2000);
-            return;
-          } else {
-            setPreviewError('PDF generation is taking too long. Please try downloading the Word document instead.');
-            return;
-          }
-        }
-
-        // Handle server errors with retry logic
-        if (response.status >= 500 && retryCount < 1) {
-          console.log(`Server error, retrying... (${retryCount + 1}/1)`);
-          setTimeout(() => generateDocxPreview(retryCount + 1), 3000);
-          return;
-        }
-
+        
         throw new Error(errorMessage);
       }
 
-      const blob = await response.blob();
-      console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
-      
-      if (blob.size === 0) {
-        throw new Error('Generated PDF is empty');
+      // Check if response is DOCX (from Vercel) or PDF (from local)
+      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+        console.log('✅ Received DOCX file - Vercel deployment detected');
+        
+        // For DOCX files, we need to download and open them (or use docx-preview library)
+        // For now, we'll show a message that preview is available via download
+        const blob = await response.blob();
+        console.log('DOCX blob size:', blob.size);
+        
+        if (blob.size === 0) throw new Error('Generated document is empty');
+
+        // Create download URL
+        const url = URL.createObjectURL(blob);
+        
+        // Show a preview message with download link
+        const previewHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+              }
+              .container {
+                text-align: center;
+                background: rgba(255,255,255,0.1);
+                padding: 3rem;
+                border-radius: 20px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+              }
+              h1 { margin: 0 0 1rem 0; font-size: 2rem; }
+              p { margin: 0.5rem 0; font-size: 1.1rem; opacity: 0.9; }
+              .download-btn {
+                margin-top: 2rem;
+                padding: 1rem 2rem;
+                font-size: 1.1rem;
+                background: white;
+                color: #667eea;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-weight: bold;
+                transition: transform 0.2s;
+              }
+              .download-btn:hover {
+                transform: scale(1.05);
+              }
+              .icon { font-size: 4rem; margin-bottom: 1rem; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="icon">📄</div>
+              <h1>Document Ready!</h1>
+              <p>Your IEEE-formatted document has been generated successfully.</p>
+              <p>Click below to download and view your document.</p>
+              <button class="download-btn" onclick="window.open('${url}', '_blank')">
+                Download Document
+              </button>
+            </div>
+            <script>
+              // Auto-download after 1 second
+              setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = '${url}';
+                link.download = 'ieee_paper.docx';
+                link.click();
+              }, 1000);
+            </script>
+          </body>
+          </html>
+        `;
+        
+        const htmlBlob = new Blob([previewHtml], { type: 'text/html' });
+        const htmlUrl = URL.createObjectURL(htmlBlob);
+        
+        // Clean up previous URL
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
+        }
+        
+        setPreviewMode('pdf');
+        setPreviewImages([]);
+        setPdfUrl(htmlUrl);
+        console.log('✅ DOCX preview ready (auto-download enabled)');
+        return;
       }
+      
+      // Handle JSON response
+      if (contentType && contentType.includes('application/json')) {
+        // Handle new JSON preview response
+        const previewData = await response.json();
+        console.log('Received JSON preview data:', previewData);
+        
+        if (previewData.success && previewData.preview) {
+          // Create a visual preview from the JSON data
+          const previewHtml = createPreviewFromData(previewData.data);
+          const blob = new Blob([previewHtml], { type: 'text/html' });
+          
+          // Clean up previous URL
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+          }
+          
+          const url = URL.createObjectURL(blob);
+          setPreviewMode('pdf');
+          setPreviewImages([]);
+          setPdfUrl(url);
+          console.log('PDF preview generated from JSON data successfully');
+          return;
+        }
+      }
+      
+      // Handle blob response (actual PDF file)
+      const blob = await response.blob();
+      console.log('PDF blob size:', blob.size, 'Content-Type:', contentType);
+      
+      if (blob.size === 0) throw new Error('Generated PDF is empty');
 
       // Clean up previous URL
       if (pdfUrl) {
@@ -422,23 +524,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewImages([]);
       setPdfUrl(url);
       console.log('PDF preview generated successfully, URL:', url);
-      
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
+      setPreviewError(errorMessage);
       
-      // Handle network errors with retry logic
-      if ((errorMessage.includes('fetch') || errorMessage.includes('network')) && retryCount < 1) {
-        console.log(`Network error, retrying... (${retryCount + 1}/1)`);
-        setTimeout(() => generateDocxPreview(retryCount + 1), 2000);
-        return;
-      }
-      
-      // Set appropriate error message
+      // If document generation fails, suggest alternatives
       if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
         setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
-      } else {
-        setPreviewError(errorMessage);
       }
     } finally {
       setIsGeneratingPreview(false);
@@ -493,27 +586,19 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             <Button
               onClick={handleDownloadWord}
               disabled={generateDocxMutation.isPending || !document.title}
-              className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              {generateDocxMutation.isPending ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
-              )}
-              {generateDocxMutation.isPending ? "Generating Word..." : "Download Word"}
+              <Download className="w-4 h-4 mr-2" />
+              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
             </Button>
             <Button
               onClick={handleDownloadPdf}
               disabled={generatePdfMutation.isPending || !document.title}
               variant="outline"
-              className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50 hover:border-purple-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50 hover:border-purple-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              {generatePdfMutation.isPending ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4 mr-2" />
-              )}
-              {generatePdfMutation.isPending ? "Generating PDF..." : "Download PDF"}
+              <FileText className="w-4 h-4 mr-2" />
+              {generatePdfMutation.isPending ? "Generating..." : "Download PDF"}
             </Button>
           </div>
         </CardContent>
@@ -550,16 +635,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             <Button
               onClick={handleSendEmail}
               disabled={sendEmailMutation.isPending || (!isAuthenticated && !email.trim()) || !document.title}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              {sendEmailMutation.isPending ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : !isAuthenticated ? (
-                <Lock className="w-4 h-4 mr-2" />
-              ) : (
-                <Mail className="w-4 h-4 mr-2" />
-              )}
-              {sendEmailMutation.isPending ? "Sending Email..." : !isAuthenticated ? "Sign in to Email" : "Send to Email"}
+              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
+              {isAuthenticated && <Mail className="w-4 h-4 mr-2" />}
+              {sendEmailMutation.isPending ? "Sending..." : !isAuthenticated ? "Sign in to Email" : "Send to Email"}
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
@@ -603,7 +683,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
                   <p className="text-gray-600">Generating document preview...</p>
-                  <p className="text-gray-500 text-sm mt-2">This may take a few moments</p>
                 </div>
               </div>
             ) : previewError ? (

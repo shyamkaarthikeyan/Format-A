@@ -194,7 +194,7 @@ export default function HomeClient() {
     setIsGenerating(true);
     try {
       // Use proper IEEE generator instead of simple generator
-      const response = await fetch('/api/generate/docx', {
+      const response = await fetch('/api/generate?type=docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentDocument),
@@ -239,7 +239,7 @@ export default function HomeClient() {
     setIsGenerating(true);
     try {
       // Use proper IEEE PDF generator instead of simple generator
-      const response = await fetch('/api/generate/docx-to-pdf', {
+      const response = await fetch('/api/generate?type=pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentDocument),

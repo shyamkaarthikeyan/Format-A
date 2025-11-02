@@ -74,7 +74,7 @@ export default function EnhancedPreviewNavigation({
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/generate/docx-to-pdf', {
+      const response = await fetch('/api/generate?type=pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(document),
@@ -121,7 +121,7 @@ export default function EnhancedPreviewNavigation({
           break;
 
         case 'docx':
-          const docxResponse = await fetch('/api/generate/docx', {
+          const docxResponse = await fetch('/api/generate?type=docx', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(document),

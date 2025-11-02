@@ -63,7 +63,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.adminGet(`analytics&type=documents&timeRange=${selectedTimeRange}`);
+      const response = await apiClient.get(`/api/utils?action=diagnostics&type=documents&timeRange=${selectedTimeRange}`);
       
       if (response.success) {
         setAnalytics(response.data as DocumentAnalytics);
@@ -393,7 +393,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {(analytics.documentTrends?.daily || []).slice(-10).map((trend, index) => {
+              {analytics.documentTrends?.slice(-10).map((trend, index) => {
                 const completionRate = trend.created > 0 ? (trend.completed / trend.created) * 100 : 0;
                 
                 return (

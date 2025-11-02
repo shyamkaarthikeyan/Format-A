@@ -44,12 +44,48 @@ async function initializeDatabase() {
       )
     `;
 
-    // Create indexes
+    // Create indexes for users table
     await sql`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
     
+    // Create downloads table
+    await sql`
+      CREATE TABLE IF NOT EXISTS downloads (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+        file_type VARCHAR(50) NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        downloaded_at TIMESTAMP DEFAULT NOW(),
+        file_size INTEGER DEFAULT 0,
+        ip_address VARCHAR(45),
+        user_agent TEXT
+      )
+    `;
+
+    // Create indexes for downloads table
+    await sql`CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_downloads_file_type ON downloads(file_type)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_downloads_downloaded_at ON downloads(downloaded_at)`;
+    
+    // Create documents table (optional - for tracking generated documents)
+    await sql`
+      CREATE TABLE IF NOT EXISTS documents (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        content JSONB,
+        document_type VARCHAR(50) DEFAULT 'ieee_paper',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
+    // Create indexes for documents table
+    await sql`CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at)`;
+    
     isInitialized = true;
-    console.log('✅ Database tables initialized successfully');
+    console.log('✅ Database tables initialized successfully (users, downloads, documents)');
   } catch (error) {
     console.error('❌ Failed to initialize database tables:', error);
     throw error;
@@ -149,8 +185,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const endpoint = pathArray.join('/');
 
   try {
+    console.log('🔍 Auth endpoint called:', endpoint);
+    console.log('Environment check:', {
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasGoogleClientId: !!process.env.VITE_GOOGLE_CLIENT_ID,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      nodeEnv: process.env.NODE_ENV
+    });
+
     // Ensure database is initialized for all endpoints
     await initializeDatabase();
+    console.log('✅ Database initialized successfully');
     
     switch (endpoint) {
       case 'google':
@@ -163,11 +208,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: 'Auth endpoint not found' });
     }
   } catch (error) {
-    console.error('Auth API error:', error);
+    console.error('❌ Auth API error:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'Authentication failed. Please try again.',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error.message : error.message
     });
   }
 }

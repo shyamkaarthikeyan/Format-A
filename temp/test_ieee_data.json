@@ -1,0 +1,45 @@
+{
+  "title": "Test IEEE Paper Format",
+  "authors": [
+    {
+      "name": "John Doe",
+      "affiliation": "University of Test",
+      "email": "john@test.com"
+    },
+    {
+      "name": "Jane Smith", 
+      "affiliation": "Tech Institute",
+      "email": "jane@tech.edu"
+    }
+  ],
+  "abstract": "This is a test abstract for the IEEE paper format. It should demonstrate proper formatting according to IEEE conference paper standards with proper margins, fonts, and layout.",
+  "keywords": ["test", "ieee", "format", "conference paper"],
+  "sections": [
+    {
+      "title": "Introduction",
+      "content": "This is the introduction section of the IEEE paper. It should demonstrate proper IEEE formatting with Times New Roman font, proper spacing, and two-column layout."
+    },
+    {
+      "title": "Related Work", 
+      "content": "This section discusses related work in the field. The formatting should follow IEEE guidelines with proper section headings and body text formatting."
+    },
+    {
+      "title": "Methodology",
+      "content": "This section describes the methodology used in the research. The text should be properly justified and formatted according to IEEE standards."
+    },
+    {
+      "title": "Results",
+      "content": "This section presents the results of the research. Tables and figures should be properly formatted according to IEEE guidelines."
+    },
+    {
+      "title": "Conclusion",
+      "content": "This section concludes the paper and summarizes the main findings. The formatting should be consistent with IEEE conference paper standards."
+    }
+  ],
+  "references": [
+    {"text": "J. Doe and J. Smith, 'A Test Paper on IEEE Formatting,' in Proc. Test Conference, 2024, pp. 1-5."},
+    {"text": "A. Johnson, 'IEEE Standards for Academic Papers,' IEEE Transactions on Documentation, vol. 12, no. 3, pp. 45-67, 2024."},
+    {"text": "B. Wilson, 'Conference Paper Formatting Guidelines,' Test Journal, vol. 8, pp. 123-145, 2024."}
+  ],
+  "output_path": "./temp/test_proper_ieee_fixed.docx"
+}

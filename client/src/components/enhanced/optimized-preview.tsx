@@ -46,7 +46,7 @@ export const OptimizedPreview = withPerformanceOptimization<OptimizedPreviewProp
 
       setError(null);
 
-      const response = await fetch('/api/generate/docx-to-pdf', {
+      const response = await fetch('/api/generate?type=pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(doc),

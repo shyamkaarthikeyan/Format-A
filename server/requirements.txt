@@ -1,7 +1,4 @@
 python-docx==1.1.2
 Pillow==10.4.0
-reportlab==4.2.2
-# docx2pdf for local development (may not work on all hosting platforms)
-docx2pdf==0.1.8
-# PyMuPDF for PDF to image conversion (clean preview)
-PyMuPDF==1.23.0
+# Note: PDF generation will be handled client-side using PDF.js
+# Server only generates properly formatted IEEE DOCX files

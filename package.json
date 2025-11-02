@@ -11,15 +11,7 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "test:production": "node run-production-validation.js",
-    "test:integration": "node test-integration-pipeline.js",
-    "test:endpoints": "node test-production-endpoints.js",
-    "test:performance": "node test-performance-monitoring.js",
-    "test:validation": "node test-validation-suite.js",
-    "deploy:production": "node deploy-production-validation.js",
-    "test:production-suite": "node production-test-suite.js",
-    "monitor:production": "node production-monitoring.js"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

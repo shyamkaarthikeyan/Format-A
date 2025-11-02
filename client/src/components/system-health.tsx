@@ -39,7 +39,7 @@ const SystemHealth: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.adminGet('analytics&type=system');
+      const response = await apiClient.get('/api/utils?action=diagnostics&type=system');
       
       if (response.success) {
         setHealth(response.data as SystemHealth);
