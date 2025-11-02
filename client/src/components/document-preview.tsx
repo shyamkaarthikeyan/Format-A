@@ -360,12 +360,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating PDF preview using jsPDF...');
+      console.log('Generating PDF preview using jsPDF with IEEE formatting...');
       
       // Dynamic import jsPDF to avoid build issues
       const { jsPDF } = await import('jspdf');
       
-      // Create new PDF document
+      // Create new PDF document (IEEE standard)
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -378,40 +378,45 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const maxWidth = pageWidth - (2 * margin);
       let yPosition = margin;
 
-      // Helper to add text with wrapping
-      const addWrappedText = (text: string, fontSize: number, bold: boolean = false, align: 'left' | 'center' | 'right' = 'left') => {
-        pdf.setFontSize(fontSize);
-        pdf.setFont('times', bold ? 'bold' : 'normal');
-        
-        const lineHeight = (fontSize / 2.5);
-        const lines = pdf.splitTextToSize(text, maxWidth);
-        
-        if (yPosition + (lines.length * lineHeight) > pageHeight - margin) {
+      // IEEE Standard Line Heights
+      const lineHeights = {
+        title: 6,      // Extra space for title
+        subtitle: 3.5, // Space for authors/affiliations
+        body: 3.5,     // Standard body line spacing
+        section: 4,    // Space before sections
+      };
+
+      // Helper to check and add page break if needed
+      const checkPageBreak = (neededHeight: number) => {
+        if (yPosition + neededHeight > pageHeight - margin) {
           pdf.addPage();
           yPosition = margin;
         }
-
-        lines.forEach((line: string) => {
-          pdf.text(line, align === 'center' ? pageWidth / 2 : align === 'right' ? pageWidth - margin : margin, yPosition, {
-            align: align,
-            baseline: 'top',
-          });
-          yPosition += lineHeight;
-        });
-
-        return yPosition;
       };
 
-      // Title (24pt, centered, bold)
-      yPosition = addWrappedText(document.title, 24, true, 'center');
-      yPosition += 6;
+      // Title (24pt, centered, bold, Times New Roman) - IEEE standard
+      pdf.setFont('Times Roman', 'bold');
+      pdf.setFontSize(24);
+      checkPageBreak(10);
+      const titleLines = pdf.splitTextToSize(document.title, maxWidth);
+      titleLines.forEach((line: string) => {
+        pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
+        yPosition += lineHeights.subtitle;
+      });
+      yPosition += lineHeights.title;
 
-      // Authors (10pt, centered)
+      // Authors (10pt, centered, Times New Roman)
+      pdf.setFont('Times Roman', 'normal');
+      pdf.setFontSize(10);
       const authors = document.authors.map((a: any) => a.name).join(', ');
-      yPosition = addWrappedText(authors, 10, false, 'center');
-      yPosition += 4;
+      const authorLines = pdf.splitTextToSize(authors, maxWidth);
+      checkPageBreak(authorLines.length * lineHeights.body);
+      authorLines.forEach((line: string) => {
+        pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
+        yPosition += lineHeights.body;
+      });
 
-      // Affiliations (9pt, italic, centered)
+      // Affiliations (9pt, italic, centered, Times New Roman)
       const affiliations = document.authors
         .map((a: any) => a.affiliation || a.organization)
         .filter(Boolean)
@@ -419,114 +424,122 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         .join('; ');
       
       if (affiliations) {
+        pdf.setFont('Times Roman', 'italic');
         pdf.setFontSize(9);
-        pdf.setFont('times', 'italic');
         const affLines = pdf.splitTextToSize(affiliations, maxWidth);
+        checkPageBreak(affLines.length * lineHeights.body + 3);
         affLines.forEach((line: string) => {
-          if (yPosition + 3 > pageHeight - margin) {
-            pdf.addPage();
-            yPosition = margin;
-          }
           pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
-          yPosition += 3;
+          yPosition += lineHeights.body;
         });
         yPosition += 6;
       }
 
-      // Abstract (10pt, italic)
+      // Abstract (10pt, italic) - IEEE format with "Abstract—" prefix
       if (document.abstract) {
+        pdf.setFont('Times Roman', 'normal');
         pdf.setFontSize(10);
-        pdf.setFont('times', 'bold');
         pdf.text('Abstract—', margin, yPosition);
-        yPosition += 4;
         
-        pdf.setFont('times', 'italic');
-        const abstractLines = pdf.splitTextToSize(document.abstract, maxWidth - 10);
-        abstractLines.forEach((line: string) => {
-          if (yPosition + 3 > pageHeight - margin) {
-            pdf.addPage();
-            yPosition = margin;
+        pdf.setFont('Times Roman', 'italic');
+        const abstractLines = pdf.splitTextToSize(document.abstract, maxWidth - 15);
+        checkPageBreak(abstractLines.length * lineHeights.body + 6);
+        
+        // First line continues after "Abstract—"
+        if (abstractLines.length > 0) {
+          pdf.text(abstractLines[0], margin + 15, yPosition, { baseline: 'top' });
+          yPosition += lineHeights.body;
+          
+          // Remaining lines indented
+          for (let i = 1; i < abstractLines.length; i++) {
+            pdf.text(abstractLines[i], margin, yPosition, { baseline: 'top' });
+            yPosition += lineHeights.body;
           }
-          pdf.text(line, margin + 5, yPosition, { baseline: 'top' });
-          yPosition += 3;
-        });
-        yPosition += 5;
+        }
+        yPosition += 4;
       }
 
-      // Keywords (10pt, italic)
+      // Keywords (10pt, italic) - IEEE format with "Keywords—" prefix
       if (document.keywords && document.keywords.length > 0) {
         const keywordsText = Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords;
+        pdf.setFont('Times Roman', 'normal');
         pdf.setFontSize(10);
-        pdf.setFont('times', 'bold');
         pdf.text('Keywords—', margin, yPosition);
-        yPosition += 4;
         
-        pdf.setFont('times', 'italic');
-        const keywordLines = pdf.splitTextToSize(keywordsText, maxWidth - 10);
-        keywordLines.forEach((line: string) => {
-          if (yPosition + 3 > pageHeight - margin) {
-            pdf.addPage();
-            yPosition = margin;
+        pdf.setFont('Times Roman', 'italic');
+        const keywordLines = pdf.splitTextToSize(keywordsText, maxWidth - 15);
+        checkPageBreak(keywordLines.length * lineHeights.body + 6);
+        
+        if (keywordLines.length > 0) {
+          pdf.text(keywordLines[0], margin + 15, yPosition, { baseline: 'top' });
+          yPosition += lineHeights.body;
+          
+          for (let i = 1; i < keywordLines.length; i++) {
+            pdf.text(keywordLines[i], margin, yPosition, { baseline: 'top' });
+            yPosition += lineHeights.body;
           }
-          pdf.text(line, margin + 5, yPosition, { baseline: 'top' });
-          yPosition += 3;
-        });
-        yPosition += 5;
+        }
+        yPosition += 6;
       }
 
-      // Sections (9.5pt, justified)
+      // Sections with IEEE numbering (9.5pt, not bold per IEEE standard)
       if (document.sections && document.sections.length > 0) {
         document.sections.forEach((section: any, index: number) => {
-          yPosition += 3;
+          yPosition += lineHeights.section;
 
-          // Section title
+          // Section title (9.5pt, NOT bold - IEEE standard)
+          pdf.setFont('Times Roman', 'normal');
           pdf.setFontSize(9.5);
-          pdf.setFont('times', 'normal');
-          yPosition = addWrappedText(`${index + 1}. ${section.title}`, 9.5, false, 'left');
+          const sectionTitle = `${index + 1}. ${section.title}`;
+          const sectionTitleLines = pdf.splitTextToSize(sectionTitle, maxWidth);
+          checkPageBreak(sectionTitleLines.length * lineHeights.body + (section.content ? 8 : 0));
+          
+          sectionTitleLines.forEach((line: string) => {
+            pdf.text(line, margin, yPosition, { baseline: 'top' });
+            yPosition += lineHeights.body;
+          });
           yPosition += 2;
 
-          // Section content
-          pdf.setFontSize(9.5);
-          const contentLines = pdf.splitTextToSize(section.content || '', maxWidth);
-          contentLines.forEach((line: string) => {
-            if (yPosition + 3 > pageHeight - margin) {
-              pdf.addPage();
-              yPosition = margin;
-            }
-            pdf.text(line, margin, yPosition, { baseline: 'top' });
-            yPosition += 3;
-          });
-          yPosition += 3;
+          // Section content (9.5pt, justified-like appearance)
+          if (section.content) {
+            pdf.setFont('Times Roman', 'normal');
+            pdf.setFontSize(9.5);
+            const contentLines = pdf.splitTextToSize(section.content, maxWidth);
+            checkPageBreak(contentLines.length * lineHeights.body + 3);
+            
+            contentLines.forEach((line: string) => {
+              pdf.text(line, margin, yPosition, { baseline: 'top' });
+              yPosition += lineHeights.body;
+            });
+          }
+          yPosition += 2;
         });
       }
 
-      // References (9pt)
+      // References section (9pt) - IEEE standard
       if (document.references && document.references.length > 0) {
-        yPosition += 3;
+        yPosition += lineHeights.section;
+        
+        // References heading
+        pdf.setFont('Times Roman', 'normal');
         pdf.setFontSize(9.5);
-        pdf.setFont('times', 'normal');
-        yPosition = addWrappedText('References', 9.5, false, 'left');
-        yPosition += 2;
+        pdf.text('References', margin, yPosition);
+        yPosition += lineHeights.body + 1;
 
+        // Reference items (9pt per IEEE standard)
         pdf.setFontSize(9);
         document.references.forEach((ref: any, index: number) => {
           const refText = typeof ref === 'string' ? ref : ref.text;
-          const lines = pdf.splitTextToSize(`[${index + 1}] ${refText}`, maxWidth - 5);
+          const refLabel = `[${index + 1}] ${refText}`;
+          const refLines = pdf.splitTextToSize(refLabel, maxWidth - 5);
+          checkPageBreak(refLines.length * (lineHeights.body - 0.5) + 2);
           
-          lines.forEach((line: string, lineIndex: number) => {
-            if (yPosition + 3 > pageHeight - margin) {
-              pdf.addPage();
-              yPosition = margin;
-            }
-            
-            if (lineIndex === 0) {
-              pdf.text(line, margin, yPosition, { baseline: 'top' });
-            } else {
-              pdf.text(line, margin + 5, yPosition, { baseline: 'top' });
-            }
-            yPosition += 3;
+          refLines.forEach((line: string, lineIndex: number) => {
+            const xPos = lineIndex === 0 ? margin : margin + 3;
+            pdf.text(line, xPos, yPosition, { baseline: 'top' });
+            yPosition += lineHeights.body - 0.5;
           });
-          yPosition += 1;
+          yPosition += 0.5;
         });
       }
 
@@ -543,7 +556,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewMode('pdf');
       setPreviewImages([]);
       
-      console.log('✅ PDF preview generated successfully, size:', pdfBlob.size, 'bytes');
+      console.log('✅ IEEE-formatted PDF preview generated successfully, size:', pdfBlob.size, 'bytes');
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview';

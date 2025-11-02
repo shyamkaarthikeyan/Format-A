@@ -427,15 +427,8 @@ async function handleDocxGeneration(req: VercelRequest, res: VercelResponse, use
     });
   }
 
-  // Check if we're in Vercel environment (Python not available)
-  const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
-  
-  // If in Vercel, skip Python and use JavaScript generator
-  if (isVercel) {
-    console.log('🚀 Detected Vercel environment - using JavaScript DOCX generator');
-    return await generateDocxWithJavaScript(req, res, user, documentData, false);
-  }
-
+  // ✅ ALWAYS USE PYTHON DOCX GENERATOR (ieee_generator_fixed.py)
+  // Falls back to JavaScript only if Python script not found
   try {
     // Use Python script for DOCX generation
     const pythonPath = getPythonCommand();
@@ -567,21 +560,9 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
     });
   }
 
-  // ✅ FOR PREVIEW MODE - ALWAYS USE JAVASCRIPT DOCX (no PDF generation)
-  // Preview should show document structure quickly without waiting for PDF conversion
-  if (isPreview) {
-    console.log('📋 Preview mode detected - using JavaScript DOCX generator for fast preview');
-    return await generateDocxWithJavaScript(req, res, user, documentData, true);
-  }
-
-  // ✅ FOR PDF DOWNLOAD - USE PYTHON DOCX GENERATOR (not actual PDF)
+  // ✅ ALWAYS USE PYTHON DOCX GENERATOR (ieee_generator_fixed.py)
+  // This works on both local dev and Vercel
   // PDF.js will be used on client to display the DOCX as PDF
-  const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
-  
-  if (isVercel) {
-    console.log('🚀 Vercel environment - using JavaScript DOCX generator');
-    return await generateDocxWithJavaScript(req, res, user, documentData, false);
-  }
 
   // For local development, use Python DOCX generator
   try {
