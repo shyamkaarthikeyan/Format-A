@@ -344,7 +344,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 </html>`;
   };
 
-  // Generate PDF preview (works on both localhost and Vercel)
+  // Generate HTML preview from document data (no download)
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -355,120 +355,137 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting document preview generation...');
+      // Create HTML preview directly from document data - no API call needed
+      console.log('Generating HTML preview from document data...');
       
-      // Request DOCX which works in both localhost and Vercel
-      let response = await fetch('/api/generate?type=pdf&preview=true', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Preview': 'true'
-        },
-        body: JSON.stringify(document),
-      });
-
-      console.log('Preview response:', response.status, response.statusText);
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Type:', contentType);
-
-      if (!response.ok) {
-        let errorMessage = `Failed to generate preview: ${response.statusText}`;
-        
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch (e) {
-            console.warn('Could not parse error JSON');
-          }
+      const authors = document.authors.map((a: any) => a.name).join(', ');
+      const affiliations = document.authors
+        .map((a: any) => a.affiliation || a.organization)
+        .filter(Boolean)
+        .filter((v: any, i: number, a: any) => a.indexOf(v) === i)
+        .join('; ');
+      
+      // Create IEEE-formatted HTML preview
+      const previewHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${document.title}</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            margin: 40px;
+            line-height: 1.6;
+            background: white;
+            color: #333;
+            max-width: 850px;
+            margin-left: auto;
+            margin-right: auto;
         }
-        
-        throw new Error(errorMessage);
-      }
-
-      // Check if response is DOCX (from Vercel) or PDF (from local)
-      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        console.log('✅ Received DOCX file - need to display without download');
-        
-        const blob = await response.blob();
-        console.log('DOCX blob size:', blob.size);
-        
-        if (blob.size === 0) throw new Error('Generated document is empty');
-
-        // Clean up previous URL
-        if (pdfUrl) {
-          URL.revokeObjectURL(pdfUrl);
+        .title {
+            text-align: center;
+            font-size: 24pt;
+            font-weight: bold;
+            margin-bottom: 12pt;
+            margin-top: 0;
         }
-
-        // Create object URL for preview display (no auto-download)
-        // NOTE: DOCX files will typically download in browsers
-        // We should show a message that preview will download and ask user to open in Word
-        const url = URL.createObjectURL(blob);
-        
-        // For DOCX preview, we need to either:
-        // 1. Show it in an iframe (may trigger download depending on browser)
-        // 2. Use a DOCX viewer library
-        // 3. Convert to PDF on server for display
-        // For now, store the URL but show a message about DOCX preview limitations
-        
-        setPreviewMode('pdf');
-        setPreviewImages([]);
-        setPdfUrl(url);
-        console.log('✅ DOCX preview ready - may download or display depending on browser');
-        return;
-      }
-      
-      // Handle JSON response
-      if (contentType && contentType.includes('application/json')) {
-        // Handle new JSON preview response
-        const previewData = await response.json();
-        console.log('Received JSON preview data:', previewData);
-        
-        if (previewData.success && previewData.preview) {
-          // Create a visual preview from the JSON data
-          const previewHtml = createPreviewFromData(previewData.data);
-          const blob = new Blob([previewHtml], { type: 'text/html' });
-          
-          // Clean up previous URL
-          if (pdfUrl) {
-            URL.revokeObjectURL(pdfUrl);
-          }
-          
-          const url = URL.createObjectURL(blob);
-          setPreviewMode('pdf');
-          setPreviewImages([]);
-          setPdfUrl(url);
-          console.log('PDF preview generated from JSON data successfully');
-          return;
+        .authors {
+            text-align: center;
+            font-size: 10pt;
+            margin-bottom: 6pt;
         }
-      }
+        .affiliations {
+            text-align: center;
+            font-size: 9pt;
+            font-style: italic;
+            margin-bottom: 18pt;
+        }
+        .section-title {
+            font-size: 9.5pt;
+            font-weight: normal;
+            margin-top: 18pt;
+            margin-bottom: 8pt;
+        }
+        .abstract-title, .keywords-title {
+            font-size: 9.5pt;
+            font-weight: bold;
+            font-style: italic;
+        }
+        .abstract-content, .keywords-content {
+            font-size: 9.5pt;
+            font-style: italic;
+            text-align: justify;
+            margin-bottom: 12pt;
+        }
+        .section-content {
+            font-size: 9.5pt;
+            text-align: justify;
+            margin-bottom: 12pt;
+        }
+        .references-item {
+            font-size: 9pt;
+            margin-bottom: 8pt;
+        }
+        .preview-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-info">
+        📄 <strong>IEEE Document Preview</strong> - Live preview shows formatting. Click "Download Word" to get the actual DOCX file.
+    </div>
+    
+    <h1 class="title">${document.title}</h1>
+    <div class="authors">${authors}</div>
+    ${affiliations ? `<div class="affiliations">${affiliations}</div>` : ''}
+    
+    ${document.abstract ? `
+    <p><span class="abstract-title">Abstract—</span><span class="abstract-content">${document.abstract}</span></p>
+    ` : ''}
+    
+    ${document.keywords && document.keywords.length > 0 ? `
+    <p><span class="keywords-title">Keywords—</span><span class="keywords-content">${Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords}</span></p>
+    ` : ''}
+    
+    ${document.sections && document.sections.length > 0 ? document.sections.map((section: any, index: number) => `
+    <h2 class="section-title">${index + 1}. ${section.title}</h2>
+    <div class="section-content">${section.content}</div>
+    `).join('') : ''}
+    
+    ${document.references && document.references.length > 0 ? `
+    <h2 class="section-title">References</h2>
+    ${document.references.map((ref: any, index: number) => `
+    <div class="references-item">[${index + 1}] ${typeof ref === 'string' ? ref : ref.text}</div>
+    `).join('')}
+    ` : ''}
+</body>
+</html>`;
       
-      // Handle blob response (actual PDF file)
-      const blob = await response.blob();
-      console.log('PDF blob size:', blob.size, 'Content-Type:', contentType);
+      // Create blob and object URL for HTML preview
+      const blob = new Blob([previewHtml], { type: 'text/html' });
       
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
-
       // Clean up previous URL
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
-
-      // Create new blob URL for preview display
+      
       const url = URL.createObjectURL(blob);
       setPreviewMode('pdf');
       setPreviewImages([]);
       setPdfUrl(url);
-      console.log('PDF preview generated successfully, URL:', url);
+      console.log('✅ HTML preview ready - displayed without download');
     } catch (error) {
-      console.error('PDF preview generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
+      console.error('HTML preview generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview';
       setPreviewError(errorMessage);
-      
-      // If document generation fails, suggest alternatives
-      if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
-        setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
-      }
     } finally {
       setIsGeneratingPreview(false);
     }
