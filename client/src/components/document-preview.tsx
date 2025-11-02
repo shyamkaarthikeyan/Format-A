@@ -275,69 +275,118 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 0.75;
-    const contentWidth = pageWidth - 2 * margin;
-    let yPosition = margin;
-    const lineHeight = 0.16;
+    const lineHeight = 0.16; // Approximately 10pt line spacing in inches
     const baseFontSize = 9.5;
 
-    // Title
+    // 2-column layout parameters (IEEE format) - applied AFTER abstract/keywords
+    const columnCount = 2;
+    const columnSpacing = 0.25; // Space between columns
+    const totalContentWidth = pageWidth - 2 * margin;
+    const columnWidth = (totalContentWidth - columnSpacing) / columnCount;
+    
+    // State for 2-column layout tracking
+    let useColumns = false; // Start with single column for title/authors/abstract/keywords
+    let currentColumn = 0; // 0 = left, 1 = right
+    let contentWidth = totalContentWidth; // Full width initially
+    let yPosition = margin;
+
+    // Helper function to get X position and check for column wrap
+    const getXPosition = (): number => {
+      if (!useColumns) return margin;
+      return margin + (currentColumn * (columnWidth + columnSpacing));
+    };
+
+    // Helper function to handle column wrapping
+    const checkColumnWrap = (textHeight: number): void => {
+      if (!useColumns) return;
+      
+      if (yPosition + textHeight > pageHeight - margin) {
+        // Move to next column
+        if (currentColumn === 0) {
+          currentColumn = 1;
+          yPosition = margin; // Reset Y for right column
+        } else {
+          // Both columns full, go to new page
+          pdf.addPage();
+          currentColumn = 0;
+          yPosition = margin;
+        }
+      }
+    };
+
+    // Title (24pt, bold, centered) - from Python: IEEE_CONFIG['font_size_title']
     pdf.setFontSize(24);
     pdf.setFont(undefined, 'bold');
     const titleLines = pdf.splitTextToSize(document.title || 'Untitled', contentWidth);
     pdf.text(titleLines, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += titleLines.length * lineHeight + 0.3;
+    yPosition += titleLines.length * lineHeight + 0.21; // space_after = Pt(12), ~0.167" + margin
 
-    // Authors
-    pdf.setFontSize(10);
-    pdf.setFont(undefined, 'normal');
+    // Authors (9.5pt, bold, centered) - from Python: add_authors function
+    pdf.setFontSize(baseFontSize);
+    pdf.setFont(undefined, 'bold');
     if (document.authors && document.authors.length > 0) {
       const authorNames = document.authors.map((a) => a.name).filter(Boolean).join(', ');
       if (authorNames) {
         pdf.text(authorNames, pageWidth / 2, yPosition, { align: 'center' });
-        yPosition += lineHeight * 1.5;
+        yPosition += lineHeight + 0.2; // space_after after authors
       }
     }
 
-    // Abstract
+    // Abstract (9.5pt, bold per Python script lines 189-190)
     if (document.abstract) {
       pdf.setFontSize(baseFontSize);
-      pdf.setFont(undefined, 'italic');
+      pdf.setFont(undefined, 'bold');
       const abstractLabel = 'Abstract—';
       const abstractText = abstractLabel + document.abstract;
       const abstractLines = pdf.splitTextToSize(abstractText, contentWidth);
       pdf.text(abstractLines, margin, yPosition);
-      yPosition += abstractLines.length * lineHeight + 0.3;
+      yPosition += abstractLines.length * lineHeight + 0.21; // space_after = line_spacing (10pt)
     }
 
-    // Keywords
+    // Keywords (9.5pt, bold per Python script lines 225-226)
     if (document.keywords) {
       pdf.setFontSize(baseFontSize);
-      pdf.setFont(undefined, 'italic');
+      pdf.setFont(undefined, 'bold');
       const keywordsLabel = 'Keywords—';
       const keywordsText = keywordsLabel + document.keywords;
-      const keywordsLines = pdf.splitTextToSize(keywordsText, contentWidth);
+      const keywordsLines = pdf.splitTextToSize(keywordsText, totalContentWidth);
       pdf.text(keywordsLines, margin, yPosition);
-      yPosition += keywordsLines.length * lineHeight + 0.3;
+      yPosition += keywordsLines.length * lineHeight + 0.21; // space_after = line_spacing (10pt)
     }
+
+    // ✅ ENABLE 2-COLUMN LAYOUT FOR SECTIONS AND REFERENCES (After keywords)
+    useColumns = true;
+    currentColumn = 0;
+    yPosition = margin;
+    contentWidth = columnWidth;
 
     // Sections
     if (document.sections && document.sections.length > 0) {
       pdf.setFontSize(baseFontSize);
 
       document.sections.forEach((section) => {
-        // Check if we need a new page
-        if (yPosition > pageHeight - margin - 0.5) {
+        // Check if we need a new page or column
+        if (useColumns) {
+          checkColumnWrap(lineHeight * 2);
+        } else if (yPosition > pageHeight - margin - 0.5) {
           pdf.addPage();
           yPosition = margin;
         }
 
-        // Section title - keep as typed, don't convert to uppercase
+        // Section title (9.5pt, NOT BOLD, CENTERED, UPPERCASE per Python script line 346)
         pdf.setFontSize(baseFontSize);
-        pdf.setFont(undefined, 'bold');
-        const sectionTitleText = section.title || 'Section';
+        pdf.setFont(undefined, 'normal');
+        // Format: "1. INTRODUCTION" (number with period, uppercase)
+        let sectionIdx = 1;
+        document.sections?.forEach((s, i) => {
+          if (s === section) sectionIdx = i + 1;
+        });
+        const sectionTitleText = `${sectionIdx}. ${(section.title || 'Section').toUpperCase()}`;
+        // CENTER align section titles like in Python script
+        const pageCenter = pageWidth / 2;
         const sectionTitleLines = pdf.splitTextToSize(sectionTitleText, contentWidth);
-        pdf.text(sectionTitleLines, margin, yPosition);
-        yPosition += sectionTitleLines.length * lineHeight + 0.3;
+        pdf.text(sectionTitleLines, pageCenter, yPosition, { align: 'center' });
+        yPosition += sectionTitleLines.length * lineHeight + 0; // space_after = 0 per Python
 
         // Section content blocks
         pdf.setFont(undefined, 'normal');
@@ -345,12 +394,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         if (section.contentBlocks && section.contentBlocks.length > 0) {
           section.contentBlocks.forEach((block) => {
             if (block.type === 'text' && block.content) {
-              if (yPosition > pageHeight - margin - 0.3) {
+              if (useColumns) {
+                checkColumnWrap(lineHeight * 2);
+              } else if (yPosition > pageHeight - margin - 0.3) {
                 pdf.addPage();
                 yPosition = margin;
               }
               const contentLines = pdf.splitTextToSize(block.content, contentWidth);
-              pdf.text(contentLines, margin, yPosition);
+              pdf.text(contentLines, getXPosition(), yPosition);
               yPosition += contentLines.length * lineHeight + 0.2;
             }
           });
@@ -359,20 +410,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         // Subsections
         if (section.subsections && section.subsections.length > 0) {
           const renderSubsection = (subsection: typeof section.subsections[0], depth = 1) => {
-            // Check if we need a new page
-            if (yPosition > pageHeight - margin - 0.5) {
+            // Check if we need a new page or column
+            if (useColumns) {
+              checkColumnWrap(lineHeight * 2);
+            } else if (yPosition > pageHeight - margin - 0.5) {
               pdf.addPage();
               yPosition = margin;
             }
 
-            // Subsection title with proper indentation
+            // Subsection title (9.5pt, NOT BOLD per Python script line 371: "font.bold = False")
             const indentSize = depth * 0.15;
             const indentContentWidth = contentWidth - indentSize;
             pdf.setFontSize(baseFontSize - (depth * 0.3));
-            pdf.setFont(undefined, 'bold');
+            pdf.setFont(undefined, 'normal');
             const subTitleText = subsection.title || 'Subsection';
             const subTitleLines = pdf.splitTextToSize(subTitleText, indentContentWidth);
-            pdf.text(subTitleLines, margin + indentSize, yPosition);
+            pdf.text(subTitleLines, getXPosition() + indentSize, yPosition);
             yPosition += subTitleLines.length * lineHeight + 0.15;
 
             // Subsection content (old format - for backward compatibility)
@@ -383,7 +436,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 subsection.content,
                 indentContentWidth
               );
-              pdf.text(subContentLines, margin + indentSize, yPosition);
+              pdf.text(subContentLines, getXPosition() + indentSize, yPosition);
               yPosition += subContentLines.length * lineHeight + 0.15;
             }
 
@@ -391,14 +444,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             if (subsection.contentBlocks && subsection.contentBlocks.length > 0) {
               subsection.contentBlocks.forEach((block) => {
                 if (block.type === 'text' && block.content) {
-                  if (yPosition > pageHeight - margin - 0.3) {
+                  if (useColumns) {
+                    checkColumnWrap(lineHeight * 2);
+                  } else if (yPosition > pageHeight - margin - 0.3) {
                     pdf.addPage();
                     yPosition = margin;
                   }
                   pdf.setFontSize(baseFontSize);
                   pdf.setFont(undefined, 'normal');
                   const blockLines = pdf.splitTextToSize(block.content, indentContentWidth);
-                  pdf.text(blockLines, margin + indentSize, yPosition);
+                  pdf.text(blockLines, getXPosition() + indentSize, yPosition);
                   yPosition += blockLines.length * lineHeight + 0.15;
                 }
               });
@@ -415,21 +470,25 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
     // References
     if (document.references && document.references.length > 0) {
-      if (yPosition > pageHeight - margin - 0.5) {
+      if (useColumns) {
+        checkColumnWrap(lineHeight * 2);
+      } else if (yPosition > pageHeight - margin - 0.5) {
         pdf.addPage();
         yPosition = margin;
       }
 
       pdf.setFontSize(baseFontSize);
       pdf.setFont(undefined, 'bold');
-      pdf.text('REFERENCES', margin, yPosition);
+      pdf.text('REFERENCES', getXPosition(), yPosition);
       yPosition += lineHeight * 1.2;
 
       pdf.setFont(undefined, 'normal');
       pdf.setFontSize(baseFontSize - 0.5);
 
       document.references.forEach((ref, index) => {
-        if (yPosition > pageHeight - margin - 0.3) {
+        if (useColumns) {
+          checkColumnWrap(lineHeight * 2);
+        } else if (yPosition > pageHeight - margin - 0.3) {
           pdf.addPage();
           yPosition = margin;
         }
@@ -439,8 +498,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         const refLines = pdf.splitTextToSize(refText, contentWidth - 0.15);
         
         const lineCount = refLines.length;
-        const startY = yPosition;
-        pdf.text(refLines, margin + 0.15, yPosition);
+        pdf.text(refLines, getXPosition() + 0.15, yPosition);
         yPosition += lineCount * lineHeight + 0.1;
       });
     }
