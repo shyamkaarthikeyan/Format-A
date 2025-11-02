@@ -7,10 +7,11 @@ import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "luci
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min?url';
 import type { Document } from "@shared/schema";
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set up PDF.js worker - use local worker file
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // CSS to hide PDF browser controls
 const pdfHideControlsCSS = `
