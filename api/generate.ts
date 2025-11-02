@@ -582,25 +582,10 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       return await generateDocxWithJavaScript(req, res, user, documentData, false);
     }
     
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
-    const filename = `ieee_${timestamp}_${randomString}`;
-    
-    const tempDir = path.join(process.cwd(), 'temp');
-    const docxPath = path.join(tempDir, `${filename}.docx`);
-
-    // Ensure temp directory exists
-    try {
-      await fs.promises.mkdir(tempDir, { recursive: true });
-      console.log('✓ Temp directory ready');
-    } catch (err) {
-      console.error('Failed to create temp directory:', err);
-    }
-    
-    console.log('Using temp directory:', tempDir);
+    console.log('Using Python DOCX generator:', { pythonPath, scriptPath });
 
     // Prepare document data for Python DOCX generator
+    // DO NOT use output_path - let Python output to stdout and we'll capture as base64
     const docxData = {
       title: documentData.title,
       authors: documentData.authors.map((author: any) => ({
@@ -619,28 +604,27 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
         } else {
           return { text: String(ref) };
         }
-      }),
-      output_path: docxPath
+      })
+      // NOTE: No output_path specified - Python will write binary to stdout
     };
 
     console.log('Generating IEEE DOCX:', {
       title: docxData.title,
       authorsCount: docxData.authors.length,
-      sectionsCount: docxData.sections.length,
-      outputPath: docxPath
+      sectionsCount: docxData.sections.length
     });
 
     // Generate DOCX using Python script
     console.log('Spawning Python DOCX generator:', { pythonPath, scriptPath });
-    const docxResult = await new Promise<{stdout: Buffer, stderr: string}>((resolve, reject) => {
+    const docxResult = await new Promise<Buffer>((resolve, reject) => {
       const child = spawn(pythonPath, [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: process.cwd(),
         env: { ...process.env }
       });
 
-      let stdout = Buffer.alloc(0);
-      let stderr = '';
+      let stdoutBuffer = Buffer.alloc(0);
+      let stderrOutput = '';
 
       try {
         child.stdin.write(JSON.stringify(docxData));
@@ -653,21 +637,27 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       }
 
       child.stdout.on('data', (data) => {
-        stdout = Buffer.concat([stdout, data]);
-        console.log('Python stdout chunk:', data.length, 'bytes');
+        // Capture binary DOCX data from stdout
+        stdoutBuffer = Buffer.concat([stdoutBuffer, data]);
+        console.log('Python stdout chunk received:', data.length, 'bytes');
       });
 
       child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        stderrOutput += data.toString();
         console.log('Python stderr:', data.toString());
       });
 
       child.on('close', (code) => {
         console.log(`DOCX generator exited with code: ${code}`);
         if (code === 0) {
-          resolve({stdout, stderr});
+          if (stdoutBuffer.length > 0) {
+            console.log('✓ DOCX binary data received from Python, size:', stdoutBuffer.length);
+            resolve(stdoutBuffer);
+          } else {
+            reject(new Error('Python script produced no output'));
+          }
         } else {
-          const errorMsg = `DOCX generation failed with code ${code}: ${stderr}`;
+          const errorMsg = `DOCX generation failed with code ${code}: ${stderrOutput}`;
           console.error(errorMsg);
           reject(new Error(errorMsg));
         }
@@ -679,26 +669,13 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       });
     });
 
-    console.log('DOCX generation completed');
-
-    // Check if DOCX file was created
-    try {
-      await fs.promises.access(docxPath);
-      const stats = await fs.promises.stat(docxPath);
-      console.log('✓ DOCX file created successfully, size:', stats.size);
-    } catch (err) {
-      console.error('✗ DOCX file not found after generation:', err);
-      console.log('Falling back to JavaScript DOCX generator');
-      return await generateDocxWithJavaScript(req, res, user, documentData, false);
-    }
-
-    // Read the generated DOCX file
-    const docxBuffer = await fs.promises.readFile(docxPath);
-    console.log('✓ DOCX file read successfully, size:', docxBuffer.length);
+    console.log('DOCX generation completed successfully');
+    const docxBuffer = docxResult;
 
     // Record download in database
     if (user && user.id) {
       try {
+        const filename = `ieee_python_${Date.now()}`;
         await recordDownload(user.id, filename, 'docx', docxBuffer.length, 'download');
         console.log('✓ DOCX download recorded in database');
       } catch (dbError) {
@@ -706,17 +683,7 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       }
     }
 
-    // Clean up temp file after a delay
-    setTimeout(async () => {
-      try {
-        await fs.promises.unlink(docxPath);
-        console.log('✓ Temp DOCX file cleaned up');
-      } catch (cleanupError) {
-        console.error('Failed to cleanup temp DOCX file:', cleanupError);
-      }
-    }, 5000);
-
-    console.log('Returning DOCX file (will be displayed with PDF.js on client), size:', docxBuffer.length);
+    console.log('Returning DOCX file generated by Python script, size:', docxBuffer.length);
     
     // Return DOCX with appropriate headers for PDF.js
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
