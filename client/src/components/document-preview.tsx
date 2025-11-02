@@ -70,38 +70,202 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     referencesCount: document.references?.length || 0,
   });
 
+  // Client-side PDF generation - no server call needed!
+  const generatePdfLocally = async () => {
+    if (!document.title) throw new Error("Please enter a title.");
+    if (!document.authors || !document.authors.some(author => author.name)) {
+      throw new Error("Please enter at least one author name.");
+    }
+
+    const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 19;
+    const maxWidth = pageWidth - (2 * margin);
+    let yPosition = margin;
+
+    const lineHeights = {
+      title: 6,
+      subtitle: 3.5,
+      body: 3.5,
+      section: 4,
+    };
+
+    const checkPageBreak = (neededHeight: number) => {
+      if (yPosition + neededHeight > pageHeight - margin) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+    };
+
+    // Title
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(24);
+    checkPageBreak(10);
+    const titleLines = pdf.splitTextToSize(document.title, maxWidth);
+    titleLines.forEach((line: string) => {
+      pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
+      yPosition += lineHeights.subtitle;
+    });
+    yPosition += lineHeights.title;
+
+    // Authors
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(10);
+    const authors = document.authors.map((a: any) => a.name).join(', ');
+    const authorLines = pdf.splitTextToSize(authors, maxWidth);
+    checkPageBreak(authorLines.length * lineHeights.body);
+    authorLines.forEach((line: string) => {
+      pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
+      yPosition += lineHeights.body;
+    });
+
+    // Affiliations
+    const affiliations = document.authors
+      .map((a: any) => a.affiliation || a.organization)
+      .filter(Boolean)
+      .filter((v: any, i: number, a: any) => a.indexOf(v) === i)
+      .join('; ');
+    
+    if (affiliations) {
+      pdf.setFont('times', 'italic');
+      pdf.setFontSize(9);
+      const affLines = pdf.splitTextToSize(affiliations, maxWidth);
+      checkPageBreak(affLines.length * lineHeights.body + 3);
+      affLines.forEach((line: string) => {
+        pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
+        yPosition += lineHeights.body;
+      });
+      yPosition += 6;
+    }
+
+    // Abstract
+    if (document.abstract) {
+      pdf.setFont('times', 'normal');
+      pdf.setFontSize(10);
+      pdf.text('Abstract—', margin, yPosition);
+      
+      pdf.setFont('times', 'italic');
+      const abstractLines = pdf.splitTextToSize(document.abstract, maxWidth - 15);
+      checkPageBreak(abstractLines.length * lineHeights.body + 6);
+      
+      if (abstractLines.length > 0) {
+        pdf.text(abstractLines[0], margin + 15, yPosition, { baseline: 'top' });
+        yPosition += lineHeights.body;
+        
+        for (let i = 1; i < abstractLines.length; i++) {
+          pdf.text(abstractLines[i], margin, yPosition, { baseline: 'top' });
+          yPosition += lineHeights.body;
+        }
+      }
+      yPosition += 4;
+    }
+
+    // Keywords
+    if (document.keywords && document.keywords.length > 0) {
+      const keywordsText = Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords;
+      pdf.setFont('times', 'normal');
+      pdf.setFontSize(10);
+      pdf.text('Keywords—', margin, yPosition);
+      
+      pdf.setFont('times', 'italic');
+      const keywordLines = pdf.splitTextToSize(keywordsText, maxWidth - 15);
+      checkPageBreak(keywordLines.length * lineHeights.body + 6);
+      
+      if (keywordLines.length > 0) {
+        pdf.text(keywordLines[0], margin + 15, yPosition, { baseline: 'top' });
+        yPosition += lineHeights.body;
+        
+        for (let i = 1; i < keywordLines.length; i++) {
+          pdf.text(keywordLines[i], margin, yPosition, { baseline: 'top' });
+          yPosition += lineHeights.body;
+        }
+      }
+      yPosition += 6;
+    }
+
+    // Sections
+    if (document.sections && document.sections.length > 0) {
+      document.sections.forEach((section: any, index: number) => {
+        yPosition += lineHeights.section;
+
+        pdf.setFont('times', 'normal');
+        pdf.setFontSize(9.5);
+        const sectionTitle = `${index + 1}. ${section.title}`;
+        const sectionTitleLines = pdf.splitTextToSize(sectionTitle, maxWidth);
+        checkPageBreak(sectionTitleLines.length * lineHeights.body + (section.content ? 8 : 0));
+        
+        sectionTitleLines.forEach((line: string) => {
+          pdf.text(line, margin, yPosition, { baseline: 'top' });
+          yPosition += lineHeights.body;
+        });
+        yPosition += 2;
+
+        if (section.content) {
+          pdf.setFont('times', 'normal');
+          pdf.setFontSize(9.5);
+          const contentLines = pdf.splitTextToSize(section.content, maxWidth);
+          checkPageBreak(contentLines.length * lineHeights.body + 3);
+          
+          contentLines.forEach((line: string) => {
+            pdf.text(line, margin, yPosition, { baseline: 'top' });
+            yPosition += lineHeights.body;
+          });
+        }
+        yPosition += 2;
+      });
+    }
+
+    // References
+    if (document.references && document.references.length > 0) {
+      yPosition += lineHeights.section;
+      
+      pdf.setFont('times', 'normal');
+      pdf.setFontSize(9.5);
+      pdf.text('References', margin, yPosition);
+      yPosition += lineHeights.body + 1;
+
+      pdf.setFontSize(9);
+      document.references.forEach((ref: any, index: number) => {
+        const refText = typeof ref === 'string' ? ref : ref.text;
+        const refLabel = `[${index + 1}] ${refText}`;
+        const refLines = pdf.splitTextToSize(refLabel, maxWidth - 5);
+        checkPageBreak(refLines.length * (lineHeights.body - 0.5) + 2);
+        
+        refLines.forEach((line: string, lineIndex: number) => {
+          const xPos = lineIndex === 0 ? margin : margin + 3;
+          pdf.text(line, xPos, yPosition, { baseline: 'top' });
+          yPosition += lineHeights.body - 0.5;
+        });
+        yPosition += 0.5;
+      });
+    }
+
+    return pdf.output('blob');
+  };
+
   // Mutations for generating and emailing documents
   const generateDocxMutation = useMutation({
     mutationFn: async () => {
-      if (!document.title) throw new Error("Please enter a title.");
-      if (!document.authors || !document.authors.some(author => author.name)) {
-        throw new Error("Please enter at least one author name.");
-      }
-
-      const response = await fetch('/api/generate?type=docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(document),
-      });
-
-      if (!response.ok) throw new Error(`Failed to generate document: ${response.statusText}`);
-
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error('Generated document is empty');
-
-      const url = URL.createObjectURL(blob);
+      const pdfBlob = await generatePdfLocally();
+      const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = `${document.title || 'ieee-paper'}.docx`;
+      link.download = `${document.title || 'ieee-paper'}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
-
       return { success: true };
     },
     onSuccess: () => {
       toast({
-        title: "Word Document Generated",
-        description: "IEEE-formatted Word document has been downloaded successfully.",
+        title: "PDF Downloaded",
+        description: "IEEE-formatted PDF has been downloaded successfully.",
       });
     },
     onError: (error: Error) => {
@@ -115,75 +279,24 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
   const generatePdfMutation = useMutation({
     mutationFn: async () => {
-      if (!document.title) throw new Error("Please enter a title.");
-      if (!document.authors || !document.authors.some(author => author.name)) {
-        throw new Error("Please enter at least one author name.");
-      }
-
-      const response = await fetch('/api/generate?type=pdf', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Download': 'true'  // Indicate this is for download, not preview
-        },
-        body: JSON.stringify(document),
-      });
-
-      if (!response.ok) {
-        // If PDF generation fails, try to get detailed error message
-        let errorMessage = `Failed to generate PDF: ${response.statusText}`;
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            if (errorText && errorText.length < 500) {
-              errorMessage = errorText;
-            }
-          }
-        } catch (e) {
-          console.warn('Could not parse error details');
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blob = await response.blob();
-      console.log('PDF download blob:', blob.size, 'bytes, type:', blob.type);
-      
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
-
-      // Check if we actually got a PDF or a fallback format
-      const contentType = response.headers.get('content-type');
-      let filename = "ieee_paper.pdf";
-      let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
-      
-      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        filename = `${document.title || 'ieee-paper'}.docx`;
-        downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
-      } else {
-        filename = `${document.title || 'ieee-paper'}.pdf`;
-      }
-
-      const url = URL.createObjectURL(blob);
+      const pdfBlob = await generatePdfLocally();
+      const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = `${document.title || 'ieee-paper'}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
-
-      return { success: true, message: downloadMessage };
+      return { success: true };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
-        title: "Document Generated",
-        description: data.message,
+        title: "PDF Downloaded",
+        description: "IEEE-formatted PDF has been downloaded successfully.",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Download Failed",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });

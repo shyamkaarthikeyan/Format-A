@@ -868,16 +868,10 @@ def main():
         # Generate IEEE document
         doc_data = generate_ieee_document(form_data)
         
-        # Check if output_path is specified
-        output_path = form_data.get('output_path')
-        if output_path:
-            # Write DOCX to specified file path
-            with open(output_path, 'wb') as f:
-                f.write(doc_data)
-            print(f"IEEE DOCX generated successfully at: {output_path}")
-        else:
-            # Write binary data to stdout as fallback
-            sys.stdout.buffer.write(doc_data)
+        # ALWAYS write binary DOCX data to stdout (for Node.js child process capture)
+        # This works on both local and Vercel environments
+        sys.stdout.buffer.write(doc_data)
+        sys.stdout.buffer.flush()
         
     except Exception as e:
         import traceback
