@@ -10,10 +10,19 @@ import fs from 'fs';
 let sql: any = null;
 function getSql() {
   if (!sql) {
-    sql = neon(process.env.DATABASE_URL!, {
-      fullResults: true,
-      arrayMode: false
-    });
+    if (!process.env.DATABASE_URL) {
+      console.error('[FATAL] DATABASE_URL is not set!');
+      throw new Error('DATABASE_URL environment variable is not configured');
+    }
+    try {
+      sql = neon(process.env.DATABASE_URL, {
+        fullResults: true,
+        arrayMode: false
+      });
+    } catch (err) {
+      console.error('[FATAL] Failed to initialize database connection:', err);
+      throw err;
+    }
   }
   return sql;
 }
@@ -46,23 +55,72 @@ interface IEEEDocumentData {
 // Python script (ieee_generator_fixed.py) handles all document generation with correct IEEE formatting
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
+  // Enable CORS - CRITICAL: Must allow all origins
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Preview, X-Download');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Credentials', 'false');
+  res.setHeader('Access-Control-Max-Age', '86400');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  // Allow GET for health check
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'ok',
+      message: 'API endpoint is running',
+      environment: process.env.NODE_ENV,
+      hasDatabase: !!process.env.DATABASE_URL,
+      endpoint: '/api/generate'
+    });
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed', method: req.method });
   }
 
   const { type } = req.query;
 
   try {
+    // ⚠️ Parse JSON body if it's a string (Vercel sometimes doesn't auto-parse)
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (parseErr) {
+        console.error('[API/GENERATE] Failed to parse JSON body:', parseErr);
+        return res.status(400).json({
+          error: 'Invalid JSON in request body',
+          message: 'Could not parse request body as JSON'
+        });
+      }
+    }
+
+    // ⚠️ DEBUGGING: Log full request details
+    console.log('[API/GENERATE] =================================');
+    console.log('[API/GENERATE] Incoming request');
+    console.log('[API/GENERATE] Type:', type);
+    console.log('[API/GENERATE] Method:', req.method);
+    console.log('[API/GENERATE] Body type:', typeof body);
+    console.log('[API/GENERATE] Body is null?:', body === null);
+    console.log('[API/GENERATE] Body is undefined?:', body === undefined);
+    
+    // ⚠️ IMPORTANT: Check if body exists and is valid
+    if (!body || typeof body !== 'object') {
+      console.error('[API/GENERATE] ERROR: Invalid request body!');
+      console.error('[API/GENERATE] Body:', body);
+      return res.status(400).json({
+        error: 'Invalid request body',
+        message: 'Request body must be a JSON object',
+        receivedType: typeof body
+      });
+    }
+
+    // Attach parsed body back to req for handlers
+    req.body = body;
+
     // Get user from JWT token (if provided)
     let user = null;
     const authHeader = req.headers.authorization;
@@ -72,19 +130,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const jwt = await import('jsonwebtoken');
         const decoded = jwt.default.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
         
-        // Get user from database
-        const sql = getSql();
-        const result = await sql`SELECT * FROM users WHERE id = ${decoded.userId}`;
-        const users = result.rows || result;
-        user = users.length > 0 ? users[0] : null;
+        // Get user from database - skip if DATABASE_URL not available
+        if (process.env.DATABASE_URL) {
+          try {
+            const sql = getSql();
+            const result = await sql`SELECT * FROM users WHERE id = ${decoded.userId}`;
+            const users = result.rows || result;
+            user = users.length > 0 ? users[0] : null;
+          } catch (dbErr) {
+            console.log('[API/GENERATE] Warning: Could not fetch user from DB:', dbErr);
+          }
+        }
       } catch (error) {
-        console.log('Invalid or expired token, proceeding as anonymous user');
+        console.log('[API/GENERATE] Invalid or expired token, proceeding as anonymous user');
       }
     }
 
-    console.log(`Generation request: type=${type}, user=${user ? user.email : 'anonymous'}`);
+    console.log(`[API/GENERATE] Generation request: type=${type}, user=${user ? user.email : 'anonymous'}`);
 
     switch (type) {
+      case 'test':
+        // Simple test endpoint to verify API is working
+        return res.status(200).json({ 
+          status: 'ok',
+          message: 'API test endpoint successful',
+          timestamp: new Date().toISOString()
+        });
       case 'docx':
         return await handleDocxGeneration(req, res, user);
       case 'pdf':
@@ -96,14 +167,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       default:
         return res.status(400).json({ 
           error: 'Invalid generation type',
-          message: 'Supported types: docx, pdf, email'
+          message: 'Supported types: test, docx, pdf, email'
         });
     }
   } catch (error) {
-    console.error('Generation error:', error);
+    console.error('[API/GENERATE] FATAL ERROR:', error);
+    console.error('[API/GENERATE] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[API/GENERATE] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[API/GENERATE] Stack:', error instanceof Error ? error.stack : 'No stack');
+    
+    // IMPORTANT: Always return explicit status codes, never 401
     return res.status(500).json({
       error: 'Generation failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      type: error instanceof Error ? error.constructor.name : typeof error
     });
   }
 }

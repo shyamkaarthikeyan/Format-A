@@ -40,13 +40,36 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
+      // First, test the API
+      console.log('[PREVIEW] Testing API connectivity...');
+      try {
+        const testResponse = await fetch('/api/generate?type=test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ test: true }),
+        });
+        console.log('[PREVIEW] Test API response:', testResponse.status, testResponse.statusText);
+        if (!testResponse.ok) {
+          const errorText = await testResponse.text();
+          console.error('[PREVIEW] Test API error:', errorText);
+          throw new Error(`Test API failed: ${testResponse.statusText}`);
+        }
+      } catch (testErr) {
+        console.error('[PREVIEW] Test API failed:', testErr);
+        throw new Error(`API not accessible: ${testErr}`);
+      }
+
+      console.log('[PREVIEW] API test passed, generating preview...');
       const response = await fetch('/api/generate?type=pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(document),
       });
 
+      console.log('[PREVIEW] Preview response:', response.status, response.statusText);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[PREVIEW] Preview error:', errorText);
         throw new Error(`Failed to generate preview: ${response.statusText}`);
       }
 
