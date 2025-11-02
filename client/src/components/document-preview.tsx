@@ -116,62 +116,38 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      const response = await fetch('/api/generate/docx-to-pdf', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Download': 'true'  // Indicate this is for download, not preview
-        },
-        body: JSON.stringify(document),
-      });
+      console.log('Generating PDF for download using client-side jsPDF...');
 
-      if (!response.ok) {
-        // If PDF generation fails, try to get detailed error message
-        let errorMessage = `Failed to generate PDF: ${response.statusText}`;
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            if (errorText && errorText.length < 500) {
-              errorMessage = errorText;
-            }
-          }
-        } catch (e) {
-          console.warn('Could not parse error details');
-        }
-        throw new Error(errorMessage);
+      // Generate PDF entirely on client-side using jsPDF
+      // This is the same high-quality IEEE-formatted PDF as the preview
+      const pdfBlob = generateClientSidePDF();
+
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Failed to generate PDF');
       }
 
-      const blob = await response.blob();
-      console.log('PDF download blob:', blob.size, 'bytes, type:', blob.type);
-      
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
-
-      // Check if we actually got a PDF or a fallback format
-      const contentType = response.headers.get('content-type');
-      let filename = "ieee_paper.pdf";
-      let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
-      
-      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        filename = "ieee_paper.docx";
-        downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
-      }
-
-      const url = URL.createObjectURL(blob);
+      // Download the PDF file
+      const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = 'ieee_paper.pdf';
       link.click();
       URL.revokeObjectURL(url);
 
-      return { success: true, message: downloadMessage };
+      console.log('✅ PDF downloaded successfully:', {
+        size: pdfBlob.size,
+        type: pdfBlob.type,
+      });
+
+      return { 
+        success: true, 
+        message: "IEEE-formatted PDF has been downloaded successfully.",
+        size: pdfBlob.size
+      };
     },
     onSuccess: (data) => {
       toast({
-        title: "Document Generated",
+        title: "PDF Downloaded",
         description: data.message,
       });
     },
