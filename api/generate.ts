@@ -28,17 +28,36 @@ async function generateDocxWithJavaScript(
 ) {
   try {
     console.log('✨ Generating DOCX with JavaScript docx library (Vercel-compatible)...');
+    console.log('Document data:', {
+      hasTitle: !!documentData.title,
+      authorsCount: documentData.authors?.length || 0,
+      hasAbstract: !!documentData.abstract,
+      keywordsCount: documentData.keywords?.length || 0,
+      sectionsCount: documentData.sections?.length || 0,
+      referencesCount: documentData.references?.length || 0,
+    });
+    
+    // Ensure required fields exist
+    if (!documentData.title) {
+      throw new Error('Document title is required');
+    }
+    if (!documentData.authors || !Array.isArray(documentData.authors)) {
+      throw new Error('Authors array is required');
+    }
+    if (documentData.authors.length === 0 || !documentData.authors.some((a: any) => a?.name)) {
+      throw new Error('At least one author with a name is required');
+    }
     
     const doc = generateIEEEDocument({
-      title: documentData.title,
-      authors: documentData.authors.map((author: any) => ({
-        name: author.name,
-        affiliation: author.affiliation || author.institution || '',
-        email: author.email || ''
+      title: documentData.title || 'Untitled',
+      authors: (documentData.authors || []).map((author: any) => ({
+        name: author?.name || 'Unknown Author',
+        affiliation: author?.affiliation || author?.institution || '',
+        email: author?.email || ''
       })),
       abstract: documentData.abstract || '',
-      keywords: documentData.keywords || [],
-      sections: documentData.sections || [],
+      keywords: Array.isArray(documentData.keywords) ? documentData.keywords : [],
+      sections: Array.isArray(documentData.sections) ? documentData.sections : [],
       references: (documentData.references || []).map((ref: any) => {
         if (typeof ref === 'string') {
           return { text: ref };
@@ -50,6 +69,7 @@ async function generateDocxWithJavaScript(
       })
     });
 
+    console.log('✅ IEEE document generated successfully from data');
     const docxBuffer = await Packer.toBuffer(doc);
     console.log('✅ JavaScript DOCX generated successfully, size:', docxBuffer.length);
 
@@ -84,10 +104,14 @@ async function generateDocxWithJavaScript(
     
   } catch (jsError) {
     console.error('❌ JavaScript generation failed:', jsError);
+    if (jsError instanceof Error) {
+      console.error('Stack trace:', jsError.stack);
+    }
     return res.status(500).json({
       error: 'Document generation failed',
       message: 'JavaScript DOCX generation failed',
-      details: jsError instanceof Error ? jsError.message : 'Unknown error'
+      details: jsError instanceof Error ? jsError.message : String(jsError),
+      stack: process.env.NODE_ENV === 'development' && jsError instanceof Error ? jsError.stack : undefined
     });
   }
 }

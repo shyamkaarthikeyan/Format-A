@@ -5,10 +5,9 @@
   "framework": "vite",
 
   "functions": {
-    "api/generate.ts": {
+    "api/**/*.ts": {
       "memory": 1024,
-      "maxDuration": 30,
-      "includeFiles": "api/_lib/**"
+      "maxDuration": 30
     }
   },
 
