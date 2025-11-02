@@ -779,19 +779,22 @@ async function handleEmailGeneration(req: VercelRequest, res: VercelResponse, us
 
 function getPythonCommand(): string {
   if (process.env.NODE_ENV === 'production') {
+    // Vercel and other production environments
     const pythonPaths = [
-      'python3',
-      'python',
-      '/usr/bin/python3',
-      '/usr/bin/python',
-      '/opt/render/project/.render/python/bin/python',
-      process.env.PYTHON_PATH
+      'python3.9',        // Try specific version first
+      'python3',          // Fall back to python3
+      'python',           // Generic python
+      '/usr/bin/python3', // Unix absolute path
+      '/usr/bin/python',  // Unix absolute path
+      '/opt/render/project/.render/python/bin/python', // Render.com
+      process.env.PYTHON_PATH || 'python3' // Environment variable or default
     ].filter(Boolean);
     
-    console.log('Production environment - trying Python paths:', pythonPaths);
-    return pythonPaths[0] as string;
+    console.log('Production environment - Python paths to try:', pythonPaths);
+    return pythonPaths[0];
   }
   
+  // Local development (Windows)
   return 'C:/Users/shyam/AppData/Local/Programs/Python/Python39/python.exe';
 }
 

@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "vite",
+  "env": {
+    "PYTHON_VERSION": "3.9",
+    "NODE_ENV": "production"
+  },
 
   "functions": {
     "api/generate.ts": {
