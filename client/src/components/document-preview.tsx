@@ -87,7 +87,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       const url = URL.createObjectURL(blob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = "ieee_paper.docx";
+      link.download = `${document.title || 'ieee-paper'}.docx`;
       link.click();
       URL.revokeObjectURL(url);
 
@@ -155,8 +155,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
       
       if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        filename = "ieee_paper.docx";
+        filename = `${document.title || 'ieee-paper'}.docx`;
         downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
+      } else {
+        filename = `${document.title || 'ieee-paper'}.pdf`;
       }
 
       const url = URL.createObjectURL(blob);
@@ -388,97 +390,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
         console.log('✅ Received DOCX file - Vercel deployment detected');
         
-        // For DOCX files, we need to download and open them (or use docx-preview library)
-        // For now, we'll show a message that preview is available via download
         const blob = await response.blob();
         console.log('DOCX blob size:', blob.size);
         
         if (blob.size === 0) throw new Error('Generated document is empty');
 
-        // Create download URL
-        const url = URL.createObjectURL(blob);
-        
-        // Show a preview message with download link
-        const previewHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                height: 100vh;
-                margin: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-              }
-              .container {
-                text-align: center;
-                background: rgba(255,255,255,0.1);
-                padding: 3rem;
-                border-radius: 20px;
-                backdrop-filter: blur(10px);
-                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-              }
-              h1 { margin: 0 0 1rem 0; font-size: 2rem; }
-              p { margin: 0.5rem 0; font-size: 1.1rem; opacity: 0.9; }
-              .download-btn {
-                margin-top: 2rem;
-                padding: 1rem 2rem;
-                font-size: 1.1rem;
-                background: white;
-                color: #667eea;
-                border: none;
-                border-radius: 10px;
-                cursor: pointer;
-                font-weight: bold;
-                transition: transform 0.2s;
-              }
-              .download-btn:hover {
-                transform: scale(1.05);
-              }
-              .icon { font-size: 4rem; margin-bottom: 1rem; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="icon">📄</div>
-              <h1>Document Ready!</h1>
-              <p>Your IEEE-formatted document has been generated successfully.</p>
-              <p>Click below to download and view your document.</p>
-              <button class="download-btn" onclick="window.open('${url}', '_blank')">
-                Download Document
-              </button>
-            </div>
-            <script>
-              // Auto-download after 1 second
-              setTimeout(() => {
-                const link = document.createElement('a');
-                link.href = '${url}';
-                link.download = 'ieee_paper.docx';
-                link.click();
-              }, 1000);
-            </script>
-          </body>
-          </html>
-        `;
-        
-        const htmlBlob = new Blob([previewHtml], { type: 'text/html' });
-        const htmlUrl = URL.createObjectURL(htmlBlob);
-        
         // Clean up previous URL
         if (pdfUrl) {
           URL.revokeObjectURL(pdfUrl);
         }
-        
+
+        // Create object URL for preview display (no auto-download)
+        const url = URL.createObjectURL(blob);
         setPreviewMode('pdf');
         setPreviewImages([]);
-        setPdfUrl(htmlUrl);
-        console.log('✅ DOCX preview ready (auto-download enabled)');
+        setPdfUrl(url);
+        console.log('✅ DOCX preview ready - displayed without auto-download');
         return;
       }
       
@@ -738,39 +665,19 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </div>
             ) : pdfUrl ? (
               <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
-                {/* Clean PDF Viewer with working zoom controls */}
-                <div 
-                  className="w-full h-full relative"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top center',
-                    minWidth: `${zoom}%`,
-                    minHeight: `${zoom}%`,
-                    padding: zoom > 100 ? '20px' : '0px'
+                {/* DOCX/PDF Preview using iframe */}
+                <iframe
+                  src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH`}
+                  className="w-full h-full border-0"
+                  style={{
+                    outline: 'none',
+                    border: 'none',
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '600px'
                   }}
-                >
-                  <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=${zoom}`}
-                    type="application/pdf"
-                    className="w-full h-full border-0"
-                    style={{
-                      outline: 'none',
-                      border: 'none',
-                      width: '100%',
-                      height: '600px',
-                      minHeight: '600px'
-                    }}
-                  >
-                    {/* Fallback message */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                      <div className="text-center p-6">
-                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
-                        <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
-                      </div>
-                    </div>
-                  </object>
-                </div>
+                  title="Document Preview"
+                />
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">

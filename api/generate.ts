@@ -50,10 +50,8 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
   // Title - centered, bold, 24pt
   children.push(
     new Paragraph({
-      text: data.title,
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 },
-      style: 'Title',
       children: [
         new TextRun({
           text: data.title,
@@ -69,7 +67,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
   const authorNames = data.authors.map(a => a.name).join(', ');
   children.push(
     new Paragraph({
-      text: authorNames,
       alignment: AlignmentType.CENTER,
       spacing: { after: 100 },
       children: [
@@ -92,7 +89,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
   if (affiliations) {
     children.push(
       new Paragraph({
-        text: affiliations,
         alignment: AlignmentType.CENTER,
         spacing: { after: 200 },
         children: [
@@ -111,7 +107,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
   if (data.abstract) {
     children.push(
       new Paragraph({
-        text: 'Abstract',
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 200, after: 100 },
         children: [
@@ -128,7 +123,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
 
     children.push(
       new Paragraph({
-        text: data.abstract,
         spacing: { after: 200 },
         alignment: AlignmentType.JUSTIFIED,
         children: [
@@ -178,7 +172,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
       // Section heading
       children.push(
         new Paragraph({
-          text: `${index + 1}. ${section.title}`,
           heading: HeadingLevel.HEADING_1,
           spacing: { before: 200, after: 100 },
           children: [
@@ -195,7 +188,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
       // Section content
       children.push(
         new Paragraph({
-          text: section.content,
           spacing: { after: 200 },
           alignment: AlignmentType.JUSTIFIED,
           children: [
@@ -214,7 +206,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
   if (data.references && data.references.length > 0) {
     children.push(
       new Paragraph({
-        text: 'References',
         heading: HeadingLevel.HEADING_1,
         spacing: { before: 300, after: 150 },
         children: [
@@ -232,7 +223,6 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
       const refText = typeof ref === 'string' ? ref : ref.text;
       children.push(
         new Paragraph({
-          text: `[${index + 1}] ${refText}`,
           spacing: { after: 80 },
           children: [
             new TextRun({
