@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,11 @@ import { Input } from "@/components/ui/input";
 import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
+import * as pdfjsLib from 'pdfjs-dist';
 import type { Document } from "@shared/schema";
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 // CSS to hide PDF browser controls
 const pdfHideControlsCSS = `
@@ -344,7 +348,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 </html>`;
   };
 
-  // Generate HTML preview from document data (no download)
+  // Generate PDF preview from document data using jsPDF
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -355,135 +359,192 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      // Create HTML preview directly from document data - no API call needed
-      console.log('Generating HTML preview from document data...');
+      console.log('Generating PDF preview using jsPDF...');
       
+      // Dynamic import jsPDF to avoid build issues
+      const { jsPDF } = await import('jspdf');
+      
+      // Create new PDF document
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 19; // ~0.75 inches in mm
+      const maxWidth = pageWidth - (2 * margin);
+      let yPosition = margin;
+
+      // Helper to add text with wrapping
+      const addWrappedText = (text: string, fontSize: number, bold: boolean = false, align: 'left' | 'center' | 'right' = 'left') => {
+        pdf.setFontSize(fontSize);
+        pdf.setFont('times', bold ? 'bold' : 'normal');
+        
+        const lineHeight = (fontSize / 2.5);
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        
+        if (yPosition + (lines.length * lineHeight) > pageHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
+        }
+
+        lines.forEach((line: string) => {
+          pdf.text(line, align === 'center' ? pageWidth / 2 : align === 'right' ? pageWidth - margin : margin, yPosition, {
+            align: align,
+            baseline: 'top',
+          });
+          yPosition += lineHeight;
+        });
+
+        return yPosition;
+      };
+
+      // Title (24pt, centered, bold)
+      yPosition = addWrappedText(document.title, 24, true, 'center');
+      yPosition += 6;
+
+      // Authors (10pt, centered)
       const authors = document.authors.map((a: any) => a.name).join(', ');
+      yPosition = addWrappedText(authors, 10, false, 'center');
+      yPosition += 4;
+
+      // Affiliations (9pt, italic, centered)
       const affiliations = document.authors
         .map((a: any) => a.affiliation || a.organization)
         .filter(Boolean)
         .filter((v: any, i: number, a: any) => a.indexOf(v) === i)
         .join('; ');
       
-      // Create IEEE-formatted HTML preview
-      const previewHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${document.title}</title>
-    <style>
-        body {
-            font-family: 'Times New Roman', Times, serif;
-            margin: 40px;
-            line-height: 1.6;
-            background: white;
-            color: #333;
-            max-width: 850px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .title {
-            text-align: center;
-            font-size: 24pt;
-            font-weight: bold;
-            margin-bottom: 12pt;
-            margin-top: 0;
-        }
-        .authors {
-            text-align: center;
-            font-size: 10pt;
-            margin-bottom: 6pt;
-        }
-        .affiliations {
-            text-align: center;
-            font-size: 9pt;
-            font-style: italic;
-            margin-bottom: 18pt;
-        }
-        .section-title {
-            font-size: 9.5pt;
-            font-weight: normal;
-            margin-top: 18pt;
-            margin-bottom: 8pt;
-        }
-        .abstract-title, .keywords-title {
-            font-size: 9.5pt;
-            font-weight: bold;
-            font-style: italic;
-        }
-        .abstract-content, .keywords-content {
-            font-size: 9.5pt;
-            font-style: italic;
-            text-align: justify;
-            margin-bottom: 12pt;
-        }
-        .section-content {
-            font-size: 9.5pt;
-            text-align: justify;
-            margin-bottom: 12pt;
-        }
-        .references-item {
-            font-size: 9pt;
-            margin-bottom: 8pt;
-        }
-        .preview-info {
-            background: #e3f2fd;
-            border-left: 4px solid #2196F3;
-            padding: 12px;
-            margin-bottom: 20px;
-            font-size: 12px;
-            color: #1565c0;
-        }
-    </style>
-</head>
-<body>
-    <div class="preview-info">
-        📄 <strong>IEEE Document Preview</strong> - Live preview shows formatting. Click "Download Word" to get the actual DOCX file.
-    </div>
-    
-    <h1 class="title">${document.title}</h1>
-    <div class="authors">${authors}</div>
-    ${affiliations ? `<div class="affiliations">${affiliations}</div>` : ''}
-    
-    ${document.abstract ? `
-    <p><span class="abstract-title">Abstract—</span><span class="abstract-content">${document.abstract}</span></p>
-    ` : ''}
-    
-    ${document.keywords && document.keywords.length > 0 ? `
-    <p><span class="keywords-title">Keywords—</span><span class="keywords-content">${Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords}</span></p>
-    ` : ''}
-    
-    ${document.sections && document.sections.length > 0 ? document.sections.map((section: any, index: number) => `
-    <h2 class="section-title">${index + 1}. ${section.title}</h2>
-    <div class="section-content">${section.content}</div>
-    `).join('') : ''}
-    
-    ${document.references && document.references.length > 0 ? `
-    <h2 class="section-title">References</h2>
-    ${document.references.map((ref: any, index: number) => `
-    <div class="references-item">[${index + 1}] ${typeof ref === 'string' ? ref : ref.text}</div>
-    `).join('')}
-    ` : ''}
-</body>
-</html>`;
-      
-      // Create blob and object URL for HTML preview
-      const blob = new Blob([previewHtml], { type: 'text/html' });
+      if (affiliations) {
+        pdf.setFontSize(9);
+        pdf.setFont('times', 'italic');
+        const affLines = pdf.splitTextToSize(affiliations, maxWidth);
+        affLines.forEach((line: string) => {
+          if (yPosition + 3 > pageHeight - margin) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          pdf.text(line, pageWidth / 2, yPosition, { align: 'center', baseline: 'top' });
+          yPosition += 3;
+        });
+        yPosition += 6;
+      }
+
+      // Abstract (10pt, italic)
+      if (document.abstract) {
+        pdf.setFontSize(10);
+        pdf.setFont('times', 'bold');
+        pdf.text('Abstract—', margin, yPosition);
+        yPosition += 4;
+        
+        pdf.setFont('times', 'italic');
+        const abstractLines = pdf.splitTextToSize(document.abstract, maxWidth - 10);
+        abstractLines.forEach((line: string) => {
+          if (yPosition + 3 > pageHeight - margin) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          pdf.text(line, margin + 5, yPosition, { baseline: 'top' });
+          yPosition += 3;
+        });
+        yPosition += 5;
+      }
+
+      // Keywords (10pt, italic)
+      if (document.keywords && document.keywords.length > 0) {
+        const keywordsText = Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords;
+        pdf.setFontSize(10);
+        pdf.setFont('times', 'bold');
+        pdf.text('Keywords—', margin, yPosition);
+        yPosition += 4;
+        
+        pdf.setFont('times', 'italic');
+        const keywordLines = pdf.splitTextToSize(keywordsText, maxWidth - 10);
+        keywordLines.forEach((line: string) => {
+          if (yPosition + 3 > pageHeight - margin) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          pdf.text(line, margin + 5, yPosition, { baseline: 'top' });
+          yPosition += 3;
+        });
+        yPosition += 5;
+      }
+
+      // Sections (9.5pt, justified)
+      if (document.sections && document.sections.length > 0) {
+        document.sections.forEach((section: any, index: number) => {
+          yPosition += 3;
+
+          // Section title
+          pdf.setFontSize(9.5);
+          pdf.setFont('times', 'normal');
+          yPosition = addWrappedText(`${index + 1}. ${section.title}`, 9.5, false, 'left');
+          yPosition += 2;
+
+          // Section content
+          pdf.setFontSize(9.5);
+          const contentLines = pdf.splitTextToSize(section.content || '', maxWidth);
+          contentLines.forEach((line: string) => {
+            if (yPosition + 3 > pageHeight - margin) {
+              pdf.addPage();
+              yPosition = margin;
+            }
+            pdf.text(line, margin, yPosition, { baseline: 'top' });
+            yPosition += 3;
+          });
+          yPosition += 3;
+        });
+      }
+
+      // References (9pt)
+      if (document.references && document.references.length > 0) {
+        yPosition += 3;
+        pdf.setFontSize(9.5);
+        pdf.setFont('times', 'normal');
+        yPosition = addWrappedText('References', 9.5, false, 'left');
+        yPosition += 2;
+
+        pdf.setFontSize(9);
+        document.references.forEach((ref: any, index: number) => {
+          const refText = typeof ref === 'string' ? ref : ref.text;
+          const lines = pdf.splitTextToSize(`[${index + 1}] ${refText}`, maxWidth - 5);
+          
+          lines.forEach((line: string, lineIndex: number) => {
+            if (yPosition + 3 > pageHeight - margin) {
+              pdf.addPage();
+              yPosition = margin;
+            }
+            
+            if (lineIndex === 0) {
+              pdf.text(line, margin, yPosition, { baseline: 'top' });
+            } else {
+              pdf.text(line, margin + 5, yPosition, { baseline: 'top' });
+            }
+            yPosition += 3;
+          });
+          yPosition += 1;
+        });
+      }
+
+      // Generate PDF blob
+      const pdfBlob = pdf.output('blob');
       
       // Clean up previous URL
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
       
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(pdfBlob);
+      setPdfUrl(url);
       setPreviewMode('pdf');
       setPreviewImages([]);
-      setPdfUrl(url);
-      console.log('✅ HTML preview ready - displayed without download');
+      
+      console.log('✅ PDF preview generated successfully, size:', pdfBlob.size, 'bytes');
     } catch (error) {
-      console.error('HTML preview generation failed:', error);
+      console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview';
       setPreviewError(errorMessage);
     } finally {
@@ -524,6 +585,45 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
     };
   }, [pdfUrl]);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Render PDF page using PDF.js
+  const renderPdfPage = async (pageNumber: number) => {
+    if (!pdfUrl || !canvasRef.current) return;
+
+    try {
+      const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+      setTotalPages(pdf.numPages);
+      
+      const page = await pdf.getPage(pageNumber);
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (!context) return;
+      
+      const viewport = page.getViewport({ scale: zoom / 100 });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+        canvas: canvas
+      }).promise;
+    } catch (error) {
+      console.error('Error rendering PDF page:', error);
+    }
+  };
+
+  // Re-render when zoom changes
+  useEffect(() => {
+    if (pdfUrl && currentPage) {
+      renderPdfPage(currentPage);
+    }
+  }, [zoom, pdfUrl, currentPage]);
 
   const handleZoomIn = () => setZoom(prev => Math.min(200, prev + 25));
   const handleZoomOut = () => setZoom(prev => Math.max(25, prev - 25));
@@ -608,9 +708,30 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              Document Preview (DOCX)
+              PDF Preview
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 25}
+                  className="text-purple-600 hover:text-purple-700"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-gray-600 min-w-[50px] text-center">{zoom}%</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 200}
+                  className="text-purple-600 hover:text-purple-700"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -629,7 +750,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
-                  <p className="text-gray-600">Generating document preview...</p>
+                  <p className="text-gray-600">Generating PDF preview...</p>
                 </div>
               </div>
             ) : previewError ? (
@@ -655,29 +776,50 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <div className="text-center p-6">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600 mb-2">Ready for Preview</p>
-                  <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
+                  <p className="text-gray-500 text-sm">Add a title and at least one author to generate PDF preview</p>
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container p-4" style={{ overflow: 'auto' }}>
-                <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
+              <div className="h-full relative bg-white pdf-preview-container p-4 flex flex-col" style={{ overflow: 'auto' }}>
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 flex-shrink-0">
                   <p className="text-sm text-blue-800">
-                    <strong>📄 DOCX Preview:</strong> This is your IEEE-formatted Word document. The preview below may open in your browser or download depending on your settings. Click "Download Word" to save it locally.
+                    <strong>📄 PDF Preview:</strong> Your IEEE-formatted document rendered as PDF. Use zoom controls to adjust size.
                   </p>
                 </div>
-                {/* DOCX Preview using iframe - may trigger download */}
-                <iframe
-                  src={pdfUrl}
-                  className="w-full border-0"
-                  style={{
-                    outline: 'none',
-                    border: 'none',
-                    width: '100%',
-                    height: '500px',
-                    minHeight: '500px'
-                  }}
-                  title="Document Preview"
-                />
+                <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-200 rounded p-2">
+                  <canvas
+                    ref={canvasRef}
+                    className="shadow-lg"
+                    style={{
+                      maxWidth: '100%',
+                      height: 'auto',
+                      border: '1px solid #ccc'
+                    }}
+                  />
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex-shrink-0 mt-4 flex items-center justify-center gap-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
