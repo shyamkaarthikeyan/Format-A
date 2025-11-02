@@ -355,42 +355,83 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           yPosition = margin;
         }
 
-        // Section title
+        // Section title - keep as typed, don't convert to uppercase
+        pdf.setFontSize(baseFontSize);
         pdf.setFont(undefined, 'bold');
-        pdf.text((section.title || 'Section').toUpperCase(), margin, yPosition);
-        yPosition += lineHeight * 1.2;
+        const sectionTitleText = section.title || 'Section';
+        const sectionTitleLines = pdf.splitTextToSize(sectionTitleText, contentWidth);
+        pdf.text(sectionTitleLines, margin, yPosition);
+        yPosition += sectionTitleLines.length * lineHeight + 0.3;
 
-        // Section content
+        // Section content blocks
         pdf.setFont(undefined, 'normal');
-        if (section.content) {
-          const contentLines = pdf.splitTextToSize(section.content, contentWidth);
-          pdf.text(contentLines, margin, yPosition);
-          yPosition += contentLines.length * lineHeight + 0.2;
+        pdf.setFontSize(baseFontSize);
+        if (section.contentBlocks && section.contentBlocks.length > 0) {
+          section.contentBlocks.forEach((block) => {
+            if (block.type === 'text' && block.content) {
+              if (yPosition > pageHeight - margin - 0.3) {
+                pdf.addPage();
+                yPosition = margin;
+              }
+              const contentLines = pdf.splitTextToSize(block.content, contentWidth);
+              pdf.text(contentLines, margin, yPosition);
+              yPosition += contentLines.length * lineHeight + 0.2;
+            }
+          });
         }
 
         // Subsections
         if (section.subsections && section.subsections.length > 0) {
-          section.subsections.forEach((subsection) => {
+          const renderSubsection = (subsection: typeof section.subsections[0], depth = 1) => {
+            // Check if we need a new page
             if (yPosition > pageHeight - margin - 0.5) {
               pdf.addPage();
               yPosition = margin;
             }
 
+            // Subsection title with proper indentation
+            const indentSize = depth * 0.15;
+            const indentContentWidth = contentWidth - indentSize;
+            pdf.setFontSize(baseFontSize - (depth * 0.3));
             pdf.setFont(undefined, 'bold');
-            pdf.setFontSize(baseFontSize - 0.5);
-            pdf.text(subsection.title || 'Subsection', margin + 0.15, yPosition);
-            yPosition += lineHeight * 1.2;
+            const subTitleText = subsection.title || 'Subsection';
+            const subTitleLines = pdf.splitTextToSize(subTitleText, indentContentWidth);
+            pdf.text(subTitleLines, margin + indentSize, yPosition);
+            yPosition += subTitleLines.length * lineHeight + 0.15;
 
-            pdf.setFont(undefined, 'normal');
+            // Subsection content (old format - for backward compatibility)
             pdf.setFontSize(baseFontSize);
-            if (subsection.content) {
+            pdf.setFont(undefined, 'normal');
+            if (subsection.content && subsection.content.trim()) {
               const subContentLines = pdf.splitTextToSize(
                 subsection.content,
-                contentWidth - 0.15
+                indentContentWidth
               );
-              pdf.text(subContentLines, margin + 0.15, yPosition);
+              pdf.text(subContentLines, margin + indentSize, yPosition);
               yPosition += subContentLines.length * lineHeight + 0.15;
             }
+
+            // Subsection content blocks (new format)
+            if (subsection.contentBlocks && subsection.contentBlocks.length > 0) {
+              subsection.contentBlocks.forEach((block) => {
+                if (block.type === 'text' && block.content) {
+                  if (yPosition > pageHeight - margin - 0.3) {
+                    pdf.addPage();
+                    yPosition = margin;
+                  }
+                  pdf.setFontSize(baseFontSize);
+                  pdf.setFont(undefined, 'normal');
+                  const blockLines = pdf.splitTextToSize(block.content, indentContentWidth);
+                  pdf.text(blockLines, margin + indentSize, yPosition);
+                  yPosition += blockLines.length * lineHeight + 0.15;
+                }
+              });
+            }
+          };
+
+          // Render all subsections recursively
+          section.subsections.forEach((subsection) => {
+            renderSubsection(subsection, 1);
           });
         }
       });
@@ -417,13 +458,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           yPosition = margin;
         }
 
-        const authors = ref.authors || 'Unknown';
-        const title = ref.title || 'Untitled';
-        const publication = ref.publication || '';
-        const year = ref.year ? ` ${ref.year}` : '';
-        const doi = ref.doi ? ` DOI: ${ref.doi}` : '';
-
-        const refText = `[${index + 1}] ${authors}, "${title}," ${publication}${year}${doi}`;
+        // Reference text is stored in ref.text field
+        const refText = `[${index + 1}] ${ref.text || ''}`;
         const refLines = pdf.splitTextToSize(refText, contentWidth - 0.15);
         
         const lineCount = refLines.length;
@@ -687,40 +723,37 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
-                {/* Clean PDF Viewer with working zoom controls */}
-                <div 
-                  className="w-full h-full relative"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top center',
-                    minWidth: `${zoom}%`,
-                    minHeight: `${zoom}%`,
-                    padding: zoom > 100 ? '20px' : '0px'
+              <div 
+                className="w-full relative bg-white pdf-preview-container flex justify-center items-start p-4"
+                style={{ 
+                  height: '70vh',
+                  overflow: 'auto'
+                }}
+              >
+                {/* Clean PDF Viewer with proper scrolling and zoom */}
+                <object
+                  data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=100`}
+                  type="application/pdf"
+                  className="border-0 shadow-lg"
+                  style={{
+                    outline: 'none',
+                    border: 'none',
+                    width: `${zoom}%`,
+                    height: `${zoom}%`,
+                    minWidth: '100%',
+                    minHeight: '800px',
+                    transition: 'all 0.2s ease-in-out'
                   }}
                 >
-                  <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=${zoom}`}
-                    type="application/pdf"
-                    className="w-full h-full border-0"
-                    style={{
-                      outline: 'none',
-                      border: 'none',
-                      width: '100%',
-                      height: '600px',
-                      minHeight: '600px'
-                    }}
-                  >
-                    {/* Fallback message */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                      <div className="text-center p-6">
-                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
-                        <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
-                      </div>
+                  {/* Fallback message */}
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="text-center p-6">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
+                      <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
                     </div>
-                  </object>
-                </div>
+                  </div>
+                </object>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
