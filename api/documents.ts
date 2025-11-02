@@ -88,15 +88,63 @@ async function handlePdfGeneration(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'At least one author is required' });
     }
 
-    // PDF generation is not available on Vercel due to Python dependencies
-    return res.status(503).json({
-      success: false,
-      error: "PDF generation is temporarily unavailable",
-      message: "PDF generation is not available on this deployment due to serverless limitations. Perfect IEEE formatting is available via Word download - the DOCX file contains identical formatting!",
-      suggestion: "Use the Download Word button above.",
-      code: "PDF_UNAVAILABLE_SERVERLESS",
-      fallback: "docx"
-    });
+    // Call the Python PDF generation function
+    try {
+      const pythonEndpoint = isPreview ? '/api/generate-pdf?preview=true' : '/api/generate-pdf';
+      
+      const response = await fetch(`https://format-a.vercel.app${pythonEndpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Preview': isPreview ? 'true' : 'false'
+        },
+        body: JSON.stringify(document)
+      });
+
+      if (!response.ok) {
+        // If Python function fails, return fallback message
+        return res.status(503).json({
+          success: false,
+          error: "PDF generation is temporarily unavailable",
+          message: "PDF generation is not available on this deployment due to serverless limitations. Perfect IEEE formatting is available via Word download - the DOCX file contains identical formatting!",
+          suggestion: "Use the Download Word button above.",
+          code: "PDF_UNAVAILABLE_SERVERLESS",
+          fallback: "docx"
+        });
+      }
+
+      // Forward the response from Python function
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType?.includes('application/pdf')) {
+        // Return PDF binary data
+        const buffer = await response.arrayBuffer();
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', buffer.byteLength);
+        return res.status(200).send(Buffer.from(buffer));
+      } else if (contentType?.includes('application/json')) {
+        // Return JSON response
+        const data = await response.json();
+        return res.status(200).json(data);
+      } else {
+        // Unknown response type
+        const text = await response.text();
+        return res.status(200).send(text);
+      }
+
+    } catch (pythonError) {
+      console.error('Python PDF generation failed:', pythonError);
+      
+      // Return fallback message if Python function is not available
+      return res.status(503).json({
+        success: false,
+        error: "PDF generation is temporarily unavailable",
+        message: "PDF generation is not available on this deployment due to serverless limitations. Perfect IEEE formatting is available via Word download - the DOCX file contains identical formatting!",
+        suggestion: "Use the Download Word button above.",
+        code: "PDF_UNAVAILABLE_SERVERLESS",
+        fallback: "docx"
+      });
+    }
     
   } catch (error) {
     console.error('PDF generation error:', error);
