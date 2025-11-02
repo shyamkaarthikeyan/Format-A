@@ -349,7 +349,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 </html>`;
   };
 
-  // Generate PDF preview from document data - uses Python script on server for consistent format
+  // Generate PDF preview from document data using jsPDF
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -360,31 +360,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating preview from Python script on server (same as download)...');
+      console.log('Generating PDF preview using jsPDF with IEEE formatting...');
       
-      // Fetch DOCX from Python script on server
-      const response = await fetch('/api/generate?type=pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(document),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to generate document: ${response.statusText}`);
-      }
-
-      // Get DOCX blob from Python script
-      const docxBlob = await response.blob();
-      if (docxBlob.size === 0) {
-        throw new Error('Generated document is empty');
-      }
-
-      console.log('✓ DOCX received from Python script:', docxBlob.size, 'bytes');
-
-      // Convert DOCX to PDF for preview using jsPDF (simple wrapper)
+      // Dynamic import jsPDF to avoid build issues
       const { jsPDF } = await import('jspdf');
       
-      // Create a simple PDF showing the document was generated
+      // Create new PDF document (IEEE standard)
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
