@@ -12,7 +12,7 @@
     "api/generate.ts": {
       "memory": 1024,
       "maxDuration": 30,
-      "includeFiles": "api/_lib/**"
+      "includeFiles": "api/_lib/**,server/**"
     },
     "api/auth.ts": {
       "memory": 512,

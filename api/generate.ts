@@ -43,11 +43,6 @@ interface IEEEDocumentData {
   references?: Reference[];
 }
 
-function generateIEEEDocument(data: IEEEDocumentData): any {
-  // Not used - Python script handles IEEE formatting
-  return null;
-}
-
 // Python script (ieee_generator_fixed.py) handles all document generation with correct IEEE formatting
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -426,19 +421,9 @@ async function handleEmailGeneration(req: VercelRequest, res: VercelResponse, us
 
 function getPythonCommand(): string {
   if (process.env.NODE_ENV === 'production') {
-    // Vercel and other production environments
-    const pythonPaths = [
-      'python3.9',        // Try specific version first
-      'python3',          // Fall back to python3
-      'python',           // Generic python
-      '/usr/bin/python3', // Unix absolute path
-      '/usr/bin/python',  // Unix absolute path
-      '/opt/render/project/.render/python/bin/python', // Render.com
-      process.env.PYTHON_PATH || 'python3' // Environment variable or default
-    ].filter(Boolean);
-    
-    console.log('Production environment - Python paths to try:', pythonPaths);
-    return pythonPaths[0];
+    // Vercel uses python3 by default when runtime.txt specifies Python version
+    console.log('Production environment - using python3');
+    return 'python3';
   }
   
   // Local development (Windows)
