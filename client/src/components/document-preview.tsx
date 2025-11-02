@@ -65,7 +65,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     referencesCount: document.references?.length || 0,
   });
 
-  // Mutations for generating and emailing documents
+  // Mutations for generating and emailing documents with improved error handling
   const generateDocxMutation = useMutation({
     mutationFn: async () => {
       if (!document.title) throw new Error("Please enter a title.");
@@ -79,7 +79,20 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         body: JSON.stringify(document),
       });
 
-      if (!response.ok) throw new Error(`Failed to generate document: ${response.statusText}`);
+      if (!response.ok) {
+        // Parse error response for better error messages
+        let errorMessage = `Failed to generate document: ${response.statusText}`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType?.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          }
+        } catch (e) {
+          console.warn('Could not parse error response');
+        }
+        throw new Error(errorMessage);
+      }
 
       const blob = await response.blob();
       if (blob.size === 0) throw new Error('Generated document is empty');
@@ -101,7 +114,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Download Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -125,13 +138,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       if (!response.ok) {
-        // If PDF generation fails, try to get detailed error message
+        // Parse error response for better error messages
         let errorMessage = `Failed to generate PDF: ${response.statusText}`;
+        let errorData: any = null;
+        
         try {
           const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
+          if (contentType?.includes('application/json')) {
+            errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
           } else {
             const errorText = await response.text();
             if (errorText && errorText.length < 500) {
@@ -141,6 +156,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         } catch (e) {
           console.warn('Could not parse error details');
         }
+
+        // Handle specific error cases
+        if (response.status === 503 || (errorData?.code === 'PDF_UNAVAILABLE_SERVERLESS')) {
+          const fallbackMsg = errorData?.message || 
+            "PDF generation is not available on this deployment due to serverless limitations.";
+          const suggestion = errorData?.suggestion || "Please use the Download Word button instead.";
+          throw new Error(`${fallbackMsg} ${suggestion}`);
+        }
+
         throw new Error(errorMessage);
       }
 
@@ -154,7 +178,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       let filename = "ieee_paper.pdf";
       let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
       
-      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+      if (contentType?.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
         filename = "ieee_paper.docx";
         downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
       }
@@ -201,21 +225,39 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       });
 
       if (!response.ok) {
-        // Check if response is JSON or HTML
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Failed to send email: ${response.statusText}`);
-          } catch (jsonError) {
-            throw new Error(`Failed to send email: ${response.statusText}`);
+        // Parse error response for better error messages
+        let errorMessage = `Failed to send email: ${response.statusText}`;
+        let errorData: any = null;
+        
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType?.includes('application/json')) {
+            errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } else {
+            // If it's not JSON (likely HTML error page), get text content
+            const errorText = await response.text();
+            if (errorText && errorText.length < 500) {
+              errorMessage = errorText;
+            }
           }
-        } else {
-          // If it's not JSON (likely HTML error page), get text content
-          const errorText = await response.text();
-          console.error('Non-JSON error response:', errorText);
-          throw new Error(`Server error: ${response.statusText}`);
+        } catch (e) {
+          console.warn('Could not parse error response');
         }
+
+        // Handle specific error cases
+        if (response.status === 400 && errorData?.code === 'INVALID_EMAIL') {
+          throw new Error('Please enter a valid email address.');
+        }
+        
+        if (response.status === 503 || (errorData?.code === 'PDF_UNAVAILABLE_SERVERLESS')) {
+          const fallbackMsg = errorData?.message || 
+            "Email service is temporarily unavailable due to serverless limitations.";
+          const suggestion = errorData?.suggestion || "Please try downloading the document instead.";
+          throw new Error(`${fallbackMsg} ${suggestion}`);
+        }
+
+        throw new Error(errorMessage);
       }
 
       // Parse successful response
@@ -227,10 +269,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error('Email may have been sent but response parsing failed');
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Email Sent Successfully!",
-        description: `IEEE paper has been sent to ${email}`,
+        description: data?.message || `IEEE paper has been sent to ${email}`,
       });
       setEmail("");
     },
@@ -287,8 +329,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview (works on both localhost and Vercel)
-  const generateDocxPreview = async () => {
+  // Generate PDF preview with retry logic and improved error handling
+  const generateDocxPreview = async (retryCount = 0) => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
       return;
@@ -298,10 +340,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting PDF preview generation...');
+      console.log(`Attempting PDF preview generation (attempt ${retryCount + 1})...`);
       
-      // Use the Node.js PDF preview endpoint (works on both localhost and Vercel)
-      let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Use the updated API endpoint with proper error handling
+      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -313,76 +355,61 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       console.log('PDF preview response:', response.status, response.statusText);
 
       if (!response.ok) {
-        // Handle different types of failures
+        // Handle different types of failures with improved error parsing
         const contentType = response.headers.get('content-type');
+        let errorData: any = null;
         let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
         
-        // Handle 503 Service Unavailable (expected for Vercel PDF limitations)
-        if (response.status === 503) {
-          console.log('Received 503 response - PDF not available on Vercel');
+        // Try to parse error response
+        if (contentType?.includes('application/json')) {
           try {
-            const errorData = await response.json();
-            console.log('503 error data:', errorData);
-            if (errorData.message) {
-              const errorMsg = errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.");
-              console.log('Setting 503 error message:', errorMsg);
-              setPreviewError(errorMsg);
-              return;
-            }
+            errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
           } catch (e) {
-            console.warn('Could not parse 503 error response:', e);
+            console.warn('Could not parse JSON error response');
           }
-          
-          // Fallback message for 503
-          const fallbackMsg = "PDF preview is not available on this deployment due to serverless limitations. " +
+        }
+
+        // Handle specific error cases
+        if (response.status === 503 || (errorData?.code === 'PDF_UNAVAILABLE_SERVERLESS')) {
+          console.log('PDF not available in serverless environment');
+          const fallbackMsg = errorData?.message || 
+            "PDF preview is not available on this deployment due to serverless limitations. " +
             "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-            "identical formatting to what you see on localhost! Use the Download Word button above.";
-          console.log('Setting 503 fallback message:', fallbackMsg);
-          setPreviewError(fallbackMsg);
-          console.log('Preview error state should now be:', fallbackMsg);
+            "identical formatting to what you see on localhost!";
+          const suggestion = errorData?.suggestion || "Use the Download Word button above.";
+          setPreviewError(`${fallbackMsg} ${suggestion}`);
           return;
         }
-        
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-            
-            // Check if this is a known Vercel/serverless limitation
-            if (errorData.message && (
-              errorData.message.includes('serverless') || 
-              errorData.message.includes('Vercel') ||
-              errorData.message.includes('deployment') ||
-              errorData.message.includes('not supported')
-            )) {
-              setPreviewError(
-                errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.")
-              );
-              return;
-            }
-          } catch (e) {
-            console.warn('Could not parse error JSON');
-          }
-        } else {
-          try {
-            const errorText = await response.text();
-            if (errorText.includes('Python') || errorText.includes('python') || errorText.includes('docx2pdf')) {
-              errorMessage = 'PDF generation temporarily unavailable. Please download Word format which contains identical IEEE formatting.';
-            } else if (errorText.length < 200) {
-              errorMessage = errorText;
-            }
-          } catch (e) {
-            console.warn('Could not read error text');
+
+        // Handle timeout errors with retry logic
+        if (response.status === 408 || errorData?.code === 'TIMEOUT_ERROR') {
+          if (retryCount < 2) {
+            console.log(`Request timed out, retrying... (${retryCount + 1}/2)`);
+            setTimeout(() => generateDocxPreview(retryCount + 1), 2000);
+            return;
+          } else {
+            setPreviewError('PDF generation is taking too long. Please try downloading the Word document instead.');
+            return;
           }
         }
-        
+
+        // Handle server errors with retry logic
+        if (response.status >= 500 && retryCount < 1) {
+          console.log(`Server error, retrying... (${retryCount + 1}/1)`);
+          setTimeout(() => generateDocxPreview(retryCount + 1), 3000);
+          return;
+        }
+
         throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
       console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
       
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
+      if (blob.size === 0) {
+        throw new Error('Generated PDF is empty');
+      }
 
       // Clean up previous URL
       if (pdfUrl) {
@@ -395,14 +422,23 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewImages([]);
       setPdfUrl(url);
       console.log('PDF preview generated successfully, URL:', url);
+      
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
-      setPreviewError(errorMessage);
       
-      // If document generation fails, suggest alternatives
+      // Handle network errors with retry logic
+      if ((errorMessage.includes('fetch') || errorMessage.includes('network')) && retryCount < 1) {
+        console.log(`Network error, retrying... (${retryCount + 1}/1)`);
+        setTimeout(() => generateDocxPreview(retryCount + 1), 2000);
+        return;
+      }
+      
+      // Set appropriate error message
       if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
         setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
+      } else {
+        setPreviewError(errorMessage);
       }
     } finally {
       setIsGeneratingPreview(false);
@@ -457,19 +493,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             <Button
               onClick={handleDownloadWord}
               disabled={generateDocxMutation.isPending || !document.title}
-              className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <Download className="w-4 h-4 mr-2" />
-              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
+              {generateDocxMutation.isPending ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {generateDocxMutation.isPending ? "Generating Word..." : "Download Word"}
             </Button>
             <Button
               onClick={handleDownloadPdf}
               disabled={generatePdfMutation.isPending || !document.title}
               variant="outline"
-              className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50 hover:border-purple-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50 hover:border-purple-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <FileText className="w-4 h-4 mr-2" />
-              {generatePdfMutation.isPending ? "Generating..." : "Download PDF"}
+              {generatePdfMutation.isPending ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              {generatePdfMutation.isPending ? "Generating PDF..." : "Download PDF"}
             </Button>
           </div>
         </CardContent>
@@ -506,11 +550,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             <Button
               onClick={handleSendEmail}
               disabled={sendEmailMutation.isPending || (!isAuthenticated && !email.trim()) || !document.title}
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {!isAuthenticated && <Lock className="w-4 h-4 mr-2" />}
-              {isAuthenticated && <Mail className="w-4 h-4 mr-2" />}
-              {sendEmailMutation.isPending ? "Sending..." : !isAuthenticated ? "Sign in to Email" : "Send to Email"}
+              {sendEmailMutation.isPending ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : !isAuthenticated ? (
+                <Lock className="w-4 h-4 mr-2" />
+              ) : (
+                <Mail className="w-4 h-4 mr-2" />
+              )}
+              {sendEmailMutation.isPending ? "Sending Email..." : !isAuthenticated ? "Sign in to Email" : "Send to Email"}
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
@@ -554,6 +603,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
                   <p className="text-gray-600">Generating document preview...</p>
+                  <p className="text-gray-500 text-sm mt-2">This may take a few moments</p>
                 </div>
               </div>
             ) : previewError ? (

@@ -1,0 +1,133 @@
+{
+  "summary": {
+    "totalTests": 8,
+    "passedTests": 3,
+    "failedTests": 5,
+    "successRate": 38,
+    "totalTime": 8,
+    "timestamp": "2025-11-02T05:20:29.025Z"
+  },
+  "results": [
+    {
+      "name": "Application Load Test",
+      "status": "failed",
+      "duration": 411,
+      "error": "500 error detected in HTML response",
+      "timestamp": "2025-11-02T05:20:21.696Z"
+    },
+    {
+      "name": "Python Health Check",
+      "status": "failed",
+      "duration": 260,
+      "error": "Missing Python dependencies: reportlab, docx, PIL",
+      "timestamp": "2025-11-02T05:20:21.958Z"
+    },
+    {
+      "name": "PDF Generation Test",
+      "status": "failed",
+      "duration": 343,
+      "error": "PDF generation failed: 500 - A server error has occurred\n\nFUNCTION_INVOCATION_FAILED\n\nbom1::hbj5g-1762060821994-580031ecfab1\n",
+      "timestamp": "2025-11-02T05:20:22.303Z"
+    },
+    {
+      "name": "DOCX to PDF Conversion",
+      "status": "failed",
+      "duration": 722,
+      "error": "DOCX to PDF conversion failed: 500 - A server error has occurred\n\nFUNCTION_INVOCATION_FAILED\n\nbom1::msxbk-1762060822332-66f2e5bd8be0\n",
+      "timestamp": "2025-11-02T05:20:23.027Z"
+    },
+    {
+      "name": "Preview Generation Test",
+      "status": "failed",
+      "duration": 717,
+      "error": "Preview generation failed: 503 - {\"success\":false,\"error\":\"PDF generation is temporarily unavailable\",\"message\":\"PDF generation is not available on this deployment due to serverless limitations. Perfect IEEE formatting is available via Word download - the DOCX file contains identical formatting!\",\"suggestion\":\"Use the Download Word button above.\",\"code\":\"PDF_UNAVAILABLE_SERVERLESS\",\"fallback\":\"docx\"}",
+      "timestamp": "2025-11-02T05:20:23.747Z"
+    },
+    {
+      "name": "Admin Endpoints Test",
+      "status": "passed",
+      "duration": 1699,
+      "result": {
+        "Admin Health": {
+          "status": 500,
+          "ok": false,
+          "contentType": "text/plain; charset=utf-8"
+        },
+        "Admin Analytics": {
+          "status": 500,
+          "ok": false,
+          "contentType": "text/plain; charset=utf-8"
+        },
+        "Admin Users": {
+          "status": 500,
+          "ok": false,
+          "contentType": "text/plain; charset=utf-8"
+        },
+        "Admin Dashboard": {
+          "status": 500,
+          "ok": false,
+          "contentType": "text/plain; charset=utf-8"
+        }
+      },
+      "timestamp": "2025-11-02T05:20:25.447Z"
+    },
+    {
+      "name": "Error Handling Test",
+      "status": "passed",
+      "duration": 665,
+      "result": {
+        "Invalid PDF Request": {
+          "status": 500,
+          "expectedStatus": [
+            400,
+            422,
+            500
+          ],
+          "handledCorrectly": true,
+          "errorMessage": "A server error has occurred\n\nFUNCTION_INVOCATION_FAILED\n\nbom1::d5sjq-1762060825487-adbdcfc7fb6e\n"
+        },
+        "Non-existent Endpoint": {
+          "status": 404,
+          "expectedStatus": [
+            404
+          ],
+          "handledCorrectly": true,
+          "errorMessage": "The page could not be found\n\nNOT_FOUND\n\nbom1::4p7j5-1762060825819-1415305858c6\n"
+        },
+        "Invalid Method": {
+          "status": 501,
+          "expectedStatus": [
+            405,
+            404
+          ],
+          "handledCorrectly": false,
+          "errorMessage": "<!DOCTYPE HTML>\n<html lang=\"en\">\n    <head>\n        <meta charset=\"utf-8\">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 501</p>\n        <p>Message: Unsupported method ('DELETE').</p>\n        <p>Error code explanation: 501 - Server does not support this operation.</p>\n    </body>\n</html>\n"
+        }
+      },
+      "timestamp": "2025-11-02T05:20:26.113Z"
+    },
+    {
+      "name": "Performance Metrics",
+      "status": "passed",
+      "duration": 2911,
+      "result": {
+        "responseTimes": [
+          427,
+          270,
+          276,
+          254,
+          227,
+          226,
+          472,
+          363,
+          394
+        ],
+        "successRate": 33.33333333333333,
+        "totalRequests": 9,
+        "averageResponseTime": 323.22222222222223,
+        "maxResponseTime": 472
+      },
+      "timestamp": "2025-11-02T05:20:29.025Z"
+    }
+  ]
+}

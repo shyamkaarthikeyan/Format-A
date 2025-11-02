@@ -4,6 +4,20 @@
   "installCommand": "npm install",
   "framework": "vite",
 
+  "build": {
+    "env": {
+      "PYTHONPATH": "/var/task:/var/task/api",
+      "PYTHON_UNBUFFERED": "1",
+      "TMPDIR": "/tmp"
+    }
+  },
+  "env": {
+    "PYTHONPATH": "/var/task:/var/task/api",
+    "PYTHON_UNBUFFERED": "1",
+    "TMPDIR": "/tmp",
+    "PYTHON_ENV": "production"
+  },
+
   "rewrites": [
     {
       "source": "/api/admin/analytics/(.*)",
@@ -22,12 +36,48 @@
       "destination": "/api/core?path=health"
     },
     {
-      "source": "/api/diagnostics",
-      "destination": "/api/core?path=diagnostics"
+      "source": "/api/health-python",
+      "destination": "/api/health-python"
     },
     {
-      "source": "/api/index",
-      "destination": "/api/core?path=index"
+      "source": "/api/test-python",
+      "destination": "/api/test-python"
+    },
+    {
+      "source": "/api/test-production-validation",
+      "destination": "/api/test-production-validation"
+    },
+    {
+      "source": "/api/health-monitoring",
+      "destination": "/api/health-monitoring"
+    },
+    {
+      "source": "/api/generate-pdf",
+      "destination": "/api/generate-pdf"
+    },
+    {
+      "source": "/api/convert-docx-pdf",
+      "destination": "/api/convert-docx-pdf"
+    },
+    {
+      "source": "/api/python-utils",
+      "destination": "/api/python_utils"
+    },
+    {
+      "source": "/api/generate/preview-images",
+      "destination": "/api/generate/preview-images"
+    },
+    {
+      "source": "/api/generate/docx-to-pdf",
+      "destination": "/api/generate/docx-to-pdf"
+    },
+    {
+      "source": "/api/generate/docx",
+      "destination": "/api/generate/docx"
+    },
+    {
+      "source": "/api/generate/email",
+      "destination": "/api/generate/email"
     },
     {
       "source": "/api/generate/(.*)",
@@ -36,6 +86,14 @@
     {
       "source": "/api/generate",
       "destination": "/api/documents?path=generate"
+    },
+    {
+      "source": "/api/diagnostics",
+      "destination": "/api/core?path=diagnostics"
+    },
+    {
+      "source": "/api/index",
+      "destination": "/api/core?path=index"
     },
     {
       "source": "/api/test-auth-dependencies",
