@@ -450,31 +450,19 @@ async function handleDocxGeneration(req: VercelRequest, res: VercelResponse, use
     // Use Python script for DOCX generation
     const pythonPath = getPythonCommand();
     
-    // Try different script paths for different environments
-    const possibleScriptPaths = [
-      path.join(process.cwd(), 'server', 'ieee_generator_fixed.py'), // Development
-      path.join(process.cwd(), 'api', '_lib', 'ieee_generator.py'), // Alternative
-      path.join(process.cwd(), 'server', 'ieee_generator.py'), // Fallback
-    ];
+    // Use ieee_generator_fixed.py - the correct script
+    const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
     
-    let scriptPath = '';
-    for (const testPath of possibleScriptPaths) {
-      try {
-        await fs.promises.access(testPath);
-        scriptPath = testPath;
-        console.log('✓ Found Python script at:', scriptPath);
-        break;
-      } catch (err) {
-        console.log('✗ Script not found at:', testPath);
-      }
-    }
-    
-    if (!scriptPath) {
-      console.error('❌ No Python script found in any location');
+    try {
+      await fs.promises.access(scriptPath);
+      console.log('✓ Found Python script at:', scriptPath);
+    } catch (err) {
+      console.log('✗ Script not found at:', scriptPath);
+      console.error('❌ ieee_generator_fixed.py not found');
       return res.status(500).json({
         error: 'IEEE generator script not available',
-        message: 'Python script required for proper IEEE formatting is not accessible',
-        details: 'The IEEE document generator requires Python dependencies that may not be available in the current environment'
+        message: 'ieee_generator_fixed.py is required for proper IEEE formatting',
+        details: 'The script is not accessible in the expected location'
       });
     }
     
@@ -589,77 +577,38 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
     });
   }
 
-  // ✅ CHECK VERCEL ENVIRONMENT FIRST - BEFORE ANY PYTHON OPERATIONS
-  // This prevents timeout issues when Python is not available
+  // ✅ FOR PREVIEW MODE - ALWAYS USE JAVASCRIPT DOCX (no PDF generation)
+  // Preview should show document structure quickly without waiting for PDF conversion
+  if (isPreview) {
+    console.log('📋 Preview mode detected - using JavaScript DOCX generator for fast preview');
+    return await generateDocxWithJavaScript(req, res, user, documentData, true);
+  }
+
+  // ✅ FOR PDF DOWNLOAD - USE PYTHON DOCX GENERATOR (not actual PDF)
+  // PDF.js will be used on client to display the DOCX as PDF
   const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
   
   if (isVercel) {
-    console.log('🚀 Detected Vercel environment - using JavaScript DOCX generator (skip Python entirely)');
-    return await generateDocxWithJavaScript(req, res, user, documentData, isPreview);
+    console.log('🚀 Vercel environment - using JavaScript DOCX generator');
+    return await generateDocxWithJavaScript(req, res, user, documentData, false);
   }
 
+  // For local development, use Python DOCX generator
   try {
-    console.log('=== IEEE DOCX to PDF Generation ===');
-    console.log('Preview mode:', isPreview);
+    console.log('=== IEEE DOCX Generation (for PDF.js preview) ===');
     console.log('User:', user ? user.email : 'anonymous');
     console.log('Document title:', documentData.title);
 
     const pythonPath = getPythonCommand();
+    const scriptPath = path.join(process.cwd(), 'server', 'ieee_generator_fixed.py');
     
-    console.log('🔍 Environment check:', {
-      cwd: process.cwd(),
-      dirname: __dirname,
-      nodeEnv: process.env.NODE_ENV,
-      pythonPath: pythonPath
-    });
-    
-    // Try different script paths for Vercel vs local development
-    const possiblePaths = [
-      path.join(process.cwd(), 'api', '_lib', 'ieee_generator.py'), // Vercel
-      path.join(__dirname, '_lib', 'ieee_generator.py'), // Vercel alternative
-      path.join(process.cwd(), 'server', 'ieee_generator_fixed.py'), // Local development
-    ];
-    
-    let ieeeScriptPath = '';
-    for (const testPath of possiblePaths) {
-      try {
-        await fs.promises.access(testPath);
-        ieeeScriptPath = testPath;
-        console.log('✓ IEEE generator found at:', testPath);
-        break;
-      } catch (err: any) {
-        console.log('✗ IEEE generator not at:', testPath, 'Error:', err.message);
-      }
-    }
-    
-    if (!ieeeScriptPath) {
-      console.error('❌ IEEE generator not found in any location');
-      console.error('Checked paths:', possiblePaths);
-      console.error('Current directory contents:');
-      try {
-        const cwdFiles = await fs.promises.readdir(process.cwd());
-        console.error('CWD files:', cwdFiles);
-        const apiPath = path.join(process.cwd(), 'api');
-        if (cwdFiles.includes('api')) {
-          const apiFiles = await fs.promises.readdir(apiPath);
-          console.error('API files:', apiFiles);
-          if (apiFiles.includes('_lib')) {
-            const libFiles = await fs.promises.readdir(path.join(apiPath, '_lib'));
-            console.error('_lib files:', libFiles);
-          }
-        }
-      } catch (dirErr: any) {
-        console.error('Failed to list directories:', dirErr.message);
-      }
-      return res.status(500).json({
-        error: 'IEEE generator not found',
-        message: 'ieee_generator.py script is not available in any expected location',
-        details: {
-          checkedPaths: possiblePaths,
-          cwd: process.cwd(),
-          dirname: __dirname
-        }
-      });
+    try {
+      await fs.promises.access(scriptPath);
+      console.log('✓ IEEE generator found at:', scriptPath);
+    } catch (err: any) {
+      console.log('✗ IEEE generator not at:', scriptPath);
+      console.error('❌ ieee_generator_fixed.py not found, falling back to JavaScript');
+      return await generateDocxWithJavaScript(req, res, user, documentData, false);
     }
     
     // Generate unique filename
@@ -667,28 +616,21 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
     const randomString = Math.random().toString(36).substring(2, 15);
     const filename = `ieee_${timestamp}_${randomString}`;
     
-    // Use /tmp in production (Vercel), local temp/ in development
-    const tempDir = process.env.NODE_ENV === 'production' 
-      ? '/tmp' 
-      : path.join(process.cwd(), 'temp');
-    
+    const tempDir = path.join(process.cwd(), 'temp');
     const docxPath = path.join(tempDir, `${filename}.docx`);
-    const pdfPath = path.join(tempDir, `${filename}.pdf`);
 
-    // Ensure temp directory exists (only needed for local development)
-    if (process.env.NODE_ENV !== 'production') {
-      try {
-        await fs.promises.mkdir(tempDir, { recursive: true });
-        console.log('✓ Temp directory ready');
-      } catch (err) {
-        console.error('Failed to create temp directory:', err);
-      }
+    // Ensure temp directory exists
+    try {
+      await fs.promises.mkdir(tempDir, { recursive: true });
+      console.log('✓ Temp directory ready');
+    } catch (err) {
+      console.error('Failed to create temp directory:', err);
     }
     
     console.log('Using temp directory:', tempDir);
 
-    // Prepare document data for IEEE Python script
-    const ieeeData = {
+    // Prepare document data for Python DOCX generator
+    const docxData = {
       title: documentData.title,
       authors: documentData.authors.map((author: any) => ({
         name: author.name,
@@ -707,23 +649,20 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
           return { text: String(ref) };
         }
       }),
-      output_path: docxPath  // Generate DOCX first
+      output_path: docxPath
     };
 
-    console.log('Generating IEEE DOCX with proper formatting:', {
-      title: ieeeData.title,
-      authorsCount: ieeeData.authors.length,
-      sectionsCount: ieeeData.sections.length,
+    console.log('Generating IEEE DOCX:', {
+      title: docxData.title,
+      authorsCount: docxData.authors.length,
+      sectionsCount: docxData.sections.length,
       outputPath: docxPath
     });
 
-    // Use the already-validated ieeeScriptPath from above
-    console.log('Using IEEE generator script at:', ieeeScriptPath);
-
-    // Generate DOCX first using your proper IEEE formatter
-    console.log('Spawning Python process:', { pythonPath, ieeeScriptPath });
+    // Generate DOCX using Python script
+    console.log('Spawning Python DOCX generator:', { pythonPath, scriptPath });
     const docxResult = await new Promise<{stdout: Buffer, stderr: string}>((resolve, reject) => {
-      const child = spawn(pythonPath, [ieeeScriptPath], {
+      const child = spawn(pythonPath, [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: process.cwd(),
         env: { ...process.env }
@@ -732,11 +671,10 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       let stdout = Buffer.alloc(0);
       let stderr = '';
 
-      // Send document data to Python script via stdin
       try {
-        child.stdin.write(JSON.stringify(ieeeData));
+        child.stdin.write(JSON.stringify(docxData));
         child.stdin.end();
-        console.log('✓ Document data sent to Python script');
+        console.log('✓ DOCX generation data sent to Python script');
       } catch (writeErr: any) {
         console.error('✗ Failed to write to Python stdin:', writeErr.message);
         reject(writeErr);
@@ -754,89 +692,40 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       });
 
       child.on('close', (code) => {
-        console.log(`IEEE DOCX generator exited with code: ${code}`);
-        console.log(`Stdout size: ${stdout.length} bytes`);
-        console.log(`Stderr: ${stderr || '(empty)'}`);
+        console.log(`DOCX generator exited with code: ${code}`);
         if (code === 0) {
           resolve({stdout, stderr});
         } else {
-          const errorMsg = `IEEE DOCX generation failed with code ${code}: ${stderr}`;
+          const errorMsg = `DOCX generation failed with code ${code}: ${stderr}`;
           console.error(errorMsg);
           reject(new Error(errorMsg));
         }
       });
 
       child.on('error', (error) => {
-        console.error('IEEE DOCX generator spawn error:', error);
-        console.error('Error details:', {
-          code: (error as any).code,
-          errno: (error as any).errno,
-          syscall: (error as any).syscall,
-          path: (error as any).path
-        });
+        console.error('DOCX generator spawn error:', error);
         reject(error);
       });
     });
 
-    console.log('IEEE DOCX generation completed');
-    if (docxResult.stderr) {
-      console.log('Python stderr:', docxResult.stderr);
-    }
+    console.log('DOCX generation completed');
 
     // Check if DOCX file was created
     try {
       await fs.promises.access(docxPath);
       const stats = await fs.promises.stat(docxPath);
-      console.log('✓ IEEE DOCX file created successfully, size:', stats.size);
+      console.log('✓ DOCX file created successfully, size:', stats.size);
     } catch (err) {
-      console.error('✗ IEEE DOCX file not found after generation:', err);
-      return res.status(500).json({
-        error: 'DOCX generation failed',
-        message: 'IEEE DOCX file was not created successfully'
-      });
+      console.error('✗ DOCX file not found after generation:', err);
+      console.log('Falling back to JavaScript DOCX generator');
+      return await generateDocxWithJavaScript(req, res, user, documentData, false);
     }
 
-    // For Vercel compatibility, we return the DOCX file
-    // PDF conversion requires system libraries not available in serverless environment
-    console.log('Returning IEEE DOCX file (PDF conversion not available in Vercel)');
-    
-    // Read the generated DOCX file from disk
+    // Read the generated DOCX file
     const docxBuffer = await fs.promises.readFile(docxPath);
     console.log('✓ DOCX file read successfully, size:', docxBuffer.length);
-    
-    if (isPreview) {
-      // Return the DOCX file for preview with proper IEEE formatting
-      // Record download in database if user is authenticated
-      if (user && user.id) {
-        try {
-          await recordDownload(user.id, filename, 'docx', docxBuffer.length, 'preview');
-          console.log('✓ DOCX preview recorded in database');
-        } catch (dbError) {
-          console.error('Failed to record DOCX preview:', dbError);
-        }
-      }
 
-      // Clean up temp file after a delay
-      setTimeout(async () => {
-        try {
-          await fs.promises.unlink(docxPath);
-          console.log('✓ Temp DOCX file cleaned up');
-        } catch (cleanupError) {
-          console.error('Failed to cleanup temp DOCX file:', cleanupError);
-        }
-      }, 30000);
-
-      console.log('Returning properly formatted IEEE DOCX for preview, size:', docxBuffer.length);
-      
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `inline; filename="${filename}.docx"`);
-      res.setHeader('Content-Length', docxBuffer.length.toString());
-      res.setHeader('Cache-Control', 'no-cache');
-      
-      return res.send(docxBuffer);
-    }
-    
-    // For download, return DOCX since it's properly formatted
+    // Record download in database
     if (user && user.id) {
       try {
         await recordDownload(user.id, filename, 'docx', docxBuffer.length, 'download');
@@ -846,6 +735,7 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       }
     }
 
+    // Clean up temp file after a delay
     setTimeout(async () => {
       try {
         await fs.promises.unlink(docxPath);
@@ -855,80 +745,28 @@ async function handleDocxToPdfConversion(req: VercelRequest, res: VercelResponse
       }
     }, 5000);
 
-    console.log('Returning properly formatted IEEE DOCX for download, size:', docxBuffer.length);
+    console.log('Returning DOCX file (will be displayed with PDF.js on client), size:', docxBuffer.length);
     
+    // Return DOCX with appropriate headers for PDF.js
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${documentData.title || 'ieee-paper'}.docx"`);
     res.setHeader('Content-Length', docxBuffer.length.toString());
+    res.setHeader('Cache-Control', 'no-cache');
     
     return res.send(docxBuffer);
 
   } catch (error) {
-    // If Python generation fails (e.g., Python not available in Vercel), fall back to JavaScript generation
-    console.log('⚠️ Python DOCX generation failed, using JavaScript fallback');
-    console.error('Python error:', error);
+    console.error('DOCX generation failed:', error);
+    console.log('Falling back to JavaScript DOCX generator');
     
     try {
-      // Generate using JavaScript docx library
-      console.log('Generating DOCX with JavaScript docx library...');
-      const doc = generateIEEEDocument({
-        title: documentData.title,
-        authors: documentData.authors.map((author: any) => ({
-          name: author.name,
-          affiliation: author.affiliation || author.institution || '',
-          email: author.email || ''
-        })),
-        abstract: documentData.abstract || '',
-        keywords: documentData.keywords || [],
-        sections: documentData.sections || [],
-        references: (documentData.references || []).map((ref: any) => {
-          if (typeof ref === 'string') {
-            return { text: ref };
-          } else if (ref && ref.text) {
-            return { text: ref.text };
-          } else {
-            return { text: String(ref) };
-          }
-        })
-      });
-
-      const docxBuffer = await Packer.toBuffer(doc);
-      console.log('✓ JavaScript DOCX generated successfully, size:', docxBuffer.length);
-
-      // Record download/preview
-      if (user && user.id) {
-        try {
-          await recordDownload(
-            user.id, 
-            `ieee_js_${Date.now()}`, 
-            'docx', 
-            docxBuffer.length, 
-            isPreview ? 'preview' : 'download'
-          );
-          console.log('✓ Download recorded in database');
-        } catch (dbError) {
-          console.error('Failed to record download:', dbError);
-        }
-      }
-
-      // Return the DOCX
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', isPreview 
-        ? `inline; filename="ieee_${Date.now()}.docx"`
-        : `attachment; filename="${documentData.title || 'ieee-paper'}.docx"`
-      );
-      res.setHeader('Content-Length', docxBuffer.length.toString());
-      res.setHeader('Cache-Control', 'no-cache');
-      
-      console.log('Returning JavaScript-generated IEEE DOCX, size:', docxBuffer.length);
-      return res.send(docxBuffer);
-      
-    } catch (jsError) {
-      console.error('JavaScript generation also failed:', jsError);
+      return await generateDocxWithJavaScript(req, res, user, documentData, false);
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError);
       return res.status(500).json({
         error: 'Document generation failed',
-        message: 'Both Python and JavaScript generation failed',
-        details: jsError instanceof Error ? jsError.message : 'Unknown error'
+        message: 'Could not generate DOCX',
+        details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }

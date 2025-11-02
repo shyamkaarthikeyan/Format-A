@@ -581,7 +581,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              Live PDF Preview
+              Live DOCX Preview (PDF.js)
             </div>
             <div className="flex items-center gap-2">
               <Button
