@@ -388,7 +388,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       // Check if response is DOCX (from Vercel) or PDF (from local)
       if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        console.log('✅ Received DOCX file - Vercel deployment detected');
+        console.log('✅ Received DOCX file - need to display without download');
         
         const blob = await response.blob();
         console.log('DOCX blob size:', blob.size);
@@ -401,11 +401,20 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         }
 
         // Create object URL for preview display (no auto-download)
+        // NOTE: DOCX files will typically download in browsers
+        // We should show a message that preview will download and ask user to open in Word
         const url = URL.createObjectURL(blob);
+        
+        // For DOCX preview, we need to either:
+        // 1. Show it in an iframe (may trigger download depending on browser)
+        // 2. Use a DOCX viewer library
+        // 3. Convert to PDF on server for display
+        // For now, store the URL but show a message about DOCX preview limitations
+        
         setPreviewMode('pdf');
         setPreviewImages([]);
         setPdfUrl(url);
-        console.log('✅ DOCX preview ready - displayed without auto-download');
+        console.log('✅ DOCX preview ready - may download or display depending on browser');
         return;
       }
       
@@ -466,6 +475,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   };
 
   // Auto-generate preview when document has required fields
+  // ONLY depend on title and authors to prevent excessive re-renders on every keystroke
   useEffect(() => {
     console.log('Document changed, checking for preview generation:', {
       hasTitle: !!document.title,
@@ -487,7 +497,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timer);
-  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+  }, [document.title, document.authors]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -581,7 +591,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              Live DOCX Preview (PDF.js)
+              Document Preview (DOCX)
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -592,13 +602,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 className="text-purple-600 hover:text-purple-700"
               >
                 <RefreshCw className={`w-4 h-4 ${isGeneratingPreview ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoom <= 25}>
-                <ZoomOut className="w-4 h-4" />
-              </Button>
-              <span className="text-xs text-gray-500 min-w-[40px] text-center">{zoom}%</span>
-              <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={zoom >= 200}>
-                <ZoomIn className="w-4 h-4" />
               </Button>
             </div>
           </CardTitle>
@@ -638,43 +641,23 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
               </div>
-            ) : previewMode === 'images' && previewImages.length > 0 ? (
-              <div className="h-full relative overflow-auto bg-white">
-                <div 
-                  className="flex flex-col items-center space-y-4 p-4"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top center',
-                  }}
-                >
-                  {previewImages.map((image, index) => (
-                    <div key={index} className="shadow-lg border border-gray-200">
-                      <img
-                        src={image.data}
-                        alt={`Page ${image.page}`}
-                        className="max-w-full h-auto"
-                        style={{
-                          userSelect: 'none',
-                          pointerEvents: 'none'
-                        }}
-                        onContextMenu={(e) => e.preventDefault()}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
-                {/* DOCX/PDF Preview using iframe */}
+              <div className="h-full relative bg-white pdf-preview-container p-4" style={{ overflow: 'auto' }}>
+                <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>📄 DOCX Preview:</strong> This is your IEEE-formatted Word document. The preview below may open in your browser or download depending on your settings. Click "Download Word" to save it locally.
+                  </p>
+                </div>
+                {/* DOCX Preview using iframe - may trigger download */}
                 <iframe
-                  src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH`}
-                  className="w-full h-full border-0"
+                  src={pdfUrl}
+                  className="w-full border-0"
                   style={{
                     outline: 'none',
                     border: 'none',
                     width: '100%',
-                    height: '100%',
-                    minHeight: '600px'
+                    height: '500px',
+                    minHeight: '500px'
                   }}
                   title="Document Preview"
                 />

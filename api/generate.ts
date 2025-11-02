@@ -47,55 +47,55 @@ interface IEEEDocumentData {
 function generateIEEEDocument(data: IEEEDocumentData): Document {
   const children: Paragraph[] = [];
 
-  // Title - centered, bold, 24pt
+  // IEEE Title - centered, bold, 24pt
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
+      spacing: { after: 120, line: 360 },
       children: [
         new TextRun({
           text: data.title,
           bold: true,
-          size: 28, // 14pt = 28 half-points
+          size: 48, // 24pt = 48 half-points
           font: 'Times New Roman',
         }),
       ],
     })
   );
 
-  // Authors - centered
+  // Authors - centered, 10pt
   const authorNames = data.authors.map(a => a.name).join(', ');
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 100 },
+      spacing: { after: 80, line: 240 },
       children: [
         new TextRun({
           text: authorNames,
-          size: 22, // 11pt
+          size: 20, // 10pt
           font: 'Times New Roman',
         }),
       ],
     })
   );
 
-  // Affiliations - centered, italic
+  // Affiliations - centered, italic, 9pt
   const affiliations = data.authors
     .map(a => a.affiliation)
     .filter(Boolean)
-    .filter((v, i, a) => a.indexOf(v) === i) // unique
+    .filter((v, i, a) => a.indexOf(v) === i)
     .join(', ');
   
   if (affiliations) {
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 200 },
+        spacing: { after: 120, line: 240 },
         children: [
           new TextRun({
             text: affiliations,
             italics: true,
-            size: 20, // 10pt
+            size: 18, // 9pt
             font: 'Times New Roman',
           }),
         ],
@@ -103,33 +103,23 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
     );
   }
 
-  // Abstract
+  // Abstract - 10pt italic
   if (data.abstract) {
     children.push(
       new Paragraph({
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 200, after: 100 },
+        spacing: { before: 120, after: 40, line: 240 },
         children: [
           new TextRun({
-            text: 'Abstract',
+            text: 'Abstract—',
             bold: true,
             italics: true,
-            size: 22,
+            size: 20, // 10pt
             font: 'Times New Roman',
           }),
-        ],
-      })
-    );
-
-    children.push(
-      new Paragraph({
-        spacing: { after: 200 },
-        alignment: AlignmentType.JUSTIFIED,
-        children: [
           new TextRun({
             text: data.abstract,
             italics: true,
-            size: 22,
+            size: 20,
             font: 'Times New Roman',
           }),
         ],
@@ -137,7 +127,7 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
     );
   }
 
-  // Keywords
+  // Keywords - italic
   if (data.keywords) {
     const keywordsText = Array.isArray(data.keywords)
       ? data.keywords.join(', ')
@@ -145,20 +135,19 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
     
     children.push(
       new Paragraph({
-        spacing: { after: 200 },
-        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: 40, after: 120, line: 240 },
         children: [
           new TextRun({
             text: 'Keywords—',
             bold: true,
             italics: true,
-            size: 22,
+            size: 20, // 10pt
             font: 'Times New Roman',
           }),
           new TextRun({
             text: keywordsText,
             italics: true,
-            size: 22,
+            size: 20,
             font: 'Times New Roman',
           }),
         ],
@@ -166,34 +155,33 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
     );
   }
 
-  // Sections
+  // Sections - IEEE format with proper spacing (9.5pt body font)
   if (data.sections && data.sections.length > 0) {
     data.sections.forEach((section, index) => {
-      // Section heading
+      // Section heading - I. Title Format (not bold in IEEE)
       children.push(
         new Paragraph({
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 200, after: 100 },
+          spacing: { before: 120, after: 80, line: 240 },
           children: [
             new TextRun({
               text: `${index + 1}. ${section.title}`,
-              bold: true,
-              size: 22,
+              bold: false, // IEEE style: section titles not bold
+              size: 19, // 9.5pt
               font: 'Times New Roman',
             }),
           ],
         })
       );
 
-      // Section content
+      // Section content - justified, 9.5pt
       children.push(
         new Paragraph({
-          spacing: { after: 200 },
           alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 120, line: 240 },
           children: [
             new TextRun({
               text: section.content,
-              size: 22,
+              size: 19, // 9.5pt
               font: 'Times New Roman',
             }),
           ],
@@ -202,17 +190,16 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
     });
   }
 
-  // References
+  // References section
   if (data.references && data.references.length > 0) {
     children.push(
       new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        spacing: { before: 300, after: 150 },
+        spacing: { before: 160, after: 80, line: 240 },
         children: [
           new TextRun({
             text: 'References',
-            bold: true,
-            size: 22,
+            bold: false,
+            size: 19, // 9.5pt
             font: 'Times New Roman',
           }),
         ],
@@ -223,11 +210,11 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
       const refText = typeof ref === 'string' ? ref : ref.text;
       children.push(
         new Paragraph({
-          spacing: { after: 80 },
+          spacing: { after: 80, line: 240 },
           children: [
             new TextRun({
               text: `[${index + 1}] ${refText}`,
-              size: 20, // 10pt for references
+              size: 18, // 9pt for references
               font: 'Times New Roman',
             }),
           ],
@@ -244,9 +231,9 @@ function generateIEEEDocument(data: IEEEDocumentData): Document {
           page: {
             margin: {
               top: convertInchesToTwip(0.75),
-              right: convertInchesToTwip(0.625),
-              bottom: convertInchesToTwip(1),
-              left: convertInchesToTwip(0.625),
+              right: convertInchesToTwip(0.75),
+              bottom: convertInchesToTwip(0.75),
+              left: convertInchesToTwip(0.75),
             },
           },
         },
@@ -332,10 +319,13 @@ async function generateDocxWithJavaScript(
 
     // Return the DOCX
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', isPreview 
-      ? `inline; filename="ieee_${Date.now()}.docx"`
-      : `attachment; filename="${documentData.title || 'ieee-paper'}.docx"`
-    );
+    
+    // For preview mode, only set Content-Disposition if needed
+    // Most browsers will download DOCX files, so we need to handle this client-side
+    if (!isPreview) {
+      res.setHeader('Content-Disposition', `attachment; filename="${documentData.title || 'ieee-paper'}.docx"`);
+    }
+    
     res.setHeader('Content-Length', docxBuffer.length.toString());
     res.setHeader('Cache-Control', 'no-cache');
     
