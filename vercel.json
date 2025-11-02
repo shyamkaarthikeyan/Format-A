@@ -5,9 +5,30 @@
   "framework": "vite",
 
   "functions": {
-    "api/**/*.ts": {
+    "api/generate.ts": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**"
+    },
+    "api/auth.ts": {
+      "memory": 512,
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**"
+    },
+    "api/admin.ts": {
+      "memory": 512,
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**"
+    },
+    "api/core.ts": {
+      "memory": 512,
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**"
+    },
+    "api/documents.ts": {
+      "memory": 512,
+      "maxDuration": 30,
+      "includeFiles": "api/_lib/**"
     }
   },
 
