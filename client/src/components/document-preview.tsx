@@ -7,7 +7,7 @@ import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "luci
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import type { Document } from "@shared/schema";
-import jsPDF from "jspdf";
+import * as pdfjs from "pdfjs-dist";
 
 // CSS to hide PDF browser controls
 const pdfHideControlsCSS = `
@@ -116,11 +116,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      console.log('Generating PDF for download using client-side jsPDF...');
+      console.log('Generating PDF for download using server-side API...');
 
-      // Generate PDF entirely on client-side using jsPDF
-      // This is the same high-quality IEEE-formatted PDF as the preview
-      const pdfBlob = generateClientSidePDF();
+      // Generate PDF via server-side API
+      const pdfBlob = await generateServerSidePDF();
 
       if (!pdfBlob || pdfBlob.size === 0) {
         throw new Error('Failed to generate PDF');
@@ -244,7 +243,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
   const handleDownloadPdf = () => {
     console.log('Download PDF clicked, isAuthenticated:', isAuthenticated);
-    console.log('Generating PDF (authentication not required)');
+    console.log('Generating PDF via server');
     generatePdfMutation.mutate();
   };
 
@@ -264,251 +263,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate IEEE-formatted PDF client-side using jsPDF - 100% WORKS EVERYWHERE
-  const generateClientSidePDF = (): Blob => {
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'in',
-      format: 'letter',
+  // Generate PDF via server-side API (uses ieee_generator_fixed.py with perfect formatting)
+  const generateServerSidePDF = async (): Promise<Blob> => {
+    const response = await fetch('/api/generate/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(document),
     });
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 0.75;
-    const lineHeight = 0.16; // Approximately 10pt line spacing in inches
-    const baseFontSize = 9.5;
-
-    // 2-column layout parameters (IEEE format) - applied AFTER abstract/keywords
-    const columnCount = 2;
-    const columnSpacing = 0.25; // Space between columns
-    const totalContentWidth = pageWidth - 2 * margin;
-    const columnWidth = (totalContentWidth - columnSpacing) / columnCount;
-    
-    // State for 2-column layout tracking
-    let useColumns = false; // Start with single column for title/authors/abstract/keywords
-    let currentColumn = 0; // 0 = left, 1 = right
-    let contentWidth = totalContentWidth; // Full width initially
-    let yPosition = margin;
-
-    // Helper function to get X position and check for column wrap
-    const getXPosition = (): number => {
-      if (!useColumns) return margin;
-      return margin + (currentColumn * (columnWidth + columnSpacing));
-    };
-
-    // Helper function to handle column wrapping
-    const checkColumnWrap = (textHeight: number): void => {
-      if (!useColumns) return;
-      
-      if (yPosition + textHeight > pageHeight - margin) {
-        // Move to next column
-        if (currentColumn === 0) {
-          currentColumn = 1;
-          yPosition = margin; // Reset Y for right column
-        } else {
-          // Both columns full, go to new page
-          pdf.addPage();
-          currentColumn = 0;
-          yPosition = margin;
-        }
-      }
-    };
-
-    // Title (24pt, bold, centered) - from Python: IEEE_CONFIG['font_size_title']
-    pdf.setFontSize(24);
-    pdf.setFont(undefined, 'bold');
-    const titleLines = pdf.splitTextToSize(document.title || 'Untitled', contentWidth);
-    pdf.text(titleLines, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += titleLines.length * lineHeight + 0.21; // space_after = Pt(12), ~0.167" + margin
-
-    // Authors (9.5pt, bold, centered) - from Python: add_authors function
-    pdf.setFontSize(baseFontSize);
-    pdf.setFont(undefined, 'bold');
-    if (document.authors && document.authors.length > 0) {
-      const authorNames = document.authors.map((a) => a.name).filter(Boolean).join(', ');
-      if (authorNames) {
-        pdf.text(authorNames, pageWidth / 2, yPosition, { align: 'center' });
-        yPosition += lineHeight + 0.2; // space_after after authors
-      }
+    if (!response.ok) {
+      throw new Error(`Failed to generate PDF: ${response.statusText}`);
     }
 
-    // Abstract (9.5pt, bold per Python script lines 189-190)
-    if (document.abstract) {
-      pdf.setFontSize(baseFontSize);
-      pdf.setFont(undefined, 'bold');
-      const abstractLabel = 'Abstract—';
-      const abstractText = abstractLabel + document.abstract;
-      const abstractLines = pdf.splitTextToSize(abstractText, contentWidth);
-      pdf.text(abstractLines, margin, yPosition);
-      yPosition += abstractLines.length * lineHeight + 0.21; // space_after = line_spacing (10pt)
+    const blob = await response.blob();
+    if (blob.size === 0) {
+      throw new Error('Generated PDF is empty');
     }
 
-    // Keywords (9.5pt, bold per Python script lines 225-226)
-    if (document.keywords) {
-      pdf.setFontSize(baseFontSize);
-      pdf.setFont(undefined, 'bold');
-      const keywordsLabel = 'Keywords—';
-      const keywordsText = keywordsLabel + document.keywords;
-      const keywordsLines = pdf.splitTextToSize(keywordsText, totalContentWidth);
-      pdf.text(keywordsLines, margin, yPosition);
-      yPosition += keywordsLines.length * lineHeight + 0.21; // space_after = line_spacing (10pt)
-    }
-
-    // ✅ ENABLE 2-COLUMN LAYOUT FOR SECTIONS AND REFERENCES (After keywords)
-    useColumns = true;
-    currentColumn = 0;
-    yPosition = margin;
-    contentWidth = columnWidth;
-
-    // Sections
-    if (document.sections && document.sections.length > 0) {
-      pdf.setFontSize(baseFontSize);
-
-      document.sections.forEach((section) => {
-        // Check if we need a new page or column
-        if (useColumns) {
-          checkColumnWrap(lineHeight * 2);
-        } else if (yPosition > pageHeight - margin - 0.5) {
-          pdf.addPage();
-          yPosition = margin;
-        }
-
-        // Section title (9.5pt, NOT BOLD, CENTERED, UPPERCASE per Python script line 346)
-        pdf.setFontSize(baseFontSize);
-        pdf.setFont(undefined, 'normal');
-        // Format: "1. INTRODUCTION" (number with period, uppercase)
-        let sectionIdx = 1;
-        document.sections?.forEach((s, i) => {
-          if (s === section) sectionIdx = i + 1;
-        });
-        const sectionTitleText = `${sectionIdx}. ${(section.title || 'Section').toUpperCase()}`;
-        // CENTER align section titles like in Python script
-        const pageCenter = pageWidth / 2;
-        const sectionTitleLines = pdf.splitTextToSize(sectionTitleText, contentWidth);
-        pdf.text(sectionTitleLines, pageCenter, yPosition, { align: 'center' });
-        yPosition += sectionTitleLines.length * lineHeight + 0; // space_after = 0 per Python
-
-        // Section content blocks
-        pdf.setFont(undefined, 'normal');
-        pdf.setFontSize(baseFontSize);
-        if (section.contentBlocks && section.contentBlocks.length > 0) {
-          section.contentBlocks.forEach((block) => {
-            if (block.type === 'text' && block.content) {
-              if (useColumns) {
-                checkColumnWrap(lineHeight * 2);
-              } else if (yPosition > pageHeight - margin - 0.3) {
-                pdf.addPage();
-                yPosition = margin;
-              }
-              const contentLines = pdf.splitTextToSize(block.content, contentWidth);
-              pdf.text(contentLines, getXPosition(), yPosition);
-              yPosition += contentLines.length * lineHeight + 0.2;
-            }
-          });
-        }
-
-        // Subsections
-        if (section.subsections && section.subsections.length > 0) {
-          const renderSubsection = (subsection: typeof section.subsections[0], depth = 1) => {
-            // Check if we need a new page or column
-            if (useColumns) {
-              checkColumnWrap(lineHeight * 2);
-            } else if (yPosition > pageHeight - margin - 0.5) {
-              pdf.addPage();
-              yPosition = margin;
-            }
-
-            // Subsection title (9.5pt, NOT BOLD per Python script line 371: "font.bold = False")
-            const indentSize = depth * 0.15;
-            const indentContentWidth = contentWidth - indentSize;
-            pdf.setFontSize(baseFontSize - (depth * 0.3));
-            pdf.setFont(undefined, 'normal');
-            const subTitleText = subsection.title || 'Subsection';
-            const subTitleLines = pdf.splitTextToSize(subTitleText, indentContentWidth);
-            pdf.text(subTitleLines, getXPosition() + indentSize, yPosition);
-            yPosition += subTitleLines.length * lineHeight + 0.15;
-
-            // Subsection content (old format - for backward compatibility)
-            pdf.setFontSize(baseFontSize);
-            pdf.setFont(undefined, 'normal');
-            if (subsection.content && subsection.content.trim()) {
-              const subContentLines = pdf.splitTextToSize(
-                subsection.content,
-                indentContentWidth
-              );
-              pdf.text(subContentLines, getXPosition() + indentSize, yPosition);
-              yPosition += subContentLines.length * lineHeight + 0.15;
-            }
-
-            // Subsection content blocks (new format)
-            if (subsection.contentBlocks && subsection.contentBlocks.length > 0) {
-              subsection.contentBlocks.forEach((block) => {
-                if (block.type === 'text' && block.content) {
-                  if (useColumns) {
-                    checkColumnWrap(lineHeight * 2);
-                  } else if (yPosition > pageHeight - margin - 0.3) {
-                    pdf.addPage();
-                    yPosition = margin;
-                  }
-                  pdf.setFontSize(baseFontSize);
-                  pdf.setFont(undefined, 'normal');
-                  const blockLines = pdf.splitTextToSize(block.content, indentContentWidth);
-                  pdf.text(blockLines, getXPosition() + indentSize, yPosition);
-                  yPosition += blockLines.length * lineHeight + 0.15;
-                }
-              });
-            }
-          };
-
-          // Render all subsections recursively
-          section.subsections.forEach((subsection) => {
-            renderSubsection(subsection, 1);
-          });
-        }
-      });
-    }
-
-    // References
-    if (document.references && document.references.length > 0) {
-      if (useColumns) {
-        checkColumnWrap(lineHeight * 2);
-      } else if (yPosition > pageHeight - margin - 0.5) {
-        pdf.addPage();
-        yPosition = margin;
-      }
-
-      pdf.setFontSize(baseFontSize);
-      pdf.setFont(undefined, 'bold');
-      pdf.text('REFERENCES', getXPosition(), yPosition);
-      yPosition += lineHeight * 1.2;
-
-      pdf.setFont(undefined, 'normal');
-      pdf.setFontSize(baseFontSize - 0.5);
-
-      document.references.forEach((ref, index) => {
-        if (useColumns) {
-          checkColumnWrap(lineHeight * 2);
-        } else if (yPosition > pageHeight - margin - 0.3) {
-          pdf.addPage();
-          yPosition = margin;
-        }
-
-        // Reference text is stored in ref.text field
-        const refText = `[${index + 1}] ${ref.text || ''}`;
-        const refLines = pdf.splitTextToSize(refText, contentWidth - 0.15);
-        
-        const lineCount = refLines.length;
-        pdf.text(refLines, getXPosition() + 0.15, yPosition);
-        yPosition += lineCount * lineHeight + 0.1;
-      });
-    }
-
-    // Return as blob
-    const pdfBlob = pdf.output('blob');
-    return pdfBlob;
+    return blob;
   };
 
-  // Generate PDF preview (CLIENT-SIDE ONLY - Works on Vercel!)
+  // Generate PDF preview (SERVER-SIDE - Perfect IEEE formatting)
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some((author) => author.name)) {
       setPreviewError('Please add a title and at least one author to generate preview');
@@ -519,10 +294,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating PDF preview client-side using jsPDF...');
+      console.log('Generating PDF preview using server-side API...');
 
-      // Generate PDF entirely on client-side
-      const pdfBlob = generateClientSidePDF();
+      // Generate PDF via server
+      const pdfBlob = await generateServerSidePDF();
 
       if (!pdfBlob || pdfBlob.size === 0) {
         throw new Error('Generated PDF is empty');
@@ -539,14 +314,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewImages([]);
       setPdfUrl(url);
 
-      console.log('✅ PDF preview generated successfully (client-side)', {
+      console.log('✅ PDF preview generated successfully', {
         size: pdfBlob.size,
         type: pdfBlob.type,
       });
 
       toast({
         title: 'Preview Generated',
-        description: 'PDF preview created successfully (client-side)',
+        description: 'PDF preview created successfully (server-side)',
       });
     } catch (error) {
       console.error('❌ PDF preview generation failed:', error);
@@ -686,11 +461,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               >
                 <RefreshCw className={`w-4 h-4 ${isGeneratingPreview ? 'animate-spin' : ''}`} />
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoom <= 25}>
+              <Button size="sm" onClick={handleZoomOut} disabled={zoom <= 25} className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
                 <ZoomOut className="w-4 h-4" />
               </Button>
               <span className="text-xs text-gray-500 min-w-[40px] text-center">{zoom}%</span>
-              <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={zoom >= 200}>
+              <Button size="sm" onClick={handleZoomIn} disabled={zoom >= 200} className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">
                 <ZoomIn className="w-4 h-4" />
               </Button>
             </div>
@@ -713,9 +488,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-600 text-sm">{previewError}</p>
                   <Button
                     onClick={generateDocxPreview}
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
+                    className="mt-4 border border-input bg-background hover:bg-accent"
                     disabled={!document.title || !document.authors?.some(author => author.name)}
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
@@ -764,30 +537,17 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   overflow: 'auto'
                 }}
               >
-                {/* Clean PDF Viewer with proper scrolling and zoom */}
-                <object
-                  data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=100`}
-                  type="application/pdf"
-                  className="border-0 shadow-lg"
+                {/* PDF.js Viewer with proper scrolling and zoom */}
+                <iframe
+                  src={`https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`}
+                  className="w-full h-full border-0 shadow-lg"
                   style={{
                     outline: 'none',
                     border: 'none',
-                    width: `${zoom}%`,
-                    height: `${zoom}%`,
-                    minWidth: '100%',
                     minHeight: '800px',
-                    transition: 'all 0.2s ease-in-out'
                   }}
-                >
-                  {/* Fallback message */}
-                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                    <div className="text-center p-6">
-                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
-                      <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
-                    </div>
-                  </div>
-                </object>
+                  title="PDF Preview"
+                />
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
@@ -828,7 +588,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <Button onClick={handleSignIn} className="flex-1 bg-purple-600 hover:bg-purple-700">
                 Sign In
               </Button>
-              <Button onClick={handleCancelAuth} variant="outline" className="flex-1">
+              <Button onClick={handleCancelAuth} className="flex-1 border border-input bg-background hover:bg-accent">
                 Cancel
               </Button>
             </div>
