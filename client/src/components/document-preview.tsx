@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,6 @@ import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "luci
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import type { Document } from "@shared/schema";
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-}
 
 // CSS for PDF preview container
 const pdfPreviewCSS = `
@@ -45,19 +39,15 @@ interface DocumentPreviewProps {
 }
 
 export default function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
-  const [zoom, setZoom] = useState(75);
+  const [zoom, setZoom] = useState(100);
   const [email, setEmail] = useState("");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [pdfPages, setPdfPages] = useState<string[]>([]);
-  const [previewImages, setPreviewImages] = useState<any[]>([]);
-  const [previewMode, setPreviewMode] = useState<'pdf' | 'images'>('pdf');
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Debugging to verify document data
   console.log("IEEE Word preview rendering with:", {
@@ -291,50 +281,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Render PDF using PDF.js (client-side rendering - works everywhere!)
-  const renderPdfWithPdfJs = async (pdfBlob: Blob) => {
-    try {
-      console.log('Rendering PDF with PDF.js...');
-      const arrayBuffer = await pdfBlob.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
-      console.log(`PDF loaded: ${pdf.numPages} pages`);
-      const pages: string[] = [];
-
-      // Render each page to canvas
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.5 });
-        
-        // Create canvas
-        const canvas = window.document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) continue;
-
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-
-        // Render page
-        await page.render({
-          canvasContext: context,
-          viewport: viewport,
-          canvas: canvas,
-        }).promise;
-
-        // Convert to image
-        pages.push(canvas.toDataURL());
-      }
-
-      setPdfPages(pages);
-      setPreviewMode('pdf');
-      console.log('PDF rendered successfully with PDF.js');
-    } catch (error) {
-      console.error('PDF.js rendering failed:', error);
-      throw new Error('Failed to render PDF in browser');
-    }
-  };
-
-  // Generate PDF preview (works on both localhost and Vercel with PDF.js!)
+  // Generate PDF preview - simple and reliable
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -343,13 +290,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
     setIsGeneratingPreview(true);
     setPreviewError(null);
-    setPdfPages([]);
 
     try {
       console.log('Attempting PDF preview generation...');
       
-      // Try to generate PDF from server
-      let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -386,18 +331,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         URL.revokeObjectURL(pdfUrl);
       }
 
+      // Create blob URL for iframe
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
-
-      // Render PDF using PDF.js for better compatibility
-      await renderPdfWithPdfJs(blob);
       
-      console.log('PDF preview generated and rendered successfully');
+      console.log('PDF preview generated successfully');
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
       setPreviewError(errorMessage);
-      setPdfPages([]);
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -419,7 +361,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       } else {
         console.log('Skipping PDF generation - missing title or authors');
         setPdfUrl(null);
-        setPreviewImages([]);
         setPreviewError(null);
       }
     }, 1000); // 1 second debounce
@@ -576,54 +517,23 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
               </div>
-            ) : pdfPages.length > 0 ? (
-              <div className="h-full relative overflow-auto bg-gray-100 pdf-preview-container" ref={canvasContainerRef}>
-                {/* PDF.js Rendered Pages - Works on localhost AND Vercel! */}
-                <div 
-                  className="flex flex-col items-center py-4"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top center',
-                  }}
-                >
-                  {pdfPages.map((pageDataUrl, index) => (
-                    <img
-                      key={index}
-                      src={pageDataUrl}
-                      alt={`Page ${index + 1}`}
-                      className="pdf-canvas-page"
-                      style={{
-                        userSelect: 'none',
-                        pointerEvents: 'none'
-                      }}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : previewMode === 'images' && previewImages.length > 0 ? (
-              <div className="h-full relative overflow-auto bg-white">
-                <div 
-                  className="flex flex-col items-center space-y-4 p-4"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top center',
-                  }}
-                >
-                  {previewImages.map((image, index) => (
-                    <div key={index} className="shadow-lg border border-gray-200">
-                      <img
-                        src={image.data}
-                        alt={`Page ${image.page}`}
-                        className="max-w-full h-auto"
-                        style={{
-                          userSelect: 'none',
-                          pointerEvents: 'none'
-                        }}
-                        onContextMenu={(e) => e.preventDefault()}
-                      />
-                    </div>
-                  ))}
+            ) : pdfUrl ? (
+              <div className="h-full relative bg-gray-100 overflow-auto">
+                {/* Clean PDF preview without toolbar */}
+                <div style={{ 
+                  transform: `scale(${zoom / 100})`,
+                  transformOrigin: 'top center',
+                  width: `${100 / (zoom / 100)}%`,
+                }}>
+                  <iframe
+                    src={`${pdfUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`}
+                    className="w-full border-0"
+                    style={{
+                      height: '70vh',
+                      minHeight: '70vh',
+                    }}
+                    title="PDF Preview"
+                  />
                 </div>
               </div>
             ) : (
