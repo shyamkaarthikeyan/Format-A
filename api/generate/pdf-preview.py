@@ -11,15 +11,15 @@ from http.server import BaseHTTPRequestHandler
 from io import BytesIO
 import subprocess
 
-# Add the server directory to the path so we can import ieee_generator_fixed
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'server'))
+# Add the current directory to the path so we can import ieee_generator_fixed
+sys.path.insert(0, os.path.dirname(__file__))
 
 try:
     from ieee_generator_fixed import generate_ieee_document
     HAS_GENERATOR = True
-except ImportError:
+except ImportError as e:
     HAS_GENERATOR = False
-    print("Warning: Could not import ieee_generator_fixed", file=sys.stderr)
+    print(f"Warning: Could not import ieee_generator_fixed: {e}", file=sys.stderr)
 
 
 class handler(BaseHTTPRequestHandler):
