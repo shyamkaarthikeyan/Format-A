@@ -294,7 +294,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     try {
       console.log('Attempting PDF preview generation...');
       
-      const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+      // Use Python serverless function for Vercel deployment
+      const response = await fetch('/api/generate/pdf-preview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
