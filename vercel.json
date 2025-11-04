@@ -18,6 +18,46 @@
       "destination": "/api/auth?path=$1"
     },
     {
+      "source": "/api/health",
+      "destination": "/api/core?path=health"
+    },
+    {
+      "source": "/api/diagnostics",
+      "destination": "/api/core?path=diagnostics"
+    },
+    {
+      "source": "/api/index",
+      "destination": "/api/core?path=index"
+    },
+    {
+      "source": "/api/generate/(.*)",
+      "destination": "/api/documents?path=$1"
+    },
+    {
+      "source": "/api/generate",
+      "destination": "/api/documents?path=generate"
+    },
+    {
+      "source": "/api/test-auth-dependencies",
+      "destination": "/api/testing?path=auth-dependencies"
+    },
+    {
+      "source": "/api/test-simple-auth",
+      "destination": "/api/testing?path=simple-auth"
+    },
+    {
+      "source": "/api/test-users",
+      "destination": "/api/testing?path=users"
+    },
+    {
+      "source": "/api/utils",
+      "destination": "/api/testing?path=utils"
+    },
+    {
+      "source": "/api/cleanup-fake-data",
+      "destination": "/api/testing?path=cleanup-fake-data"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
