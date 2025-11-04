@@ -281,7 +281,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview - simple and reliable
+  // Generate PDF preview - with timeout handling for Vercel
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -302,20 +302,29 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         },
         body: JSON.stringify(document),
       });
-
       console.log('PDF preview response:', response.status, response.statusText);
+
+      // Handle 504 Gateway Timeout - common on Vercel
+      if (response.status === 504) {
+        throw new Error('PDF generation timed out on server. PDF preview is not available on Vercel due to serverless timeout limits. Please use the Download buttons below to get your IEEE-formatted document.');
+      }
 
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
+        let errorMessage = `PDF preview unavailable`;
         
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
+            errorMessage = errorData.message || errorData.error || errorMessage;
           } catch (e) {
             console.warn('Could not parse error JSON');
           }
+        }
+        
+        // If it's a 503 or other server error, show helpful message
+        if (response.status === 503) {
+          errorMessage = 'PDF preview is not available on Vercel. Use Download Word or Download PDF buttons to get your IEEE-formatted document.';
         }
         
         throw new Error(errorMessage);
@@ -493,20 +502,32 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </div>
             ) : previewError ? (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center p-6">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-red-600 mb-2">Preview Error</p>
-                  <p className="text-gray-600 text-sm">{previewError}</p>
-                  <Button
-                    onClick={generateDocxPreview}
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    disabled={!document.title || !document.authors?.some(author => author.name)}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Retry
-                  </Button>
+                <div className="text-center p-6 max-w-lg mx-auto">
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-10 h-10 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview Unavailable on Vercel</h3>
+                  <p className="text-gray-600 text-sm mb-6">
+                    PDF preview requires longer processing time than Vercel's serverless functions allow.
+                  </p>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-5 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-green-500 rounded-full p-1 mt-0.5">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div className="text-left flex-1">
+                        <p className="text-sm font-semibold text-green-900 mb-1">Your Document is Ready!</p>
+                        <p className="text-xs text-green-800">
+                          Use the <strong>Download Word</strong> or <strong>Download PDF</strong> buttons above to get your perfectly formatted IEEE paper with accurate formatting.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 italic">
+                    💡 Preview works perfectly in local development. For production, use the download buttons.
+                  </p>
                 </div>
               </div>
             ) : !document.title || !document.authors?.some(author => author.name) ? (
