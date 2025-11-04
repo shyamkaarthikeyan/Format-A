@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,15 +7,15 @@ import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "luci
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import type { Document } from "@shared/schema";
+import * as pdfjsLib from 'pdfjs-dist';
 
-// CSS to hide PDF browser controls
-const pdfHideControlsCSS = `
-  object[type="application/pdf"] {
-    outline: none;
-    border: none;
-  }
-  
-  /* Hide context menu and selection */
+// Configure PDF.js worker
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
+
+// CSS for PDF preview container
+const pdfPreviewCSS = `
   .pdf-preview-container {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -25,15 +25,17 @@ const pdfHideControlsCSS = `
     -webkit-tap-highlight-color: transparent;
   }
   
-  .pdf-preview-container * {
-    pointer-events: none !important;
+  .pdf-canvas-page {
+    margin: 20px auto;
+    display: block;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
 `;
 
 // Inject the CSS into the document head
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
-  style.textContent = pdfHideControlsCSS;
+  style.textContent = pdfPreviewCSS;
   document.head.appendChild(style);
 }
 
@@ -46,6 +48,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [zoom, setZoom] = useState(75);
   const [email, setEmail] = useState("");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfPages, setPdfPages] = useState<string[]>([]);
   const [previewImages, setPreviewImages] = useState<any[]>([]);
   const [previewMode, setPreviewMode] = useState<'pdf' | 'images'>('pdf');
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
@@ -54,6 +57,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Debugging to verify document data
   console.log("IEEE Word preview rendering with:", {
@@ -287,7 +291,50 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview (works on both localhost and Vercel)
+  // Render PDF using PDF.js (client-side rendering - works everywhere!)
+  const renderPdfWithPdfJs = async (pdfBlob: Blob) => {
+    try {
+      console.log('Rendering PDF with PDF.js...');
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      console.log(`PDF loaded: ${pdf.numPages} pages`);
+      const pages: string[] = [];
+
+      // Render each page to canvas
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        
+        // Create canvas
+        const canvas = window.document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) continue;
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        // Render page
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+          canvas: canvas,
+        }).promise;
+
+        // Convert to image
+        pages.push(canvas.toDataURL());
+      }
+
+      setPdfPages(pages);
+      setPreviewMode('pdf');
+      console.log('PDF rendered successfully with PDF.js');
+    } catch (error) {
+      console.error('PDF.js rendering failed:', error);
+      throw new Error('Failed to render PDF in browser');
+    }
+  };
+
+  // Generate PDF preview (works on both localhost and Vercel with PDF.js!)
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -296,11 +343,12 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
     setIsGeneratingPreview(true);
     setPreviewError(null);
+    setPdfPages([]);
 
     try {
       console.log('Attempting PDF preview generation...');
       
-      // Use the Node.js PDF preview endpoint (works on both localhost and Vercel)
+      // Try to generate PDF from server
       let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
         method: 'POST',
         headers: {
@@ -313,66 +361,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       console.log('PDF preview response:', response.status, response.statusText);
 
       if (!response.ok) {
-        // Handle different types of failures
         const contentType = response.headers.get('content-type');
         let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
-        
-        // Handle 503 Service Unavailable (expected for Vercel PDF limitations)
-        if (response.status === 503) {
-          console.log('Received 503 response - PDF not available on Vercel');
-          try {
-            const errorData = await response.json();
-            console.log('503 error data:', errorData);
-            if (errorData.message) {
-              const errorMsg = errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.");
-              console.log('Setting 503 error message:', errorMsg);
-              setPreviewError(errorMsg);
-              return;
-            }
-          } catch (e) {
-            console.warn('Could not parse 503 error response:', e);
-          }
-          
-          // Fallback message for 503
-          const fallbackMsg = "PDF preview is not available on this deployment due to serverless limitations. " +
-            "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-            "identical formatting to what you see on localhost! Use the Download Word button above.";
-          console.log('Setting 503 fallback message:', fallbackMsg);
-          setPreviewError(fallbackMsg);
-          console.log('Preview error state should now be:', fallbackMsg);
-          return;
-        }
         
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
-            
-            // Check if this is a known Vercel/serverless limitation
-            if (errorData.message && (
-              errorData.message.includes('serverless') || 
-              errorData.message.includes('Vercel') ||
-              errorData.message.includes('deployment') ||
-              errorData.message.includes('not supported')
-            )) {
-              setPreviewError(
-                errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.")
-              );
-              return;
-            }
           } catch (e) {
             console.warn('Could not parse error JSON');
-          }
-        } else {
-          try {
-            const errorText = await response.text();
-            if (errorText.includes('Python') || errorText.includes('python') || errorText.includes('docx2pdf')) {
-              errorMessage = 'PDF generation temporarily unavailable. Please download Word format which contains identical IEEE formatting.';
-            } else if (errorText.length < 200) {
-              errorMessage = errorText;
-            }
-          } catch (e) {
-            console.warn('Could not read error text');
           }
         }
         
@@ -389,21 +386,18 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         URL.revokeObjectURL(pdfUrl);
       }
 
-      // Create new blob URL for preview display
       const url = URL.createObjectURL(blob);
-      setPreviewMode('pdf');
-      setPreviewImages([]);
       setPdfUrl(url);
-      console.log('PDF preview generated successfully, URL:', url);
+
+      // Render PDF using PDF.js for better compatibility
+      await renderPdfWithPdfJs(blob);
+      
+      console.log('PDF preview generated and rendered successfully');
     } catch (error) {
       console.error('PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
       setPreviewError(errorMessage);
-      
-      // If document generation fails, suggest alternatives
-      if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
-        setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
-      }
+      setPdfPages([]);
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -582,6 +576,31 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-gray-500 text-sm">Add a title and at least one author to generate document preview</p>
                 </div>
               </div>
+            ) : pdfPages.length > 0 ? (
+              <div className="h-full relative overflow-auto bg-gray-100 pdf-preview-container" ref={canvasContainerRef}>
+                {/* PDF.js Rendered Pages - Works on localhost AND Vercel! */}
+                <div 
+                  className="flex flex-col items-center py-4"
+                  style={{ 
+                    transform: `scale(${zoom / 100})`, 
+                    transformOrigin: 'top center',
+                  }}
+                >
+                  {pdfPages.map((pageDataUrl, index) => (
+                    <img
+                      key={index}
+                      src={pageDataUrl}
+                      alt={`Page ${index + 1}`}
+                      className="pdf-canvas-page"
+                      style={{
+                        userSelect: 'none',
+                        pointerEvents: 'none'
+                      }}
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                  ))}
+                </div>
+              </div>
             ) : previewMode === 'images' && previewImages.length > 0 ? (
               <div className="h-full relative overflow-auto bg-white">
                 <div 
@@ -605,42 +624,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                       />
                     </div>
                   ))}
-                </div>
-              </div>
-            ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
-                {/* Clean PDF Viewer with working zoom controls */}
-                <div 
-                  className="w-full h-full relative"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
-                    transformOrigin: 'top center',
-                    minWidth: `${zoom}%`,
-                    minHeight: `${zoom}%`,
-                    padding: zoom > 100 ? '20px' : '0px'
-                  }}
-                >
-                  <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=${zoom}`}
-                    type="application/pdf"
-                    className="w-full h-full border-0"
-                    style={{
-                      outline: 'none',
-                      border: 'none',
-                      width: '100%',
-                      height: '600px',
-                      minHeight: '600px'
-                    }}
-                  >
-                    {/* Fallback message */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                      <div className="text-center p-6">
-                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
-                        <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
-                      </div>
-                    </div>
-                  </object>
                 </div>
               </div>
             ) : (
