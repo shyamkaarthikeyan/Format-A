@@ -30,12 +30,8 @@
       "destination": "/api/core?path=index"
     },
     {
-      "source": "/api/generate/(.*)",
-      "destination": "/api/documents?path=$1"
-    },
-    {
-      "source": "/api/generate",
-      "destination": "/api/documents?path=generate"
+      "source": "/api/generate/pdf-preview",
+      "destination": "/api/generate/pdf-preview"
     },
     {
       "source": "/api/test-auth-dependencies",
