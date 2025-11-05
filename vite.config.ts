@@ -30,6 +30,14 @@ export default defineConfig({
       external: (id) => {
         // Don't bundle Node.js built-ins
         return id.startsWith('node:') || ['fs', 'path', 'crypto', 'stream', 'util'].includes(id);
+      },
+      // Fix for Render Linux environment
+      onwarn(warning, warn) {
+        // Suppress rollup platform warnings
+        if (warning.code === 'MODULE_NOT_FOUND' && warning.message.includes('@rollup/rollup-linux')) {
+          return;
+        }
+        warn(warning);
       }
     },
     target: 'esnext',
