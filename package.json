@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "vite build",
+    "build": "npm ci --platform=linux --arch=x64 && vite build",
     "build:vercel": "cd client && npm install && npm run build",
     "build:render": "npm ci --platform=linux --arch=x64 && vite build",
     "start": "node dist/index.js",
