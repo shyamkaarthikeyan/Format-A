@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client-Side Document Preview Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .test-results {
+            margin-top: 20px;
+        }
+        .endpoint-test {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Client-Side Document Preview Implementation Test</h1>
+        
+        <div class="info">
+            <h3>✅ Implementation Complete!</h3>
+            <p>The client-side document preview system has been successfully implemented to eliminate Vercel serverless timeout issues.</p>
+            
+            <h4>Key Benefits:</h4>
+            <ul>
+                <li><strong>No Server Timeouts:</strong> All document rendering happens in the browser</li>
+                <li><strong>Faster Performance:</strong> No server-side conversion delays</li>
+                <li><strong>Cost Effective:</strong> Reduced serverless function execution time</li>
+                <li><strong>Universal Compatibility:</strong> Works on all Vercel plans including Hobby</li>
+                <li><strong>Better UX:</strong> Immediate loading states and progressive rendering</li>
+            </ul>
+        </div>
+
+        <h2>🧪 API Endpoint Tests</h2>
+        <div class="test-results" id="testResults">
+            <!-- Test results will be populated here -->
+        </div>
+
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="testDocumentGenerator()">Test Document Generator</button>
+        <button onclick="testDocumentFile()">Test Document File API</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="container">
+        <h2>📋 Implementation Summary</h2>
+        
+        <h3>Files Created/Modified:</h3>
+        <ul>
+            <li><code>client/src/components/ClientSidePreview.tsx</code> - New client-side preview component</li>
+            <li><code>client/src/components/document-preview.tsx</code> - Updated to use client-side rendering</li>
+            <li><code>api/document-generator.ts</code> - Document generation API</li>
+            <li><code>api/document-file.ts</code> - Secure document serving API</li>
+            <li><code>package.json</code> - Added mammoth, pdfjs-dist, docx-preview dependencies</li>
+            <li><code>vercel.json</code> - Added new API routes</li>
+        </ul>
+
+        <h3>Technologies Used:</h3>
+        <ul>
+            <li><strong>PDF.js:</strong> Client-side PDF rendering (Mozilla's battle-tested library)</li>
+            <li><strong>Mammoth.js:</strong> DOCX to HTML conversion in browser</li>
+            <li><strong>docx-preview:</strong> Advanced DOCX rendering with better formatting</li>
+            <li><strong>docx library:</strong> Server-side DOCX generation for samples</li>
+        </ul>
+
+        <h3>How It Works:</h3>
+        <ol>
+            <li>Frontend requests document via secure API endpoint</li>
+            <li>Server generates/serves document file (DOCX/PDF)</li>
+            <li>Client-side component fetches raw document</li>
+            <li>Browser renders document using appropriate library</li>
+            <li>No server-side conversion timeouts!</li>
+        </ol>
+    </div>
+
+    <script>
+        let testCount = 0;
+
+        function addTestResult(title, status, message, details = null) {
+            testCount++;
+            const resultsDiv = document.getElementById('testResults');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'endpoint-test';
+            
+            const statusClass = status === 'success' ? 'success' : status === 'error' ? 'error' : 'info';
+            
+            testDiv.innerHTML = `
+                <h4>${testCount}. ${title}</h4>
+                <div class="${statusClass}">
+                    <strong>${status.toUpperCase()}:</strong> ${message}
+                </div>
+                ${details ? `<pre>${details}</pre>` : ''}
+            `;
+            
+            resultsDiv.appendChild(testDiv);
+        }
+
+        function addLoadingTest(title) {
+            testCount++;
+            const resultsDiv = document.getElementById('testResults');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'endpoint-test';
+            testDiv.id = `test-${testCount}`;
+            
+            testDiv.innerHTML = `
+                <h4>${testCount}. ${title}</h4>
+                <div class="info">
+                    <span class="loading"></span> Testing in progress...
+                </div>
+            `;
+            
+            resultsDiv.appendChild(testDiv);
+            return testCount;
+        }
+
+        function updateTestResult(testId, status, message, details = null) {
+            const testDiv = document.getElementById(`test-${testId}`);
+            if (testDiv) {
+                const statusClass = status === 'success' ? 'success' : status === 'error' ? 'error' : 'info';
+                
+                testDiv.innerHTML = `
+                    <h4>${testId}. ${testDiv.querySelector('h4').textContent.split('. ')[1]}</h4>
+                    <div class="${statusClass}">
+                        <strong>${status.toUpperCase()}:</strong> ${message}
+                    </div>
+                    ${details ? `<pre>${details}</pre>` : ''}
+                `;
+            }
+        }
+
+        async function testDocumentGenerator() {
+            const testId = addLoadingTest('Document Generator API');
+            
+            try {
+                const sampleDocument = {
+                    id: 'test-doc-1',
+                    title: 'Test IEEE Paper - Client-Side Preview',
+                    abstract: 'This document tests the client-side preview functionality that eliminates Vercel serverless timeout issues.',
+                    keywords: 'client-side, preview, IEEE, document, Vercel, testing',
+                    authors: [
+                        {
+                            id: '1',
+                            name: 'Test Author',
+                            department: 'Computer Science',
+                            organization: 'Test University',
+                            city: 'Test City',
+                            state: 'CA',
+                            email: 'test@university.edu',
+                            customFields: []
+                        }
+                    ],
+                    sections: [
+                        {
+                            id: '1',
+                            title: 'Introduction',
+                            order: 1,
+                            contentBlocks: [
+                                {
+                                    id: '1',
+                                    type: 'text',
+                                    content: 'This document demonstrates the client-side preview functionality.',
+                                    order: 1
+                                }
+                            ],
+                            subsections: []
+                        }
+                    ],
+                    references: [],
+                    figures: [],
+                    settings: {
+                        fontSize: '9.5pt',
+                        columns: 'double',
+                        exportFormat: 'docx',
+                        includePageNumbers: true,
+                        includeCopyright: true
+                    }
+                };
+
+                const response = await fetch('/api/document-generator', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(sampleDocument),
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    updateTestResult(testId, 'success', 
+                        `Document generated successfully! Size: ${blob.size} bytes, Type: ${blob.type}`,
+                        `Response Headers:\nContent-Type: ${response.headers.get('content-type')}\nContent-Length: ${response.headers.get('content-length')}`
+                    );
+                } else {
+                    const errorText = await response.text();
+                    updateTestResult(testId, 'error', 
+                        `HTTP ${response.status}: ${response.statusText}`,
+                        errorText
+                    );
+                }
+            } catch (error) {
+                updateTestResult(testId, 'error', 
+                    `Network error: ${error.message}`,
+                    error.stack
+                );
+            }
+        }
+
+        async function testDocumentFile() {
+            const testId = addLoadingTest('Document File API');
+            
+            try {
+                const response = await fetch('/api/documents/test-doc-1/file', {
+                    method: 'GET',
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    updateTestResult(testId, 'success', 
+                        `Document file served successfully! Size: ${blob.size} bytes, Type: ${blob.type}`,
+                        `Response Headers:\nContent-Type: ${response.headers.get('content-type')}\nContent-Disposition: ${response.headers.get('content-disposition')}`
+                    );
+                } else {
+                    const errorText = await response.text();
+                    updateTestResult(testId, 'error', 
+                        `HTTP ${response.status}: ${response.statusText}`,
+                        errorText
+                    );
+                }
+            } catch (error) {
+                updateTestResult(testId, 'error', 
+                    `Network error: ${error.message}`,
+                    error.stack
+                );
+            }
+        }
+
+        async function testClientSideLibraries() {
+            const testId = addLoadingTest('Client-Side Libraries Availability');
+            
+            try {
+                // Test if the libraries are available
+                const tests = [];
+                
+                // Test PDF.js
+                try {
+                    if (typeof window !== 'undefined' && window.pdfjsLib) {
+                        tests.push('✅ PDF.js: Available');
+                    } else {
+                        tests.push('❌ PDF.js: Not loaded (normal for this test page)');
+                    }
+                } catch (e) {
+                    tests.push('❌ PDF.js: Error - ' + e.message);
+                }
+                
+                // Test Mammoth
+                try {
+                    if (typeof window !== 'undefined' && window.mammoth) {
+                        tests.push('✅ Mammoth.js: Available');
+                    } else {
+                        tests.push('❌ Mammoth.js: Not loaded (normal for this test page)');
+                    }
+                } catch (e) {
+                    tests.push('❌ Mammoth.js: Error - ' + e.message);
+                }
+                
+                updateTestResult(testId, 'info', 
+                    'Client-side libraries check completed',
+                    tests.join('\n') + '\n\nNote: Libraries are loaded in the React app, not this test page.'
+                );
+            } catch (error) {
+                updateTestResult(testId, 'error', 
+                    `Library test error: ${error.message}`,
+                    error.stack
+                );
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            
+            addTestResult('Test Suite Started', 'info', 'Running comprehensive tests for client-side preview implementation...');
+            
+            await testDocumentGenerator();
+            await testDocumentFile();
+            await testClientSideLibraries();
+            
+            addTestResult('Test Suite Completed', 'success', 'All tests have been executed. Check individual results above.');
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            testCount = 0;
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            addTestResult('Page Loaded', 'success', 'Client-side preview test page is ready!');
+        });
+    </script>
+</body>
+</html>
