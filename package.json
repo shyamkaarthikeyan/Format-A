@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "npm ci --platform=linux --arch=x64 && vite build",
+    "build": "vite build",
     "build:vercel": "cd client && npm install && npm run build",
     "build:render": "npm ci --platform=linux --arch=x64 && vite build",
     "start": "node dist/index.js",
@@ -138,6 +138,7 @@
     "vite": "^5.4.14"
   },
   "optionalDependencies": {
-    "bufferutil": "^4.0.8"
+    "bufferutil": "^4.0.8",
+    "@rollup/rollup-linux-x64-gnu": "^4.24.0"
   }
 }
