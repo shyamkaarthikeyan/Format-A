@@ -114,20 +114,50 @@ function generateClientSidePDF(document: Document): Blob {
     }
   }
 
-  // Authors
+  // Authors - IEEE format with proper spacing
   if (document.authors && Array.isArray(document.authors) && document.authors.length > 0) {
     try {
-      const authorNames = document.authors
-        .filter(author => author && author.name && typeof author.name === 'string')
-        .map(author => author.name)
-        .join(', ');
+      const validAuthors = document.authors.filter(author => author && author.name && typeof author.name === 'string');
       
-      if (authorNames) {
-        pdf.setFontSize(12);
-        pdf.setFont('times', 'normal');
-        const authorWidth = pdf.getTextWidth(authorNames);
-        pdf.text(authorNames, (pageWidth - authorWidth) / 2, currentY);
-        currentY += 30;
+      if (validAuthors.length > 0) {
+        // Calculate spacing for multiple authors
+        const authorSpacing = contentWidth / validAuthors.length;
+        let currentX = margin;
+        
+        validAuthors.forEach((author, index) => {
+          // Author name in bold
+          pdf.setFontSize(12);
+          pdf.setFont('times', 'bold');
+          const authorName = author.name;
+          const nameWidth = pdf.getTextWidth(authorName);
+          const centerX = currentX + (authorSpacing - nameWidth) / 2;
+          pdf.text(authorName, centerX, currentY);
+          
+          // Author details in italic (if available)
+          let detailY = currentY + 15;
+          pdf.setFontSize(10);
+          pdf.setFont('times', 'italic');
+          
+          // Add department, organization, etc.
+          const details = [];
+          if (author.department) details.push(author.department);
+          if (author.organization) details.push(author.organization);
+          if (author.city) details.push(author.city);
+          if (author.state) details.push(author.state);
+          
+          details.forEach(detail => {
+            if (detail) {
+              const detailWidth = pdf.getTextWidth(detail);
+              const detailCenterX = currentX + (authorSpacing - detailWidth) / 2;
+              pdf.text(detail, detailCenterX, detailY);
+              detailY += 12;
+            }
+          });
+          
+          currentX += authorSpacing;
+        });
+        
+        currentY = detailY + 10; // Move past all author details
       }
     } catch (error) {
       console.error('Error adding authors:', error);
@@ -139,20 +169,36 @@ function generateClientSidePDF(document: Document): Blob {
     try {
       currentY += 10;
       pdf.setFontSize(10);
-      pdf.setFont('times', 'italic');
-      pdf.text('Abstract—', margin, currentY);
-      currentY += 14;
       
+      // Add "Abstract—" in italic and abstract content on SAME line
+      pdf.setFont('times', 'italic');
+      const abstractTitle = 'Abstract—';
+      pdf.text(abstractTitle, margin, currentY);
+      
+      // Calculate position for content right after title (same line)
+      const titleWidth = pdf.getTextWidth(abstractTitle);
+      const contentStartX = margin + titleWidth;
+      
+      // Add abstract content in normal font on same line
       pdf.setFont('times', 'normal');
-      const abstractLines = pdf.splitTextToSize(document.abstract, contentWidth);
-      abstractLines.forEach((line: string) => {
-        if (currentY + 10 > pageHeight - margin) {
-          pdf.addPage();
-          currentY = margin;
-        }
-        pdf.text(line, margin, currentY);
+      const remainingWidth = contentWidth - titleWidth;
+      const abstractLines = pdf.splitTextToSize(document.abstract, remainingWidth);
+      
+      // First line goes on same line as title
+      if (abstractLines.length > 0) {
+        pdf.text(abstractLines[0], contentStartX, currentY);
         currentY += 12;
-      });
+        
+        // Remaining lines on subsequent lines
+        for (let i = 1; i < abstractLines.length; i++) {
+          if (currentY + 10 > pageHeight - margin) {
+            pdf.addPage();
+            currentY = margin;
+          }
+          pdf.text(abstractLines[i], margin, currentY);
+          currentY += 12;
+        }
+      }
       currentY += 10;
     } catch (error) {
       console.error('Error adding abstract:', error);
@@ -163,20 +209,36 @@ function generateClientSidePDF(document: Document): Blob {
   if (document.keywords && typeof document.keywords === 'string') {
     try {
       pdf.setFontSize(10);
-      pdf.setFont('times', 'italic');
-      pdf.text('Keywords—', margin, currentY);
-      currentY += 14;
       
+      // Add "Keywords—" in italic and keywords content on SAME line
+      pdf.setFont('times', 'italic');
+      const keywordsTitle = 'Keywords—';
+      pdf.text(keywordsTitle, margin, currentY);
+      
+      // Calculate position for content right after title (same line)
+      const titleWidth = pdf.getTextWidth(keywordsTitle);
+      const contentStartX = margin + titleWidth;
+      
+      // Add keywords content in normal font on same line
       pdf.setFont('times', 'normal');
-      const keywordLines = pdf.splitTextToSize(document.keywords, contentWidth);
-      keywordLines.forEach((line: string) => {
-        if (currentY + 10 > pageHeight - margin) {
-          pdf.addPage();
-          currentY = margin;
-        }
-        pdf.text(line, margin, currentY);
+      const remainingWidth = contentWidth - titleWidth;
+      const keywordLines = pdf.splitTextToSize(document.keywords, remainingWidth);
+      
+      // First line goes on same line as title
+      if (keywordLines.length > 0) {
+        pdf.text(keywordLines[0], contentStartX, currentY);
         currentY += 12;
-      });
+        
+        // Remaining lines on subsequent lines
+        for (let i = 1; i < keywordLines.length; i++) {
+          if (currentY + 10 > pageHeight - margin) {
+            pdf.addPage();
+            currentY = margin;
+          }
+          pdf.text(keywordLines[i], margin, currentY);
+          currentY += 12;
+        }
+      }
       currentY += 20;
     } catch (error) {
       console.error('Error adding keywords:', error);
@@ -189,18 +251,21 @@ function generateClientSidePDF(document: Document): Blob {
       document.sections.forEach((section, index) => {
         if (section && section.title && typeof section.title === 'string') {
           try {
-            // Section title
+            // Section title - IEEE format: bold, centered, uppercase
             currentY += 10;
             pdf.setFontSize(12);
             pdf.setFont('times', 'bold');
-            const sectionTitle = `${index + 1}. ${section.title}`;
+            const sectionTitle = `${index + 1}. ${section.title.toUpperCase()}`;
             
             if (currentY + 12 > pageHeight - margin) {
               pdf.addPage();
               currentY = margin;
             }
             
-            pdf.text(sectionTitle, margin, currentY);
+            // Center the section title
+            const titleWidth = pdf.getTextWidth(sectionTitle);
+            const centerX = (pageWidth - titleWidth) / 2;
+            pdf.text(sectionTitle, centerX, currentY);
             currentY += 20;
             
             // Section content (check both 'content' and 'body' properties)
