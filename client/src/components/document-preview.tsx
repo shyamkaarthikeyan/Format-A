@@ -335,8 +335,19 @@ function generateClientSidePDF(document: Document): Blob {
 
   // Sections - IEEE format (10pt bold, centered, 2-column layout)
   if (document.sections && Array.isArray(document.sections) && document.sections.length > 0) {
+    console.log('Processing sections in PDF:', document.sections.length, 'sections found');
     try {
       document.sections.forEach((section, index) => {
+        console.log(`Processing section ${index + 1}:`, {
+          title: section.title,
+          contentBlocksCount: section.contentBlocks?.length || 0,
+          contentBlocks: section.contentBlocks?.map(block => ({
+            type: block.type,
+            hasContent: !!block.content,
+            contentPreview: block.content?.substring(0, 50) + '...'
+          })) || []
+        });
+        
         if (section && section.title && typeof section.title === 'string') {
           try {
             // Section title - IEEE format: 10pt bold, left-aligned in columns
@@ -353,12 +364,45 @@ function generateClientSidePDF(document: Document): Blob {
             rightColumnY_Main = titleResult.rightY;
             currentColumn_Main = titleResult.currentColumn;
             
-            // Section content
-            const sectionContent = (section as any).content || (section as any).body;
-            if (sectionContent && typeof sectionContent === 'string') {
-              // Add section content to columns
+            // Process contentBlocks for section content
+            if (section.contentBlocks && Array.isArray(section.contentBlocks)) {
+              console.log(`Processing ${section.contentBlocks.length} content blocks for section "${section.title}"`);
+              section.contentBlocks
+                .sort((a, b) => a.order - b.order) // Sort by order
+                .forEach((block, blockIndex) => {
+                  console.log(`Processing content block ${blockIndex + 1}:`, {
+                    type: block.type,
+                    hasContent: !!block.content,
+                    contentLength: block.content?.length || 0
+                  });
+                  
+                  if (block.type === 'text' && block.content && typeof block.content === 'string') {
+                    // Add text content to columns
+                    const contentResult = addTextToColumns(
+                      pdf, block.content, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+                      10, 'normal', leftColumnX, rightColumnX, columnWidth
+                    );
+                    leftColumnY_Main = contentResult.leftY + 6; // Add spacing between blocks
+                    rightColumnY_Main = contentResult.rightY + 6;
+                    currentColumn_Main = contentResult.currentColumn;
+                    console.log(`Added text block to PDF successfully`);
+                  } else {
+                    console.log(`Skipping block - type: ${block.type}, hasContent: ${!!block.content}`);
+                  }
+                  // TODO: Add support for other content block types (image, table, equation)
+                });
+            } else {
+              console.log(`No contentBlocks found for section "${section.title}"`);
+            }
+            
+            // Fallback: Check for legacy content/body properties
+            const legacyContent = (section as any).content || (section as any).body;
+            if (legacyContent && typeof legacyContent === 'string' && 
+                (!section.contentBlocks || section.contentBlocks.length === 0)) {
+              console.log(`Using legacy content for section "${section.title}"`);
+              // Add legacy content to columns
               const contentResult = addTextToColumns(
-                pdf, sectionContent, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+                pdf, legacyContent, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
                 10, 'normal', leftColumnX, rightColumnX, columnWidth
               );
               leftColumnY_Main = contentResult.leftY;
@@ -368,11 +412,15 @@ function generateClientSidePDF(document: Document): Blob {
           } catch (sectionError) {
             console.error('Error adding section:', section.title, sectionError);
           }
+        } else {
+          console.log(`Skipping section ${index + 1} - no title or invalid title`);
         }
       });
     } catch (error) {
       console.error('Error adding sections:', error);
     }
+  } else {
+    console.log('No sections to process - either null, not array, or empty');
   }
 
   // References - IEEE format (10pt bold title, 8pt content, 2-column layout)
@@ -443,6 +491,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     hasAbstract: !!document.abstract,
     hasKeywords: !!document.keywords,
     sectionsCount: document.sections?.length || 0,
+    sectionsData: document.sections?.map(s => ({
+      title: s.title,
+      contentBlocksCount: s.contentBlocks?.length || 0,
+      contentBlocks: s.contentBlocks?.map(block => ({
+        type: block.type,
+        hasContent: !!block.content,
+        contentLength: block.content?.length || 0
+      })) || []
+    })) || [],
     referencesCount: document.references?.length || 0,
   });
 
