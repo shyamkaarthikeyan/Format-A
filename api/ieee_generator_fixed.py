@@ -971,32 +971,32 @@ def generate_ieee_html_preview(form_data):
     sections = form_data.get('sections', [])
     references = form_data.get('references', [])
     
-    # Format authors in 3-column table format (IEEE standard)
+    # Format authors in table format matching DOCX IEEE style exactly
     authors_html = ''
     if authors:
-        authors_html = '<table style="width: 100%; border-collapse: collapse; margin: 0 auto; text-align: center;"><tr>'
+        num_authors = len(authors)
+        authors_html = f'<table style="width: 100%; border-collapse: collapse; margin: 0 auto; text-align: center;"><tr>'
         
-        for i, author in enumerate(authors):
-            if i > 0 and i % 3 == 0:  # Start new row every 3 authors
-                authors_html += '</tr><tr>'
-            
+        for idx, author in enumerate(authors):
+            # Author Name (bold)
             author_name = sanitize_text(author.get('name', ''))
-            author_affiliation = sanitize_text(author.get('affiliation', ''))
-            author_email = sanitize_text(author.get('email', ''))
-            
             author_info = f"<strong>{author_name}</strong>"
-            if author_affiliation:
-                author_info += f"<br/><em>{author_affiliation}</em>"
-            if author_email:
-                author_info += f"<br/>{author_email}"
             
-            authors_html += f'<td style="width: 33.33%; vertical-align: top; padding: 8px; border: none;">{author_info}</td>'
-        
-        # Fill remaining cells in the last row if needed
-        remaining_cells = 3 - (len(authors) % 3)
-        if remaining_cells < 3:
-            for _ in range(remaining_cells):
-                authors_html += '<td style="width: 33.33%; border: none;"></td>'
+            # Affiliation Fields in proper IEEE order: department, organization, city, state
+            fields = ['department', 'organization', 'city', 'state']
+            for field in fields:
+                if author.get(field):
+                    author_info += f"<br/><em>{sanitize_text(author[field])}</em>"
+            
+            # Email
+            if author.get('email'):
+                author_info += f"<br/><em>{sanitize_text(author['email'])}</em>"
+            
+            # Fallback to 'affiliation' if structured fields not available
+            if not any(author.get(field) for field in fields) and author.get('affiliation'):
+                author_info += f"<br/><em>{sanitize_text(author['affiliation'])}</em>"
+            
+            authors_html += f'<td style="width: {100/num_authors:.1f}%; vertical-align: top; padding: 8px; border: none;">{author_info}</td>'
         
         authors_html += '</tr></table>'
     else:
