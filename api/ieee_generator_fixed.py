@@ -975,7 +975,8 @@ def generate_ieee_html_preview(form_data):
     authors_html = ''
     if authors:
         num_authors = len(authors)
-        authors_html = f'<table style="width: 100%; border-collapse: collapse; margin: 0 auto; text-align: center; table-layout: fixed; display: table;"><tr>'
+        # Use inline-block for robust cross-browser support with proper spacing
+        authors_html = f'<table style="width: 100%; border-collapse: collapse; margin: 0 auto; text-align: center; table-layout: fixed; display: table; box-sizing: border-box;"><tr style="display: table-row; width: 100%;">'
         
         for idx, author in enumerate(authors):
             # Author Name (bold)
@@ -996,7 +997,9 @@ def generate_ieee_html_preview(form_data):
             if not any(author.get(field) for field in fields) and author.get('affiliation'):
                 author_info += f"<br/><em>{sanitize_text(author['affiliation'])}</em>"
             
-            authors_html += f'<td style="width: {100/num_authors:.1f}%; vertical-align: top; padding: 8px; border: none; display: table-cell;">{author_info}</td>'
+            # Enhanced cell styling with box-sizing for proper width calculation
+            col_width = 100 / num_authors
+            authors_html += f'<td style="width: {col_width:.1f}%; vertical-align: top; padding: 8px; border: none; display: table-cell; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">{author_info}</td>'
         
         authors_html += '</tr></table>'
     else:
