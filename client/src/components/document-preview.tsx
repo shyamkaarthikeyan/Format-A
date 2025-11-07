@@ -46,187 +46,240 @@ interface DocumentPreviewProps {
 
 // Client-side PDF generation function using jsPDF
 function generateClientSidePDF(document: Document): Blob {
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'pt',
-    format: 'a4',
-  });
+  try {
+    // Validate document data
+    if (!document) {
+      throw new Error('Document data is missing');
+    }
 
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 54; // 0.75 inch margin
-  const contentWidth = pageWidth - 2 * margin;
-  let currentY = margin;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 54; // 0.75 inch margin
+    const contentWidth = pageWidth - 2 * margin;
+    let currentY = margin;
 
   // Helper function to add text with word wrapping
   const addText = (text: string, fontSize: number, fontStyle: string = 'normal', align: 'left' | 'center' = 'left') => {
-    pdf.setFontSize(fontSize);
-    pdf.setFont('times', fontStyle);
-    
-    const lines = pdf.splitTextToSize(text, contentWidth);
-    
-    for (let i = 0; i < lines.length; i++) {
-      // Check if we need a new page
-      if (currentY + fontSize > pageHeight - margin) {
-        pdf.addPage();
-        currentY = margin;
+    try {
+      if (!text || typeof text !== 'string') {
+        console.warn('Invalid text provided to addText:', text);
+        return currentY;
       }
+
+      pdf.setFontSize(fontSize);
+      pdf.setFont('times', fontStyle);
       
-      if (align === 'center') {
-        const textWidth = pdf.getTextWidth(lines[i]);
-        pdf.text(lines[i], (pageWidth - textWidth) / 2, currentY);
-      } else {
-        pdf.text(lines[i], margin, currentY);
-      }
+      const lines = pdf.splitTextToSize(text, contentWidth);
       
-      currentY += fontSize + 4; // Add line spacing
-    }
-    
-    return currentY;
-  };
-
-  // Title
-  if (document.title) {
-    pdf.setFontSize(24);
-    pdf.setFont('times', 'bold');
-    const titleWidth = pdf.getTextWidth(document.title);
-    pdf.text(document.title, (pageWidth - titleWidth) / 2, currentY);
-    currentY += 40;
-  }
-
-  // Authors
-  if (document.authors && document.authors.length > 0) {
-    const authorNames = document.authors
-      .filter(author => author.name)
-      .map(author => author.name)
-      .join(', ');
-    
-    if (authorNames) {
-      pdf.setFontSize(12);
-      pdf.setFont('times', 'normal');
-      const authorWidth = pdf.getTextWidth(authorNames);
-      pdf.text(authorNames, (pageWidth - authorWidth) / 2, currentY);
-      currentY += 30;
-    }
-  }
-
-  // Abstract
-  if (document.abstract) {
-    currentY += 10;
-    pdf.setFontSize(10);
-    pdf.setFont('times', 'italic');
-    pdf.text('Abstract—', margin, currentY);
-    currentY += 14;
-    
-    pdf.setFont('times', 'normal');
-    const abstractLines = pdf.splitTextToSize(document.abstract, contentWidth);
-    abstractLines.forEach((line: string) => {
-      if (currentY + 10 > pageHeight - margin) {
-        pdf.addPage();
-        currentY = margin;
-      }
-      pdf.text(line, margin, currentY);
-      currentY += 12;
-    });
-    currentY += 10;
-  }
-
-  // Keywords
-  if (document.keywords) {
-    pdf.setFontSize(10);
-    pdf.setFont('times', 'italic');
-    pdf.text('Keywords—', margin, currentY);
-    currentY += 14;
-    
-    pdf.setFont('times', 'normal');
-    const keywordLines = pdf.splitTextToSize(document.keywords, contentWidth);
-    keywordLines.forEach((line: string) => {
-      if (currentY + 10 > pageHeight - margin) {
-        pdf.addPage();
-        currentY = margin;
-      }
-      pdf.text(line, margin, currentY);
-      currentY += 12;
-    });
-    currentY += 20;
-  }
-
-  // Sections
-  if (document.sections && document.sections.length > 0) {
-    document.sections.forEach((section, index) => {
-      if (section.title) {
-        // Section title
-        currentY += 10;
-        pdf.setFontSize(12);
-        pdf.setFont('times', 'bold');
-        const sectionTitle = `${index + 1}. ${section.title}`;
-        
-        if (currentY + 12 > pageHeight - margin) {
+      for (let i = 0; i < lines.length; i++) {
+        // Check if we need a new page
+        if (currentY + fontSize > pageHeight - margin) {
           pdf.addPage();
           currentY = margin;
         }
         
-        pdf.text(sectionTitle, margin, currentY);
-        currentY += 20;
+        if (align === 'center') {
+          const textWidth = pdf.getTextWidth(lines[i]);
+          pdf.text(lines[i], (pageWidth - textWidth) / 2, currentY);
+        } else {
+          pdf.text(lines[i], margin, currentY);
+        }
         
-        // Section content
-        if (section.content) {
-          pdf.setFontSize(10);
-          pdf.setFont('times', 'normal');
-          const contentLines = pdf.splitTextToSize(section.content, contentWidth);
-          contentLines.forEach((line: string) => {
-            if (currentY + 10 > pageHeight - margin) {
+        currentY += fontSize + 4; // Add line spacing
+      }
+      
+      return currentY;
+    } catch (error) {
+      console.error('Error in addText:', error);
+      return currentY;
+    }
+  };
+
+  // Title
+  if (document.title && typeof document.title === 'string') {
+    try {
+      pdf.setFontSize(24);
+      pdf.setFont('times', 'bold');
+      const titleWidth = pdf.getTextWidth(document.title);
+      pdf.text(document.title, (pageWidth - titleWidth) / 2, currentY);
+      currentY += 40;
+    } catch (error) {
+      console.error('Error adding title:', error);
+    }
+  }
+
+  // Authors
+  if (document.authors && Array.isArray(document.authors) && document.authors.length > 0) {
+    try {
+      const authorNames = document.authors
+        .filter(author => author && author.name && typeof author.name === 'string')
+        .map(author => author.name)
+        .join(', ');
+      
+      if (authorNames) {
+        pdf.setFontSize(12);
+        pdf.setFont('times', 'normal');
+        const authorWidth = pdf.getTextWidth(authorNames);
+        pdf.text(authorNames, (pageWidth - authorWidth) / 2, currentY);
+        currentY += 30;
+      }
+    } catch (error) {
+      console.error('Error adding authors:', error);
+    }
+  }
+
+  // Abstract
+  if (document.abstract && typeof document.abstract === 'string') {
+    try {
+      currentY += 10;
+      pdf.setFontSize(10);
+      pdf.setFont('times', 'italic');
+      pdf.text('Abstract—', margin, currentY);
+      currentY += 14;
+      
+      pdf.setFont('times', 'normal');
+      const abstractLines = pdf.splitTextToSize(document.abstract, contentWidth);
+      abstractLines.forEach((line: string) => {
+        if (currentY + 10 > pageHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+        }
+        pdf.text(line, margin, currentY);
+        currentY += 12;
+      });
+      currentY += 10;
+    } catch (error) {
+      console.error('Error adding abstract:', error);
+    }
+  }
+
+  // Keywords
+  if (document.keywords && typeof document.keywords === 'string') {
+    try {
+      pdf.setFontSize(10);
+      pdf.setFont('times', 'italic');
+      pdf.text('Keywords—', margin, currentY);
+      currentY += 14;
+      
+      pdf.setFont('times', 'normal');
+      const keywordLines = pdf.splitTextToSize(document.keywords, contentWidth);
+      keywordLines.forEach((line: string) => {
+        if (currentY + 10 > pageHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+        }
+        pdf.text(line, margin, currentY);
+        currentY += 12;
+      });
+      currentY += 20;
+    } catch (error) {
+      console.error('Error adding keywords:', error);
+    }
+  }
+
+  // Sections
+  if (document.sections && Array.isArray(document.sections) && document.sections.length > 0) {
+    try {
+      document.sections.forEach((section, index) => {
+        if (section && section.title && typeof section.title === 'string') {
+          try {
+            // Section title
+            currentY += 10;
+            pdf.setFontSize(12);
+            pdf.setFont('times', 'bold');
+            const sectionTitle = `${index + 1}. ${section.title}`;
+            
+            if (currentY + 12 > pageHeight - margin) {
               pdf.addPage();
               currentY = margin;
             }
-            pdf.text(line, margin, currentY);
-            currentY += 12;
-          });
-          currentY += 10;
+            
+            pdf.text(sectionTitle, margin, currentY);
+            currentY += 20;
+            
+            // Section content (check both 'content' and 'body' properties)
+            const sectionContent = (section as any).content || (section as any).body;
+            if (sectionContent && typeof sectionContent === 'string') {
+              pdf.setFontSize(10);
+              pdf.setFont('times', 'normal');
+              const contentLines = pdf.splitTextToSize(sectionContent, contentWidth);
+              contentLines.forEach((line: string) => {
+                if (currentY + 10 > pageHeight - margin) {
+                  pdf.addPage();
+                  currentY = margin;
+                }
+                pdf.text(line, margin, currentY);
+                currentY += 12;
+              });
+              currentY += 10;
+            }
+          } catch (sectionError) {
+            console.error('Error adding section:', section.title, sectionError);
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Error adding sections:', error);
+    }
   }
 
   // References
-  if (document.references && document.references.length > 0) {
-    currentY += 20;
-    
-    // References heading
-    pdf.setFontSize(12);
-    pdf.setFont('times', 'bold');
-    
-    if (currentY + 12 > pageHeight - margin) {
-      pdf.addPage();
-      currentY = margin;
-    }
-    
-    pdf.text('References', margin, currentY);
-    currentY += 20;
-    
-    // Reference list
-    pdf.setFontSize(9);
-    pdf.setFont('times', 'normal');
-    
-    document.references.forEach((ref, index) => {
-      if (ref.text) {
-        const refText = `[${index + 1}] ${ref.text}`;
-        const refLines = pdf.splitTextToSize(refText, contentWidth);
-        
-        refLines.forEach((line: string) => {
-          if (currentY + 9 > pageHeight - margin) {
-            pdf.addPage();
-            currentY = margin;
-          }
-          pdf.text(line, margin, currentY);
-          currentY += 11;
-        });
-        currentY += 5;
+  if (document.references && Array.isArray(document.references) && document.references.length > 0) {
+    try {
+      currentY += 20;
+      
+      // References heading
+      pdf.setFontSize(12);
+      pdf.setFont('times', 'bold');
+      
+      if (currentY + 12 > pageHeight - margin) {
+        pdf.addPage();
+        currentY = margin;
       }
-    });
+      
+      pdf.text('References', margin, currentY);
+      currentY += 20;
+      
+      // Reference list
+      pdf.setFontSize(9);
+      pdf.setFont('times', 'normal');
+      
+      document.references.forEach((ref, index) => {
+        if (ref && ref.text && typeof ref.text === 'string') {
+          try {
+            const refText = `[${index + 1}] ${ref.text}`;
+            const refLines = pdf.splitTextToSize(refText, contentWidth);
+            
+            refLines.forEach((line: string) => {
+              if (currentY + 9 > pageHeight - margin) {
+                pdf.addPage();
+                currentY = margin;
+              }
+              pdf.text(line, margin, currentY);
+              currentY += 11;
+            });
+            currentY += 5;
+          } catch (refError) {
+            console.error('Error adding reference:', ref.text, refError);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error adding references:', error);
+    }
   }
 
-  return pdf.output('blob');
+    return pdf.output('blob');
+  } catch (error) {
+    console.error('Error in generateClientSidePDF:', error);
+    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export default function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
