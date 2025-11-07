@@ -4,21 +4,47 @@ import os
 import base64
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler
+import urllib.request
+import urllib.parse
 
 # Add the server directory to Python path to import the IEEE generator
 current_dir = os.path.dirname(os.path.abspath(__file__))
 server_dir = os.path.join(current_dir, '..', '..', 'server')
 sys.path.insert(0, server_dir)
 
-try:
-    # Import the generate function from the IEEE generator
-    sys.path.append('/var/task/server')  # Vercel's task directory
-    from ieee_generator_fixed import generate_ieee_document
-except ImportError as e:
-    print(f"Import error: {e}", file=sys.stderr)
-    # Create a fallback function
-    def generate_ieee_document(data):
-        raise Exception(f"IEEE generator not available: {e}")
+# Try multiple import paths for Vercel deployment
+def get_ieee_generator():
+    """Get the IEEE generator function with multiple fallback paths"""
+    try:
+        # Try importing from api directory (local copy)
+        api_dir = os.path.join(current_dir, '..', '..')
+        sys.path.insert(0, api_dir)
+        from ieee_generator_fixed import generate_ieee_document
+        return generate_ieee_document
+    except ImportError:
+        try:
+            # Try importing from server directory
+            sys.path.append('/var/task/server')
+            from ieee_generator_fixed import generate_ieee_document
+            return generate_ieee_document
+        except ImportError:
+            try:
+                # Try importing from current directory
+                sys.path.append('/var/task')
+                from server.ieee_generator_fixed import generate_ieee_document
+                return generate_ieee_document
+            except ImportError:
+                try:
+                    # Try importing from api directory (Vercel path)
+                    sys.path.append('/var/task/api')
+                    from ieee_generator_fixed import generate_ieee_document
+                    return generate_ieee_document
+                except ImportError:
+                    # Return None if all imports fail
+                    return None
+
+# Get the generator function
+generate_ieee_document = get_ieee_generator()
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -65,37 +91,59 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(error_response.encode())
                 return
             
-            # Generate the DOCX document using the reliable IEEE generator
+            # ALWAYS try Python backend first in production (Vercel environment)
+            # This ensures consistent behavior and leverages the dedicated Python service
+            print("Attempting to proxy to Python backend for preview generation", file=sys.stderr)
+            
             try:
-                docx_buffer = generate_ieee_document(document_data)
-                print("DOCX generated successfully", file=sys.stderr)
-                
-                # Create a simple HTML preview instead of images (more reliable)
-                preview_html = self._create_html_preview(document_data)
-                
-                self.end_headers()
-                response = json.dumps({
-                    'success': True,
-                    'preview_type': 'html',
-                    'html_content': preview_html,
-                    'message': 'Preview generated successfully'
-                })
-                self.wfile.write(response.encode())
-                
-            except Exception as docx_error:
-                print(f"DOCX generation failed: {docx_error}", file=sys.stderr)
-                
-                # Still provide a basic preview based on the data
-                preview_html = self._create_html_preview(document_data)
-                
-                self.end_headers()
-                response = json.dumps({
-                    'success': True,
-                    'preview_type': 'html',
-                    'html_content': preview_html,
-                    'message': 'Basic preview generated (downloads will have full IEEE formatting)'
-                })
-                self.wfile.write(response.encode())
+                # Try to proxy to the Python backend
+                python_response = self._proxy_to_python_backend(document_data)
+                if python_response:
+                    print("✅ Successfully proxied to Python backend", file=sys.stderr)
+                    self.end_headers()
+                    self.wfile.write(json.dumps(python_response).encode())
+                    return
+            except Exception as proxy_error:
+                print(f"⚠️ Python backend proxy failed: {proxy_error}", file=sys.stderr)
+            
+            # Fallback: Try local IEEE generator only if Python backend fails
+            if generate_ieee_document is not None:
+                try:
+                    print("Falling back to local IEEE generator", file=sys.stderr)
+                    docx_buffer = generate_ieee_document(document_data)
+                    print("DOCX generated successfully with local generator", file=sys.stderr)
+                    
+                    # Create a simple HTML preview instead of images (more reliable)
+                    preview_html = self._create_html_preview(document_data)
+                    
+                    self.end_headers()
+                    response = json.dumps({
+                        'success': True,
+                        'preview_type': 'html',
+                        'html_content': preview_html,
+                        'message': 'Preview generated successfully (local fallback)'
+                    })
+                    self.wfile.write(response.encode())
+                    return
+                    
+                except Exception as docx_error:
+                    print(f"Local DOCX generation failed: {docx_error}", file=sys.stderr)
+            else:
+                print("Local IEEE generator not available", file=sys.stderr)
+            
+            # Final fallback: Basic HTML preview
+            print("Using basic HTML preview as final fallback", file=sys.stderr)
+            preview_html = self._create_html_preview(document_data)
+            
+            self.end_headers()
+            response = json.dumps({
+                'success': True,
+                'preview_type': 'html',
+                'html_content': preview_html,
+                'message': 'Basic preview generated (Python backend unavailable - downloads will have full IEEE formatting)',
+                'fallback': True
+            })
+            self.wfile.write(response.encode())
             
         except json.JSONDecodeError as e:
             self.send_response(400)
@@ -249,3 +297,97 @@ class handler(BaseHTTPRequestHandler):
         """
         
         return html
+
+    def _proxy_to_python_backend(self, document_data):
+        """Proxy the request to the Python backend with comprehensive retry logic"""
+        try:
+            # Try multiple Python backend URLs for reliability
+            backend_urls = [
+                "https://format-a-python-backend.vercel.app/api/document-generator",
+                "https://format-a-python.vercel.app/api/document-generator"
+            ]
+            
+            # Retry configuration
+            max_retries = 3
+            base_delay = 1.0  # seconds
+            backoff_multiplier = 2
+            
+            for backend_url in backend_urls:
+                print(f"Attempting to proxy to: {backend_url}", file=sys.stderr)
+                
+                # Try each URL with retry logic
+                for attempt in range(max_retries + 1):
+                    try:
+                        # Calculate delay for exponential backoff
+                        if attempt > 0:
+                            delay = base_delay * (backoff_multiplier ** (attempt - 1))
+                            print(f"Retrying {backend_url} after {delay}s delay (attempt {attempt + 1})", file=sys.stderr)
+                            import time
+                            time.sleep(delay)
+                        
+                        # Prepare the request data
+                        request_data = json.dumps(document_data).encode('utf-8')
+                        
+                        # Create the request with proper headers
+                        req = urllib.request.Request(
+                            backend_url,
+                            data=request_data,
+                            headers={
+                                'Content-Type': 'application/json',
+                                'Content-Length': str(len(request_data)),
+                                'User-Agent': 'Format-A-Proxy/1.0',
+                                'X-Retry-Attempt': str(attempt + 1),
+                                'X-Source': 'format-a-main-app'
+                            },
+                            method='POST'
+                        )
+                        
+                        # Make the request with timeout
+                        timeout = 30 + (attempt * 10)  # Increase timeout with retries
+                        with urllib.request.urlopen(req, timeout=timeout) as response:
+                            response_body = response.read().decode('utf-8')
+                            
+                            if response.status == 200:
+                                response_data = json.loads(response_body)
+                                print(f"✅ Successfully proxied to Python backend: {backend_url} (attempt {attempt + 1})", file=sys.stderr)
+                                print(f"Response preview: {str(response_data)[:200]}...", file=sys.stderr)
+                                return response_data
+                            elif response.status in [500, 502, 503, 504]:
+                                # Server errors - retry
+                                print(f"⚠️ Server error {response.status} from {backend_url}, will retry", file=sys.stderr)
+                                if attempt == max_retries:
+                                    print(f"❌ Max retries reached for {backend_url}", file=sys.stderr)
+                                continue
+                            else:
+                                # Client errors - don't retry
+                                print(f"❌ Client error {response.status} from {backend_url}: {response_body[:200]}", file=sys.stderr)
+                                break
+                                
+                    except urllib.error.HTTPError as http_err:
+                        if http_err.code in [500, 502, 503, 504] and attempt < max_retries:
+                            print(f"⚠️ HTTP error {http_err.code} for {backend_url}, retrying...", file=sys.stderr)
+                            continue
+                        else:
+                            print(f"❌ HTTP error for {backend_url}: {http_err.code} - {http_err.reason}", file=sys.stderr)
+                            break
+                    except urllib.error.URLError as url_err:
+                        if attempt < max_retries:
+                            print(f"⚠️ URL error for {backend_url}, retrying: {url_err.reason}", file=sys.stderr)
+                            continue
+                        else:
+                            print(f"❌ URL error for {backend_url}: {url_err.reason}", file=sys.stderr)
+                            break
+                    except Exception as req_err:
+                        if attempt < max_retries and ('timeout' in str(req_err).lower() or 'network' in str(req_err).lower()):
+                            print(f"⚠️ Network error for {backend_url}, retrying: {req_err}", file=sys.stderr)
+                            continue
+                        else:
+                            print(f"❌ Request error for {backend_url}: {req_err}", file=sys.stderr)
+                            break
+            
+            print("❌ All Python backend URLs failed after retries", file=sys.stderr)
+            return None
+                    
+        except Exception as e:
+            print(f"❌ Failed to proxy to Python backend: {e}", file=sys.stderr)
+            return None

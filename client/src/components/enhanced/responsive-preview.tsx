@@ -6,6 +6,7 @@ import { TouchFriendlyButton } from '@/components/ui/touch-friendly-button';
 import { ResponsiveContainer } from '@/components/ui/responsive-container';
 import { ZoomIn, ZoomOut, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { documentApi } from '@/lib/api';
 import type { Document } from '@shared/schema';
 
 interface ResponsivePreviewProps {
@@ -46,29 +47,64 @@ export const ResponsivePreview = withPerformanceOptimization<ResponsivePreviewPr
 
       setError(null);
 
-      const response = await fetch('/api/generate/docx-to-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(doc),
-      });
+      try {
+        console.log('Generating preview using Python backend API...');
+        const result = await documentApi.generatePdf(doc, true); // true = preview mode
+        
+        if (result.file_data) {
+          // Convert base64 to blob for preview
+          const byteCharacters = atob(result.file_data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          
+          // Clean up previous URL
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+          }
 
-      if (!response.ok) {
-        throw new Error(`Failed to generate PDF: ${response.statusText}`);
+          const url = URL.createObjectURL(blob);
+          setPdfUrl(url);
+          onPreviewGenerated?.(url);
+        } else {
+          throw new Error('Invalid response format from preview generation service');
+        }
+      } catch (error) {
+        console.error('Python backend preview failed, trying fallback:', error);
+        
+        // Fallback to Node.js endpoint
+        try {
+          const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(doc),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to generate PDF: ${response.statusText}`);
+          }
+
+          const blob = await response.blob();
+          if (blob.size === 0) {
+            throw new Error('Generated PDF is empty');
+          }
+
+          // Clean up previous URL
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+          }
+
+          const url = URL.createObjectURL(blob);
+          setPdfUrl(url);
+          onPreviewGenerated?.(url);
+        } catch (fallbackError) {
+          console.error('Fallback preview generation also failed:', fallbackError);
+          throw fallbackError;
+        }
       }
-
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error('Generated PDF is empty');
-      }
-
-      // Clean up previous URL
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
-
-      const url = URL.createObjectURL(blob);
-      setPdfUrl(url);
-      onPreviewGenerated?.(url);
     }, [pdfUrl, onPreviewGenerated]);
 
     // Use debounced preview hook

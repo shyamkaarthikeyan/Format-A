@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { EnhancedCard } from '@/components/ui/enhanced-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { documentApi } from '@/lib/api';
 import DocumentStructureVisualizer from './document-structure-visualizer';
 import type { Document } from '@shared/schema';
 
@@ -62,22 +63,49 @@ export default function EnhancedPreviewSystem({
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/generate/docx-to-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(document),
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
+      console.log('Generating preview using Python backend API...');
+      const result = await documentApi.generatePdf(document, true); // true = preview mode
+      
+      if (result.file_data) {
+        // Convert base64 to blob for preview
+        const byteCharacters = atob(result.file_data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        
         if (pdfUrl) {
           URL.revokeObjectURL(pdfUrl);
         }
         const url = URL.createObjectURL(blob);
         setPdfUrl(url);
+      } else {
+        throw new Error('Invalid response format from preview generation service');
       }
     } catch (error) {
-      console.error('Preview generation failed:', error);
+      console.error('Python backend preview failed, trying fallback:', error);
+      
+      // Fallback to Node.js endpoint
+      try {
+        const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(document),
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+          }
+          const url = URL.createObjectURL(blob);
+          setPdfUrl(url);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback preview generation also failed:', fallbackError);
+      }
     } finally {
       setIsGenerating(false);
     }

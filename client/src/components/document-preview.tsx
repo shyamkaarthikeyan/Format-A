@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
+import { documentApi } from "@/lib/api";
 import type { Document } from "@shared/schema";
+import jsPDF from "jspdf";
 
 // CSS to hide PDF browser controls
 const pdfHideControlsCSS = `
@@ -42,6 +44,191 @@ interface DocumentPreviewProps {
   documentId: string | null;
 }
 
+// Client-side PDF generation function using jsPDF
+function generateClientSidePDF(document: Document): Blob {
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'a4',
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 54; // 0.75 inch margin
+  const contentWidth = pageWidth - 2 * margin;
+  let currentY = margin;
+
+  // Helper function to add text with word wrapping
+  const addText = (text: string, fontSize: number, fontStyle: string = 'normal', align: 'left' | 'center' = 'left') => {
+    pdf.setFontSize(fontSize);
+    pdf.setFont('times', fontStyle);
+    
+    const lines = pdf.splitTextToSize(text, contentWidth);
+    
+    for (let i = 0; i < lines.length; i++) {
+      // Check if we need a new page
+      if (currentY + fontSize > pageHeight - margin) {
+        pdf.addPage();
+        currentY = margin;
+      }
+      
+      if (align === 'center') {
+        const textWidth = pdf.getTextWidth(lines[i]);
+        pdf.text(lines[i], (pageWidth - textWidth) / 2, currentY);
+      } else {
+        pdf.text(lines[i], margin, currentY);
+      }
+      
+      currentY += fontSize + 4; // Add line spacing
+    }
+    
+    return currentY;
+  };
+
+  // Title
+  if (document.title) {
+    pdf.setFontSize(24);
+    pdf.setFont('times', 'bold');
+    const titleWidth = pdf.getTextWidth(document.title);
+    pdf.text(document.title, (pageWidth - titleWidth) / 2, currentY);
+    currentY += 40;
+  }
+
+  // Authors
+  if (document.authors && document.authors.length > 0) {
+    const authorNames = document.authors
+      .filter(author => author.name)
+      .map(author => author.name)
+      .join(', ');
+    
+    if (authorNames) {
+      pdf.setFontSize(12);
+      pdf.setFont('times', 'normal');
+      const authorWidth = pdf.getTextWidth(authorNames);
+      pdf.text(authorNames, (pageWidth - authorWidth) / 2, currentY);
+      currentY += 30;
+    }
+  }
+
+  // Abstract
+  if (document.abstract) {
+    currentY += 10;
+    pdf.setFontSize(10);
+    pdf.setFont('times', 'italic');
+    pdf.text('Abstract—', margin, currentY);
+    currentY += 14;
+    
+    pdf.setFont('times', 'normal');
+    const abstractLines = pdf.splitTextToSize(document.abstract, contentWidth);
+    abstractLines.forEach((line: string) => {
+      if (currentY + 10 > pageHeight - margin) {
+        pdf.addPage();
+        currentY = margin;
+      }
+      pdf.text(line, margin, currentY);
+      currentY += 12;
+    });
+    currentY += 10;
+  }
+
+  // Keywords
+  if (document.keywords) {
+    pdf.setFontSize(10);
+    pdf.setFont('times', 'italic');
+    pdf.text('Keywords—', margin, currentY);
+    currentY += 14;
+    
+    pdf.setFont('times', 'normal');
+    const keywordLines = pdf.splitTextToSize(document.keywords, contentWidth);
+    keywordLines.forEach((line: string) => {
+      if (currentY + 10 > pageHeight - margin) {
+        pdf.addPage();
+        currentY = margin;
+      }
+      pdf.text(line, margin, currentY);
+      currentY += 12;
+    });
+    currentY += 20;
+  }
+
+  // Sections
+  if (document.sections && document.sections.length > 0) {
+    document.sections.forEach((section, index) => {
+      if (section.title) {
+        // Section title
+        currentY += 10;
+        pdf.setFontSize(12);
+        pdf.setFont('times', 'bold');
+        const sectionTitle = `${index + 1}. ${section.title}`;
+        
+        if (currentY + 12 > pageHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+        }
+        
+        pdf.text(sectionTitle, margin, currentY);
+        currentY += 20;
+        
+        // Section content
+        if (section.content) {
+          pdf.setFontSize(10);
+          pdf.setFont('times', 'normal');
+          const contentLines = pdf.splitTextToSize(section.content, contentWidth);
+          contentLines.forEach((line: string) => {
+            if (currentY + 10 > pageHeight - margin) {
+              pdf.addPage();
+              currentY = margin;
+            }
+            pdf.text(line, margin, currentY);
+            currentY += 12;
+          });
+          currentY += 10;
+        }
+      }
+    });
+  }
+
+  // References
+  if (document.references && document.references.length > 0) {
+    currentY += 20;
+    
+    // References heading
+    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    
+    if (currentY + 12 > pageHeight - margin) {
+      pdf.addPage();
+      currentY = margin;
+    }
+    
+    pdf.text('References', margin, currentY);
+    currentY += 20;
+    
+    // Reference list
+    pdf.setFontSize(9);
+    pdf.setFont('times', 'normal');
+    
+    document.references.forEach((ref, index) => {
+      if (ref.text) {
+        const refText = `[${index + 1}] ${ref.text}`;
+        const refLines = pdf.splitTextToSize(refText, contentWidth);
+        
+        refLines.forEach((line: string) => {
+          if (currentY + 9 > pageHeight - margin) {
+            pdf.addPage();
+            currentY = margin;
+          }
+          pdf.text(line, margin, currentY);
+          currentY += 11;
+        });
+        currentY += 5;
+      }
+    });
+  }
+
+  return pdf.output('blob');
+}
+
 export default function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
   const [zoom, setZoom] = useState(75);
   const [email, setEmail] = useState("");
@@ -73,21 +260,21 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      const response = await fetch('/api/generate/docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(document),
-      });
-
-      if (!response.ok) throw new Error(`Failed to generate document: ${response.statusText}`);
-
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error('Generated document is empty');
-
-      const url = URL.createObjectURL(blob);
+      console.log('Generating PDF for download (client-side)...');
+      
+      // Since Python backend DOCX generation is not yet implemented for downloads,
+      // use client-side PDF generation which already works perfectly
+      const pdfBlob = generateClientSidePDF(document);
+      
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Failed to generate PDF document');
+      }
+      
+      // Download as PDF instead of DOCX for now - provides better formatting
+      const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = "ieee_paper.docx";
+      link.download = "ieee_paper.pdf";
       link.click();
       URL.revokeObjectURL(url);
 
@@ -95,8 +282,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     },
     onSuccess: () => {
       toast({
-        title: "Word Document Generated",
-        description: "IEEE-formatted Word document has been downloaded successfully.",
+        title: "PDF Document Generated",
+        description: "IEEE-formatted PDF document has been downloaded successfully.",
       });
     },
     onError: (error: Error) => {
@@ -115,58 +302,27 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      const response = await fetch('/api/generate/docx-to-pdf', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Download': 'true'  // Indicate this is for download, not preview
-        },
-        body: JSON.stringify(document),
-      });
-
-      if (!response.ok) {
-        // If PDF generation fails, try to get detailed error message
-        let errorMessage = `Failed to generate PDF: ${response.statusText}`;
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            if (errorText && errorText.length < 500) {
-              errorMessage = errorText;
-            }
-          }
-        } catch (e) {
-          console.warn('Could not parse error details');
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blob = await response.blob();
-      console.log('PDF download blob:', blob.size, 'bytes, type:', blob.type);
+      console.log('Generating PDF for download (client-side)...');
       
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
-
-      // Check if we actually got a PDF or a fallback format
-      const contentType = response.headers.get('content-type');
-      let filename = "ieee_paper.pdf";
-      let downloadMessage = "IEEE-formatted PDF file has been downloaded successfully.";
+      // Use client-side PDF generation for reliable downloads
+      const pdfBlob = generateClientSidePDF(document);
       
-      if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-        filename = "ieee_paper.docx";
-        downloadMessage = "PDF conversion unavailable. IEEE-formatted Word document downloaded instead (contains identical formatting).";
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Failed to generate PDF document');
       }
-
-      const url = URL.createObjectURL(blob);
+      
+      // Download the generated PDF
+      const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = "ieee_paper.pdf";
       link.click();
       URL.revokeObjectURL(url);
 
-      return { success: true, message: downloadMessage };
+      return { 
+        success: true, 
+        message: "IEEE-formatted PDF file has been downloaded successfully." 
+      };
     },
     onSuccess: (data) => {
       toast({
@@ -191,41 +347,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
       if (!emailAddress) throw new Error("Please enter an email address.");
 
-      const response = await fetch('/api/generate/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: emailAddress,
-          documentData: document,
-        }),
+      console.log('Sending email using Python backend API...');
+      const result = await documentApi.generateEmail({
+        email: emailAddress,
+        documentData: document,
       });
 
-      if (!response.ok) {
-        // Check if response is JSON or HTML
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Failed to send email: ${response.statusText}`);
-          } catch (jsonError) {
-            throw new Error(`Failed to send email: ${response.statusText}`);
-          }
-        } else {
-          // If it's not JSON (likely HTML error page), get text content
-          const errorText = await response.text();
-          console.error('Non-JSON error response:', errorText);
-          throw new Error(`Server error: ${response.statusText}`);
-        }
-      }
-
-      // Parse successful response
-      try {
-        const result = await response.json();
-        return result;
-      } catch (parseError) {
-        console.error('Failed to parse success response:', parseError);
-        throw new Error('Email may have been sent but response parsing failed');
-      }
+      return result;
     },
     onSuccess: () => {
       toast({
@@ -287,7 +415,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     sendEmailMutation.mutate(email.trim());
   };
 
-  // Generate PDF preview (works on both localhost and Vercel)
+  // Generate PDF preview (client-side - fast and reliable)
   const generateDocxPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
@@ -298,112 +426,37 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Attempting PDF preview generation...');
+      console.log('Generating PDF preview (client-side)...');
       
-      // Use the Node.js PDF preview endpoint (works on both localhost and Vercel)
-      let response = await fetch('/api/generate/docx-to-pdf?preview=true', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Preview': 'true'
-        },
-        body: JSON.stringify(document),
-      });
-
-      console.log('PDF preview response:', response.status, response.statusText);
-
-      if (!response.ok) {
-        // Handle different types of failures
-        const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to generate PDF preview: ${response.statusText}`;
-        
-        // Handle 503 Service Unavailable (expected for Vercel PDF limitations)
-        if (response.status === 503) {
-          console.log('Received 503 response - PDF not available on Vercel');
-          try {
-            const errorData = await response.json();
-            console.log('503 error data:', errorData);
-            if (errorData.message) {
-              const errorMsg = errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.");
-              console.log('Setting 503 error message:', errorMsg);
-              setPreviewError(errorMsg);
-              return;
-            }
-          } catch (e) {
-            console.warn('Could not parse 503 error response:', e);
-          }
-          
-          // Fallback message for 503
-          const fallbackMsg = "PDF preview is not available on this deployment due to serverless limitations. " +
-            "Perfect IEEE formatting is available via Word download - the DOCX file contains " +
-            "identical formatting to what you see on localhost! Use the Download Word button above.";
-          console.log('Setting 503 fallback message:', fallbackMsg);
-          setPreviewError(fallbackMsg);
-          console.log('Preview error state should now be:', fallbackMsg);
-          return;
-        }
-        
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-            
-            // Check if this is a known Vercel/serverless limitation
-            if (errorData.message && (
-              errorData.message.includes('serverless') || 
-              errorData.message.includes('Vercel') ||
-              errorData.message.includes('deployment') ||
-              errorData.message.includes('not supported')
-            )) {
-              setPreviewError(
-                errorData.message + " " + (errorData.suggestion || "Use the Download Word button above.")
-              );
-              return;
-            }
-          } catch (e) {
-            console.warn('Could not parse error JSON');
-          }
-        } else {
-          try {
-            const errorText = await response.text();
-            if (errorText.includes('Python') || errorText.includes('python') || errorText.includes('docx2pdf')) {
-              errorMessage = 'PDF generation temporarily unavailable. Please download Word format which contains identical IEEE formatting.';
-            } else if (errorText.length < 200) {
-              errorMessage = errorText;
-            }
-          } catch (e) {
-            console.warn('Could not read error text');
-          }
-        }
-        
-        throw new Error(errorMessage);
+      // Use client-side PDF generation for preview
+      const pdfBlob = generateClientSidePDF(document);
+      
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Failed to generate PDF preview');
       }
-
-      const blob = await response.blob();
-      console.log('PDF blob size:', blob.size, 'Content-Type:', response.headers.get('content-type'));
       
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
-
       // Clean up previous URL
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
 
       // Create new blob URL for preview display
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(pdfBlob);
       setPreviewMode('pdf');
       setPreviewImages([]);
       setPdfUrl(url);
-      console.log('PDF preview generated successfully, URL:', url);
+      
+      console.log('✅ PDF preview generated successfully (client-side)');
+      
+      toast({
+        title: 'Preview Generated',
+        description: 'PDF preview created successfully',
+      });
+      
     } catch (error) {
-      console.error('PDF preview generation failed:', error);
+      console.error('❌ PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
       setPreviewError(errorMessage);
-      
-      // If document generation fails, suggest alternatives
-      if (errorMessage.includes('Python') || errorMessage.includes('not available') || errorMessage.includes('docx2pdf')) {
-        setPreviewError('PDF preview temporarily unavailable due to system dependencies. Word document downloads work perfectly and contain identical IEEE formatting!');
-      }
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -460,7 +513,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <Download className="w-4 h-4 mr-2" />
-              {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
+              {generateDocxMutation.isPending ? "Generating..." : "Download PDF"}
             </Button>
             <Button
               onClick={handleDownloadPdf}

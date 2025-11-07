@@ -5,6 +5,7 @@ import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, Hist
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
+import { documentApi } from "@/lib/api";
 
 import DocumentForm from "@/components/document-form";
 import DocumentPreview from "@/components/document-preview";
@@ -193,24 +194,35 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
-      // Use proper IEEE generator instead of simple generator
-      const response = await fetch('/api/generate/docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentDocument),
-      });
-
-      if (!response.ok) throw new Error(`Failed to generate document: ${response.statusText}`);
-
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error('Generated document is empty');
-
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = "ieee_paper.docx";
-      link.click();
-      URL.revokeObjectURL(url);
+      console.log('Generating DOCX using Python backend API...');
+      const result = await documentApi.generateDocx(currentDocument);
+      
+      // Handle the response - it should contain download URL or blob data
+      if (result.download_url) {
+        // If we get a download URL, trigger download
+        const link = window.document.createElement('a');
+        link.href = result.download_url;
+        link.download = "ieee_paper.docx";
+        link.click();
+      } else if (result.file_data) {
+        // If we get base64 data, convert to blob and download
+        const byteCharacters = atob(result.file_data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        
+        const url = URL.createObjectURL(blob);
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = "ieee_paper.docx";
+        link.click();
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Invalid response format from document generation service');
+      }
 
       toast({
         title: "Word Document Generated",
@@ -238,27 +250,35 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
-      // Use proper IEEE PDF generator instead of simple generator
-      const response = await fetch('/api/generate/docx-to-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentDocument),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to generate PDF: ${response.statusText} - ${errorText}`);
+      console.log('Generating PDF using Python backend API...');
+      const result = await documentApi.generatePdf(currentDocument, false); // false = download mode
+      
+      // Handle the response - it should contain download URL or blob data
+      if (result.download_url) {
+        // If we get a download URL, trigger download
+        const link = window.document.createElement('a');
+        link.href = result.download_url;
+        link.download = "ieee_paper.pdf";
+        link.click();
+      } else if (result.file_data) {
+        // If we get base64 data, convert to blob and download
+        const byteCharacters = atob(result.file_data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        
+        const url = URL.createObjectURL(blob);
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = "ieee_paper.pdf";
+        link.click();
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Invalid response format from PDF generation service');
       }
-
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error('Generated PDF is empty');
-
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = "ieee_paper.pdf";
-      link.click();
-      URL.revokeObjectURL(url);
 
       toast({
         title: "PDF Generated",
