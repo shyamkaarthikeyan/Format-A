@@ -931,8 +931,9 @@ async function handleAdminSignout(req: VercelRequest, res: VercelResponse, db: a
   }
   
   return res.status(405).json({ error: 'Method not allowed' });
-}// Con
-solidated Auth Test Handler (from auth/test.ts)
+}
+
+// Consolidated Auth Test Handler (from auth/test.ts)
 async function handleAuthTest(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
