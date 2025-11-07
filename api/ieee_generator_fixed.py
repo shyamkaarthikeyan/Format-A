@@ -119,18 +119,27 @@ def add_title(doc, title):
     para.paragraph_format.space_after = Pt(12)
 
 def add_authors(doc, authors):
-    """Add authors with proper IEEE formatting - 3-column parallel layout."""
+    """Add authors with proper IEEE formatting - 3 authors per row, multiple rows if needed."""
     if not authors:
         return
     
     if len(authors) == 0:
         return
     
-    # Create table for IEEE 3-column author layout
-    num_authors = min(len(authors), 3)  # IEEE typically shows max 3 authors per row
-    table = doc.add_table(rows=1, cols=num_authors)
-    table.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    table.allow_autofit = True
+    # IEEE format: maximum 3 authors per row, create additional rows for more authors
+    authors_per_row = 3
+    total_authors = len(authors)
+    
+    # Process authors in groups of 3
+    for row_start in range(0, total_authors, authors_per_row):
+        row_end = min(row_start + authors_per_row, total_authors)
+        row_authors = authors[row_start:row_end]
+        num_cols = len(row_authors)
+        
+        # Create table for this row of authors
+        table = doc.add_table(rows=1, cols=num_cols)
+        table.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        table.allow_autofit = True
     
     # Set table width to full page width
     table.style = 'Table Grid'
@@ -138,8 +147,8 @@ def add_authors(doc, authors):
     table.style.font.size = IEEE_CONFIG['font_size_body']
     
     # Remove table borders for clean IEEE look
-    for row in table.rows:
-        for cell in row.cells:
+    for table_row in table.rows:
+        for cell in table_row.cells:
             # Remove all borders
             tc = cell._element
             tcPr = tc.get_or_add_tcPr()
@@ -150,18 +159,16 @@ def add_authors(doc, authors):
                 tcBorders.append(border)
             tcPr.append(tcBorders)
     
-    # Process each author in their own column
-    for idx, author in enumerate(authors[:num_authors]):
-        if not author.get('name'):
-            continue
+        # Process each author in this row
+        for col_idx, author in enumerate(row_authors):
+            if not author.get('name'):
+                continue
+                
+            cell = table.cell(0, col_idx)
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
             
-        cell = table.cell(0, idx)
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
-        
-        # Set equal column widths for proper IEEE layout
-        cell.width = Inches(2.0)  # Equal width columns
-        
-        # Add proper cell margins for IEEE spacing
+            # Set equal column widths - always use 3 column layout for consistency
+            cell.width = Inches(6.5 / 3)  # Always divide by 3 for consistent column width        # Add proper cell margins for IEEE spacing
         cell_element = cell._element
         cell_properties = cell_element.get_or_add_tcPr()
         margins = OxmlElement('w:tcMar')
@@ -169,7 +176,7 @@ def add_authors(doc, authors):
         # Set cell margins for proper IEEE author block spacing
         for side in ['left', 'right', 'top', 'bottom']:
             margin = OxmlElement(f'w:{side}')
-            margin.set(qn('w:w'), '144')  # 0.1 inch margins
+            margin.set(qn('w:w'), '72')  # 0.05 inch margins
             margin.set(qn('w:type'), 'dxa')
             margins.append(margin)
         cell_properties.append(margins)
@@ -185,70 +192,79 @@ def add_authors(doc, authors):
         name_run.font.size = IEEE_CONFIG['font_size_body']
         name_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         name_para.paragraph_format.space_before = Pt(0)
-        name_para.paragraph_format.space_after = Pt(6)
+        name_para.paragraph_format.space_after = Pt(3)
         
-        # Process affiliation - handle both string and structured data
-        affiliation_text = ""
-        if isinstance(author.get('affiliation'), str):
+        # Handle individual fields - department, organization, city, etc.
+        fields = [
+            ('department', 'Department'),
+            ('organization', 'Organization'), 
+            ('university', 'University'),
+            ('institution', 'Institution'),
+            ('city', 'City'),
+            ('state', 'State'),
+            ('country', 'Country')
+        ]
+        
+        # Add each field as a separate line if present
+        for field_key, field_name in fields:
+            if author.get(field_key):
+                field_para = cell.add_paragraph()
+                field_run = field_para.add_run(sanitize_text(author[field_key]))
+                field_run.italic = True  # IEEE standard: affiliations are italic
+                field_run.font.name = IEEE_CONFIG['font_name']
+                field_run.font.size = IEEE_CONFIG['font_size_body']
+                field_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                field_para.paragraph_format.space_before = Pt(0)
+                field_para.paragraph_format.space_after = Pt(2)
+        
+        # Process affiliation string if present (for backward compatibility)
+        if author.get('affiliation'):
             affiliation_text = author['affiliation']
-        elif isinstance(author.get('affiliation'), dict):
-            # Handle structured affiliation
-            affil_parts = []
-            for key in ['department', 'organization', 'university', 'institution']:
-                if author['affiliation'].get(key):
-                    affil_parts.append(author['affiliation'][key])
-            affiliation_text = '\n'.join(affil_parts)
+            if isinstance(affiliation_text, str):
+                affiliation_lines = affiliation_text.strip().split('\n')
+                for line in affiliation_lines:
+                    line = line.strip()
+                    if line and not line.lower().startswith('email'):  # Skip email lines here
+                        affil_para = cell.add_paragraph()
+                        affil_run = affil_para.add_run(sanitize_text(line))
+                        affil_run.italic = True  # IEEE standard: affiliations are italic
+                        affil_run.font.name = IEEE_CONFIG['font_name']
+                        affil_run.font.size = IEEE_CONFIG['font_size_body']
+                        affil_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        affil_para.paragraph_format.space_before = Pt(0)
+                        affil_para.paragraph_format.space_after = Pt(2)
         
-        # Handle legacy fields for backward compatibility
-        if not affiliation_text:
-            affil_parts = []
-            if author.get('department'):
-                affil_parts.append(author['department'])
-            if author.get('organization'):
-                affil_parts.append(author['organization'])
-            if author.get('university'):
-                affil_parts.append(author['university'])
-            if author.get('institution'):
-                affil_parts.append(author['institution'])
-            affiliation_text = '\n'.join(affil_parts)
-        
-        # Add affiliation lines - each line centered and italic
-        if affiliation_text:
-            affiliation_lines = affiliation_text.strip().split('\n')
-            for line in affiliation_lines:
-                line = line.strip()
-                if line and not line.lower().startswith('email'):  # Skip email lines here
-                    affil_para = cell.add_paragraph()
-                    affil_run = affil_para.add_run(sanitize_text(line))
-                    affil_run.italic = True  # IEEE standard: affiliations are italic
-                    affil_run.font.name = IEEE_CONFIG['font_name']
-                    affil_run.font.size = IEEE_CONFIG['font_size_body']
-                    affil_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    affil_para.paragraph_format.space_before = Pt(0)
-                    affil_para.paragraph_format.space_after = Pt(3)
-        
-        # Handle email separately - extract from affiliation or use email field
+        # Handle email field
         email = author.get('email', '')
-        if not email and affiliation_text:
-            # Try to extract email from affiliation text
-            import re
-            email_match = re.search(r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', affiliation_text)
-            if email_match:
-                email = email_match.group(1)
-        
-        # Add email if found
         if email:
             email_para = cell.add_paragraph()
             email_run = email_para.add_run(sanitize_text(email))
             email_run.font.name = IEEE_CONFIG['font_name']
             email_run.font.size = Pt(9)  # Slightly smaller for email
             email_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            email_para.paragraph_format.space_before = Pt(3)
+            email_para.paragraph_format.space_before = Pt(2)
             email_para.paragraph_format.space_after = Pt(0)
+        
+        # Add custom fields if any
+        for custom_field in author.get('custom_fields', []):
+            if custom_field.get('value'):
+                custom_para = cell.add_paragraph()
+                custom_run = custom_para.add_run(sanitize_text(custom_field['value']))
+                custom_run.italic = True
+                custom_run.font.name = IEEE_CONFIG['font_name']
+                custom_run.font.size = IEEE_CONFIG['font_size_body']
+                custom_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                custom_para.paragraph_format.space_before = Pt(0)
+                custom_para.paragraph_format.space_after = Pt(2)
+        
+        # Add spacing between author rows (but not after the last row)
+        if row_end < total_authors:
+            spacing_para = doc.add_paragraph()
+            spacing_para.paragraph_format.space_after = Pt(8)  # Space between author rows
     
-    # Add proper spacing after authors section
+    # Add proper spacing after all authors
     spacing_para = doc.add_paragraph()
-    spacing_para.paragraph_format.space_after = Pt(18)  # IEEE standard spacing
+    spacing_para.paragraph_format.space_after = Pt(12)  # IEEE standard spacing
 
 def add_abstract(doc, abstract):
     """Add the abstract section with italic title followed by justified content."""
