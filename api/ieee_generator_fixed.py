@@ -246,7 +246,6 @@ def add_authors(doc, authors):
                 email_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 email_para.paragraph_format.space_before = Pt(2)
                 email_para.paragraph_format.space_after = Pt(0)
-        
             
             # Add custom fields if any
             for custom_field in author.get('custom_fields', []):
@@ -960,6 +959,186 @@ def generate_ieee_document(form_data):
     doc.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
+
+def generate_ieee_html_preview(form_data):
+    """Generate HTML preview that matches IEEE formatting exactly"""
+    
+    # Extract document data
+    title = sanitize_text(form_data.get('title', 'Untitled Document'))
+    authors = form_data.get('authors', [])
+    abstract = sanitize_text(form_data.get('abstract', ''))
+    keywords = sanitize_text(form_data.get('keywords', ''))
+    sections = form_data.get('sections', [])
+    references = form_data.get('references', [])
+    
+    # Format authors in 3-column table format (IEEE standard)
+    authors_html = ''
+    if authors:
+        authors_html = '<table style="width: 100%; border-collapse: collapse; margin: 0 auto; text-align: center;"><tr>'
+        
+        for i, author in enumerate(authors):
+            if i > 0 and i % 3 == 0:  # Start new row every 3 authors
+                authors_html += '</tr><tr>'
+            
+            author_name = sanitize_text(author.get('name', ''))
+            author_affiliation = sanitize_text(author.get('affiliation', ''))
+            author_email = sanitize_text(author.get('email', ''))
+            
+            author_info = f"<strong>{author_name}</strong>"
+            if author_affiliation:
+                author_info += f"<br/><em>{author_affiliation}</em>"
+            if author_email:
+                author_info += f"<br/>{author_email}"
+            
+            authors_html += f'<td style="width: 33.33%; vertical-align: top; padding: 8px; border: none;">{author_info}</td>'
+        
+        # Fill remaining cells in the last row if needed
+        remaining_cells = 3 - (len(authors) % 3)
+        if remaining_cells < 3:
+            for _ in range(remaining_cells):
+                authors_html += '<td style="width: 33.33%; border: none;"></td>'
+        
+        authors_html += '</tr></table>'
+    else:
+        authors_html = '<div style="text-align: center; font-style: italic;">Anonymous</div>'
+    
+    # Create HTML with exact IEEE-like styling
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>{title}</title>
+        <style>
+            body {{
+                font-family: 'Times New Roman', serif;
+                font-size: 10pt;
+                line-height: 1.2;
+                margin: 0.75in;
+                background: white;
+                color: black;
+                text-align: justify;
+            }}
+            .ieee-title {{
+                font-size: 24pt;
+                font-weight: bold;
+                text-align: center;
+                margin: 20px 0;
+                line-height: 1.3;
+            }}
+            .ieee-authors {{
+                font-size: 10pt;
+                text-align: center;
+                margin: 15px 0;
+            }}
+            .ieee-section {{
+                margin: 15px 0;
+                text-align: justify;
+            }}
+            .ieee-abstract-title {{
+                font-weight: bold;
+                display: inline;
+            }}
+            .ieee-keywords-title {{
+                font-weight: bold;
+                display: inline;
+            }}
+            .ieee-heading {{
+                font-weight: bold;
+                margin: 15px 0 5px 0;
+                text-transform: uppercase;
+                font-size: 10pt;
+            }}
+            .ieee-reference {{
+                margin: 3px 0;
+                padding-left: 15px;
+                text-indent: -15px;
+                font-size: 9pt;
+            }}
+            .preview-note {{
+                background: #e8f4fd;
+                border: 1px solid #bee5eb;
+                padding: 12px;
+                margin: 20px 0;
+                font-size: 9pt;
+                color: #0c5460;
+                text-align: center;
+                border-radius: 4px;
+            }}
+            .content-block {{
+                margin: 10px 0;
+            }}
+            .figure-caption {{
+                font-size: 9pt;
+                text-align: center;
+                margin: 10px 0;
+                font-style: italic;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="preview-note">
+            📄 IEEE Live Preview - Downloads provide full formatting with exact IEEE compliance
+        </div>
+        
+        <div class="ieee-title">{title}</div>
+        <div class="ieee-authors">{authors_html}</div>
+    """
+    
+    # Add abstract
+    if abstract:
+        html += f"""
+        <div class="ieee-section">
+            <span class="ieee-abstract-title">Abstract—</span>{abstract}
+        </div>
+        """
+    
+    # Add keywords
+    if keywords:
+        html += f"""
+        <div class="ieee-section">
+            <span class="ieee-keywords-title">Index Terms—</span>{keywords}
+        </div>
+        """
+    
+    # Add sections with content blocks
+    for i, section in enumerate(sections, 1):
+        section_title = sanitize_text(section.get('title', ''))
+        if section_title:
+            html += f"""
+            <div class="ieee-heading">{i}. {section_title}</div>
+            """
+            
+            # Process content blocks within the section
+            content_blocks = section.get('contentBlocks', [])
+            for block in content_blocks:
+                block_type = block.get('type', 'text')
+                block_content = sanitize_text(block.get('content', ''))
+                
+                if block_type == 'text' and block_content:
+                    html += f'<div class="content-block">{block_content}</div>'
+                elif block_type == 'figure' and block_content:
+                    html += f'<div class="content-block figure-caption">Fig. {i}. {block_content}</div>'
+                elif block_type == 'equation' and block_content:
+                    html += f'<div class="content-block" style="text-align: center; margin: 15px 0;">{block_content}</div>'
+    
+    # Add references
+    if references:
+        html += '<div class="ieee-heading">References</div>'
+        for i, ref in enumerate(references, 1):
+            ref_text = sanitize_text(ref.get('text', ''))
+            if ref_text:
+                html += f'<div class="ieee-reference">[{i}] {ref_text}</div>'
+    
+    html += """
+        <div class="preview-note">
+            ✨ Complete IEEE formatting with proper typography, spacing, and layout available via Download buttons
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html
 
 def main():
     """Main function for command line execution."""
