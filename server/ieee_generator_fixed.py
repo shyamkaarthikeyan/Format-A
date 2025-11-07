@@ -175,7 +175,7 @@ def add_authors(doc, authors):
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
 def add_abstract(doc, abstract):
-    """Add the abstract section with bold title followed by content."""
+    """Add the abstract section with extensive XML justification controls."""
     if abstract:
         # Add abstract with bold title and content in same paragraph
         para = doc.add_paragraph()
@@ -185,14 +185,16 @@ def add_abstract(doc, abstract):
         title_run.bold = True
         title_run.font.name = IEEE_CONFIG['font_name']
         title_run.font.size = IEEE_CONFIG['font_size_body']
+        apply_advanced_run_formatting(title_run, char_spacing=-4)
         
         # Add abstract content immediately after (bold text)
         content_run = para.add_run(sanitize_text(abstract))
         content_run.bold = True
         content_run.font.name = IEEE_CONFIG['font_name']
         content_run.font.size = IEEE_CONFIG['font_size_body']
+        apply_advanced_run_formatting(content_run, char_spacing=-6)
         
-        # Apply advanced justification controls to abstract
+        # Apply basic paragraph formatting
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -201,27 +203,11 @@ def add_abstract(doc, abstract):
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
         
-        # Add advanced spacing controls to prevent word stretching
-        para_element = para._element
-        pPr = para_element.get_or_add_pPr()
-        
-        # Set justification method
-        jc = OxmlElement('w:jc')
-        jc.set(qn('w:val'), 'both')
-        pPr.append(jc)
-        
-        # Control text alignment
-        textAlignment = OxmlElement('w:textAlignment')
-        textAlignment.set(qn('w:val'), 'baseline')
-        pPr.append(textAlignment)
-        
-        # Prevent excessive word spacing
-        adjust_right_ind = OxmlElement('w:adjustRightInd')
-        adjust_right_ind.set(qn('w:val'), '0')
-        pPr.append(adjust_right_ind)
+        # Apply EXTENSIVE XML justification controls
+        apply_advanced_justification_controls(para)
 
 def add_keywords(doc, keywords):
-    """Add the keywords section with bold title followed by content."""
+    """Add the keywords section with extensive XML justification controls."""
     if keywords:
         # Add keywords with bold title and content in same paragraph
         para = doc.add_paragraph()
@@ -231,14 +217,16 @@ def add_keywords(doc, keywords):
         title_run.bold = True
         title_run.font.name = IEEE_CONFIG['font_name']
         title_run.font.size = IEEE_CONFIG['font_size_body']
+        apply_advanced_run_formatting(title_run, char_spacing=-4)
         
         # Add keywords content immediately after (bold text)
         content_run = para.add_run(sanitize_text(keywords))
         content_run.bold = True
         content_run.font.name = IEEE_CONFIG['font_name']
         content_run.font.size = IEEE_CONFIG['font_size_body']
+        apply_advanced_run_formatting(content_run, char_spacing=-6)
         
-        # Apply advanced justification controls to keywords
+        # Apply basic paragraph formatting
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = IEEE_CONFIG['line_spacing']
@@ -247,24 +235,8 @@ def add_keywords(doc, keywords):
         para.paragraph_format.line_spacing = IEEE_CONFIG['line_spacing']
         para.paragraph_format.line_spacing_rule = 0
         
-        # Add advanced spacing controls to prevent word stretching
-        para_element = para._element
-        pPr = para_element.get_or_add_pPr()
-        
-        # Set justification method
-        jc = OxmlElement('w:jc')
-        jc.set(qn('w:val'), 'both')
-        pPr.append(jc)
-        
-        # Control text alignment
-        textAlignment = OxmlElement('w:textAlignment')
-        textAlignment.set(qn('w:val'), 'baseline')
-        pPr.append(textAlignment)
-        
-        # Prevent excessive word spacing
-        adjust_right_ind = OxmlElement('w:adjustRightInd')
-        adjust_right_ind.set(qn('w:val'), '0')
-        pPr.append(adjust_right_ind)
+        # Apply EXTENSIVE XML justification controls
+        apply_advanced_justification_controls(para)
         
         # Minimal dummy paragraph to stabilize layout
         dummy_para = doc.add_paragraph("")
@@ -277,7 +249,7 @@ def add_keywords(doc, keywords):
             dummy_para.runs[0].font.size = Pt(1)
 
 def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, indent_right=None, space_before=None, space_after=None):
-    """Add a paragraph with optimized justification settings to prevent excessive word spacing - EXACT COPY from test.py."""
+    """Add a paragraph with EXTENSIVE XML justification controls for maximum word spacing precision."""
     para = doc.add_paragraph(sanitize_text(text))
     para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     
@@ -300,42 +272,41 @@ def add_justified_paragraph(doc, text, style_name='Normal', indent_left=None, in
     if indent_right is not None:
         para.paragraph_format.right_indent = indent_right
     
-    # Font formatting with controlled spacing - RESTORED from test.py
+    # Font formatting with EXTENSIVE character spacing controls
     if para.runs:
         run = para.runs[0]
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
         
-        # Moderate character spacing controls (not aggressive) - ESSENTIAL for proper justification
-        run_element = run._element
-        rPr = run_element.get_or_add_rPr()
-        
-        # Set moderate character spacing to reduce word gaps without breaking words
-        spacing_element = OxmlElement('w:spacing')
-        spacing_element.set(qn('w:val'), '-5')  # Slight compression to reduce gaps
-        rPr.append(spacing_element)
-        
-        # Prevent automatic text expansion but allow normal word flow
-        run_element.set(qn('w:fitText'), '0')
+        # Apply the most extensive character formatting
+        apply_advanced_run_formatting(run, char_spacing=-8)
     
-    # Paragraph-level justification controls - MODERATE approach
+    # Apply the most extensive paragraph justification controls
+    apply_advanced_justification_controls(para)
+    
+    # ADDITIONAL EXTREME XML MANIPULATION for maximum control
     para_element = para._element
     pPr = para_element.get_or_add_pPr()
     
-    # Use standard justification (not distribute) to keep words intact
-    jc = OxmlElement('w:jc')
-    jc.set(qn('w:val'), 'both')  # Standard justify - keeps words together
-    pPr.append(jc)
+    # Force text justification with mathematical precision
+    text_direction = OxmlElement('w:textDirection')
+    text_direction.set(qn('w:val'), 'lrTb')  # Left-to-right, top-to-bottom
+    pPr.append(text_direction)
     
-    # Control text alignment
-    textAlignment = OxmlElement('w:textAlignment')
-    textAlignment.set(qn('w:val'), 'baseline')
-    pPr.append(textAlignment)
+    # Control line breaking algorithm
+    line_break = OxmlElement('w:textboxTightWrap')
+    line_break.set(qn('w:val'), 'allLines')
+    pPr.append(line_break)
     
-    # Moderate spacing control - prevent excessive gaps but allow normal flow
-    adjust_right_ind = OxmlElement('w:adjustRightInd')
-    adjust_right_ind.set(qn('w:val'), '0')
-    pPr.append(adjust_right_ind)
+    # Prevent automatic hyphenation conflicts
+    suppress_auto_hyphens = OxmlElement('w:suppressAutoHyphens')
+    suppress_auto_hyphens.set(qn('w:val'), '0')
+    pPr.append(suppress_auto_hyphens)
+    
+    # Force consistent baseline
+    baseline_alignment = OxmlElement('w:baseline')
+    baseline_alignment.set(qn('w:val'), '0')
+    pPr.append(baseline_alignment)
     
     return para
 
@@ -562,6 +533,63 @@ def add_section(doc, section_data, section_idx, is_first_section=False):
     # Call the recursive function to add all subsections
     add_subsection_recursive(section_data.get('subsections', []), section_idx)
 
+def process_content_block(doc, block):
+    """Process individual content blocks with advanced formatting."""
+    if block.get('type') == 'text' and block.get('content'):
+        add_formatted_paragraph(
+            doc, 
+            block['content'],
+            indent_left=IEEE_CONFIG['column_indent'],
+            indent_right=IEEE_CONFIG['column_indent'],
+            space_before=Pt(3),
+            space_after=Pt(12)
+        )
+    elif block.get('type') == 'image' and block.get('data') and block.get('caption'):
+        # Handle image blocks with advanced formatting
+        import base64
+        try:
+            size = block.get('size', 'medium')
+            size_mapping = {
+                'very-small': 'Very Small',
+                'small': 'Small', 
+                'medium': 'Medium',
+                'large': 'Large'
+            }
+            mapped_size = size_mapping.get(size, 'Medium')
+            width = IEEE_CONFIG['figure_sizes'].get(mapped_size, IEEE_CONFIG['figure_sizes']['Medium'])
+            
+            image_data = block['data']
+            if ',' in image_data:
+                image_data = image_data.split(',')[1]
+            
+            image_bytes = base64.b64decode(image_data)
+            image_stream = BytesIO(image_bytes)
+            
+            para = doc.add_paragraph()
+            run = para.add_run()
+            picture = run.add_picture(image_stream, width=width)
+            if picture.height > IEEE_CONFIG['max_figure_height']:
+                scale_factor = IEEE_CONFIG['max_figure_height'] / picture.height
+                run.clear()
+                run.add_picture(image_stream, width=width * scale_factor, height=IEEE_CONFIG['max_figure_height'])
+            
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            para.paragraph_format.space_before = Pt(6)
+            para.paragraph_format.space_after = Pt(6)
+            
+            # Caption with advanced formatting
+            caption = doc.add_paragraph(f"Figure: {sanitize_text(block['caption'])}")
+            caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            caption.paragraph_format.space_before = Pt(0)
+            caption.paragraph_format.space_after = Pt(12)
+            if caption.runs:
+                caption.runs[0].font.name = IEEE_CONFIG['font_name']
+                caption.runs[0].font.size = IEEE_CONFIG['font_size_caption']
+                apply_advanced_run_formatting(caption.runs[0], char_spacing=-4)
+        except Exception as e:
+            print(f"Error processing image block: {e}", file=sys.stderr)
+
+
 class HTMLToWordParser(HTMLParser):
     """Parse HTML content and apply formatting to Word document."""
     
@@ -619,11 +647,108 @@ class HTMLToWordParser(HTMLParser):
         self._flush_text()
         super().close()
 
+def apply_advanced_justification_controls(para):
+    """Apply extensive XML manipulation for precise word spacing control."""
+    para_element = para._element
+    pPr = para_element.get_or_add_pPr()
+    
+    # EXTENSIVE JUSTIFICATION CONTROLS - Maximum XML manipulation
+    
+    # 1. Primary justification method - force full justification
+    jc = OxmlElement('w:jc')
+    jc.set(qn('w:val'), 'both')  # Full justify both sides
+    pPr.append(jc)
+    
+    # 2. Text alignment - prevent baseline drift
+    textAlignment = OxmlElement('w:textAlignment')
+    textAlignment.set(qn('w:val'), 'baseline')
+    pPr.append(textAlignment)
+    
+    # 3. Advanced spacing distribution control
+    spacing_distribute = OxmlElement('w:spacingInWholePoints')
+    spacing_distribute.set(qn('w:val'), '1')
+    pPr.append(spacing_distribute)
+    
+    # 4. Disable automatic right indent adjustment
+    adjust_right_ind = OxmlElement('w:adjustRightInd')
+    adjust_right_ind.set(qn('w:val'), '0')
+    pPr.append(adjust_right_ind)
+    
+    # 5. Force exact character placement
+    char_spacing = OxmlElement('w:characterSpacingControl')
+    char_spacing.set(qn('w:val'), 'doNotCompress')
+    pPr.append(char_spacing)
+    
+    # 6. Prevent word breaking
+    word_wrap = OxmlElement('w:wordWrap')
+    word_wrap.set(qn('w:val'), '0')
+    pPr.append(word_wrap)
+    
+    # 7. Control punctuation kerning
+    punct_kerning = OxmlElement('w:overflowPunct')
+    punct_kerning.set(qn('w:val'), '0')
+    pPr.append(punct_kerning)
+    
+    # 8. Hanging punctuation control
+    hanging_punct = OxmlElement('w:hangingPunct')
+    hanging_punct.set(qn('w:val'), '0')
+    pPr.append(hanging_punct)
+    
+    # 9. Snap to grid for consistent spacing
+    snap_to_grid = OxmlElement('w:snapToGrid')
+    snap_to_grid.set(qn('w:val'), '1')
+    pPr.append(snap_to_grid)
+    
+    # 10. Use exact font metrics
+    use_doc_grid = OxmlElement('w:useDocGrid')
+    use_doc_grid.set(qn('w:val'), '0')
+    pPr.append(use_doc_grid)
+
+def apply_advanced_run_formatting(run, char_spacing=-8):
+    """Apply extensive character-level XML formatting for optimal spacing."""
+    run_element = run._element
+    rPr = run_element.get_or_add_rPr()
+    
+    # EXTENSIVE CHARACTER SPACING CONTROLS
+    
+    # 1. Precise character spacing (compress slightly to reduce word gaps)
+    spacing_element = OxmlElement('w:spacing')
+    spacing_element.set(qn('w:val'), str(char_spacing))  # Negative = compress
+    rPr.append(spacing_element)
+    
+    # 2. Prevent automatic text expansion
+    run_element.set(qn('w:fitText'), '0')
+    
+    # 3. Character positioning control
+    position = OxmlElement('w:position')
+    position.set(qn('w:val'), '0')  # Baseline position
+    rPr.append(position)
+    
+    # 4. Kerning control for consistent spacing
+    kern = OxmlElement('w:kern')
+    kern.set(qn('w:val'), '20')  # Minimal kerning (1pt = 20 twentieths)
+    rPr.append(kern)
+    
+    # 5. Character scaling for uniform appearance
+    scale = OxmlElement('w:w')
+    scale.set(qn('w:val'), '100')  # 100% width (no scaling)
+    rPr.append(scale)
+    
+    # 6. Prevent character compression
+    compress = OxmlElement('w:noProof')
+    compress.set(qn('w:val'), '0')
+    rPr.append(compress)
+    
+    # 7. Font feature settings for consistent rendering
+    font_feature = OxmlElement('w:eastAsianLayout')
+    font_feature.set(qn('w:val'), 'false')
+    rPr.append(font_feature)
+
 def add_formatted_paragraph(doc, html_content, style_name='Normal', indent_left=None, indent_right=None, space_before=None, space_after=None):
-    """Add a paragraph with HTML formatting support."""
+    """Add a paragraph with extensive XML justification controls for optimal word spacing."""
     para = doc.add_paragraph(style=style_name)
     
-    # Apply justification with advanced controls
+    # Apply basic justification
     para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     para.paragraph_format.widow_control = False
     para.paragraph_format.keep_with_next = False
@@ -650,25 +775,11 @@ def add_formatted_paragraph(doc, html_content, style_name='Normal', indent_left=
         run = para.add_run(html_content or "")
         run.font.name = IEEE_CONFIG['font_name']
         run.font.size = IEEE_CONFIG['font_size_body']
+        # Apply advanced character formatting
+        apply_advanced_run_formatting(run, char_spacing=-6)
     
-    # Add advanced spacing controls to prevent word stretching
-    para_element = para._element
-    pPr = para_element.get_or_add_pPr()
-    
-    # Set justification method for better word spacing
-    jc = OxmlElement('w:jc')
-    jc.set(qn('w:val'), 'both')
-    pPr.append(jc)
-    
-    # Control text alignment - prevents baseline shifting
-    textAlignment = OxmlElement('w:textAlignment')
-    textAlignment.set(qn('w:val'), 'baseline')
-    pPr.append(textAlignment)
-    
-    # Prevent excessive word spacing
-    adjust_right_ind = OxmlElement('w:adjustRightInd')
-    adjust_right_ind.set(qn('w:val'), '0')
-    pPr.append(adjust_right_ind)
+    # Apply extensive XML justification controls
+    apply_advanced_justification_controls(para)
     
     return para
 
@@ -727,63 +838,120 @@ def enable_auto_hyphenation(doc):
     sectPr.append(consecutive_hyphen_limit)
 
 def set_compatibility_options(doc):
-    """Set compatibility options to optimize spacing and justification."""
+    """Set EXTENSIVE compatibility options for maximum spacing and justification control."""
     compat = doc.settings.element.find(qn('w:compat'))
     if compat is None:
         doc.settings.element.append(OxmlElement('w:compat'))
         compat = doc.settings.element.find(qn('w:compat'))
 
-    # Critical options to eliminate word spacing issues
+    # MAXIMUM XML MANIPULATION - Every possible compatibility option for text spacing
     
-    # Force Word to use exact character spacing instead of word spacing
+    # Core spacing and justification controls
     option1 = OxmlElement('w:useWord2002TableStyleRules')
     option1.set(qn('w:val'), '1')
     compat.append(option1)
     
-    # Prevent Word from expanding spaces for justification
     option2 = OxmlElement('w:doNotExpandShiftReturn')
     option2.set(qn('w:val'), '1')
     compat.append(option2)
     
-    # Use consistent character spacing
     option3 = OxmlElement('w:useSingleBorderforContiguousCells')
     option3.set(qn('w:val'), '1')
     compat.append(option3)
     
-    # Force exact spacing calculations
     option4 = OxmlElement('w:spacingInWholePoints')
     option4.set(qn('w:val'), '1')
     compat.append(option4)
     
-    # Prevent auto spacing adjustments
     option5 = OxmlElement('w:doNotUseHTMLParagraphAutoSpacing')
     option5.set(qn('w:val'), '1')
     compat.append(option5)
     
-    # Use legacy justification method (more precise)
     option6 = OxmlElement('w:useWord97LineBreakRules')
     option6.set(qn('w:val'), '1')
     compat.append(option6)
     
-    # Disable automatic kerning adjustments
+    # ADDITIONAL EXTENSIVE CONTROLS for maximum precision
+    
+    # Character and word spacing precision
     option7 = OxmlElement('w:doNotAutoCompressPictures')
     option7.set(qn('w:val'), '1')
     compat.append(option7)
     
-    # Force consistent text metrics
     option8 = OxmlElement('w:useNormalStyleForList')
     option8.set(qn('w:val'), '1')
     compat.append(option8)
     
-    # Prevent text compression/expansion
     option9 = OxmlElement('w:doNotPromoteQF')
     option9.set(qn('w:val'), '1')
     compat.append(option9)
     
-    # Use exact font metrics
     option10 = OxmlElement('w:useAltKinsokuLineBreakRules')
     option10.set(qn('w:val'), '0')
     compat.append(option10)
+    
+    # Advanced text flow and spacing controls
+    option11 = OxmlElement('w:doNotBreakWrappedTables')
+    option11.set(qn('w:val'), '1')
+    compat.append(option11)
+    
+    option12 = OxmlElement('w:doNotSnapToGridInCell')
+    option12.set(qn('w:val'), '1')
+    compat.append(option12)
+    
+    option13 = OxmlElement('w:selectFldWithFirstOrLastChar')
+    option13.set(qn('w:val'), '1')
+    compat.append(option13)
+    
+    option14 = OxmlElement('w:doNotWrapTextWithPunct')
+    option14.set(qn('w:val'), '1')
+    compat.append(option14)
+    
+    option15 = OxmlElement('w:doNotUseEastAsianBreakRules')
+    option15.set(qn('w:val'), '1')
+    compat.append(option15)
+    
+    # Character placement and kerning controls
+    option16 = OxmlElement('w:useWord2010TableStyleRules')
+    option16.set(qn('w:val'), '1')
+    compat.append(option16)
+    
+    option17 = OxmlElement('w:doNotUseIndentAsNumberingTabStop')
+    option17.set(qn('w:val'), '1')
+    compat.append(option17)
+    
+    option18 = OxmlElement('w:useSpaceForUL')
+    option18.set(qn('w:val'), '1')
+    compat.append(option18)
+    
+    option19 = OxmlElement('w:doNotLeaveBackslashAlone')
+    option19.set(qn('w:val'), '1')
+    compat.append(option19)
+    
+    option20 = OxmlElement('w:doNotExpandShiftReturn')
+    option20.set(qn('w:val'), '1')
+    compat.append(option20)
+    
+    # Text justification algorithm controls
+    option21 = OxmlElement('w:adjustLineHeightInTable')
+    option21.set(qn('w:val'), '1')
+    compat.append(option21)
+    
+    option22 = OxmlElement('w:forgetLastTabAlignment')
+    option22.set(qn('w:val'), '1')
+    compat.append(option22)
+    
+    option23 = OxmlElement('w:doNotAllowSpaceOfSameStyleInTable')
+    option23.set(qn('w:val'), '1')
+    compat.append(option23)
+    
+    option24 = OxmlElement('w:doNotSuppressParagraphBorders')
+    option24.set(qn('w:val'), '1')
+    compat.append(option24)
+    
+    option25 = OxmlElement('w:useXSLTWhenSaving')
+    option25.set(qn('w:val'), '0')
+    compat.append(option25)
 
 def generate_ieee_document(form_data):
     """Generate an IEEE-formatted Word document."""
