@@ -44,6 +44,100 @@ interface DocumentPreviewProps {
   documentId: string | null;
 }
 
+// Function to prepare document data with integrated tables
+const prepareDocumentForGeneration = (document: Document) => {
+  if (!document.tables || document.tables.length === 0) {
+    return document;
+  }
+
+  // Create a copy of the document
+  const preparedDocument = { ...document };
+  
+  // Group tables by section
+  const tablesBySection: { [sectionId: string]: typeof document.tables } = {};
+  const unassignedTables: typeof document.tables = [];
+  
+  document.tables.forEach(table => {
+    if (table.sectionId) {
+      if (!tablesBySection[table.sectionId]) {
+        tablesBySection[table.sectionId] = [];
+      }
+      tablesBySection[table.sectionId].push(table);
+    } else {
+      unassignedTables.push(table);
+    }
+  });
+
+  // Integrate tables into sections as content blocks
+  preparedDocument.sections = document.sections.map(section => {
+    const sectionTables = tablesBySection[section.id] || [];
+    
+    if (sectionTables.length === 0) {
+      return section;
+    }
+
+    // Create table content blocks
+    const tableContentBlocks = sectionTables.map(table => ({
+      id: `table_block_${table.id}`,
+      type: 'table' as const,
+      tableType: table.type, // Pass the table type to backend
+      tableName: table.tableName,
+      caption: table.caption,
+      size: table.size,
+      position: table.position,
+      order: table.order + 1000, // Ensure tables come after existing content
+      // Pass all table data
+      ...table
+    }));
+
+    // Add table content blocks to section
+    return {
+      ...section,
+      contentBlocks: [
+        ...section.contentBlocks,
+        ...tableContentBlocks
+      ].sort((a, b) => a.order - b.order)
+    };
+  });
+
+  // Add unassigned tables to the first section or create a new section
+  if (unassignedTables.length > 0) {
+    const tableContentBlocks = unassignedTables.map(table => ({
+      id: `table_block_${table.id}`,
+      type: 'table' as const,
+      tableType: table.type,
+      tableName: table.tableName,
+      caption: table.caption,
+      size: table.size,
+      position: table.position,
+      order: table.order + 1000,
+      ...table
+    }));
+
+    if (preparedDocument.sections.length > 0) {
+      // Add to first section
+      preparedDocument.sections[0] = {
+        ...preparedDocument.sections[0],
+        contentBlocks: [
+          ...preparedDocument.sections[0].contentBlocks,
+          ...tableContentBlocks
+        ].sort((a, b) => a.order - b.order)
+      };
+    } else {
+      // Create a new section for tables
+      preparedDocument.sections = [{
+        id: 'tables_section',
+        title: 'Tables',
+        contentBlocks: tableContentBlocks,
+        subsections: [],
+        order: 0
+      }];
+    }
+  }
+
+  return preparedDocument;
+};
+
 // Client-side PDF generation function using jsPDF with proper IEEE format
 function generateClientSidePDF(document: Document): Blob {
   try {
@@ -553,36 +647,184 @@ function generateClientSidePDF(document: Document): Blob {
                       } catch (imageError) {
                         console.error('Error adding standalone image to PDF:', imageError);
                       }
-                    } else if (block.type === 'table' && block.data && block.tableName) {
-                      // Handle table blocks
+                    } else if (block.type === 'table') {
+                      // Handle different table types
                       try {
-                        const imageData = `data:image/png;base64,${block.data}`;
                         const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
                         const currentY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
+                        const tableType = (block as any).tableType || 'image';
 
-                        // Add table image centered in current column
-                        const imgWidth = columnWidth * 0.9; // 90% of column width for tables
-                        const imgX = currentColumnX + (columnWidth - imgWidth) / 2;
+                        if (tableType === 'interactive' && (block as any).headers && (block as any).tableData) {
+                          // Handle interactive tables - render as actual table
+                          const headers = (block as any).headers;
+                          const tableData = (block as any).tableData;
+                          const tableName = (block as any).tableName || 'Table';
 
-                        pdf.addImage(imageData, 'PNG', imgX, currentY, imgWidth, 0); // Auto height
+                          // Calculate table dimensions
+                          const cellPadding = 4;
+                          const cellHeight = 16;
+                          const headerHeight = 18;
+                          const tableWidth = columnWidth * 0.95;
+                          const colWidth = tableWidth / headers.length;
 
-                        // Add table caption
-                        const captionY = currentY + 80; // Adjust based on table height
-                        pdf.setFontSize(9);
-                        pdf.setFont('times', 'normal');
-                        const captionText = `Table ${index}.${blockIndex + 1}: ${block.tableName}`;
-                        const captionWidth = pdf.getTextWidth(captionText);
-                        const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
-                        pdf.text(captionText, captionX, captionY);
+                          let tableY = currentY;
 
-                        // Update column positions
-                        if (currentColumn_Main === 'left') {
-                          leftColumnY_Main = captionY + 15;
-                        } else {
-                          rightColumnY_Main = captionY + 15;
+                          // Draw table border
+                          pdf.setDrawColor(0, 0, 0);
+                          pdf.setLineWidth(0.5);
+
+                          // Draw header row
+                          pdf.setFillColor(240, 240, 240); // Light gray background
+                          pdf.rect(currentColumnX, tableY, tableWidth, headerHeight, 'FD');
+
+                          // Add header text
+                          pdf.setFontSize(8);
+                          pdf.setFont('times', 'bold');
+                          headers.forEach((header: string, colIndex: number) => {
+                            const cellX = currentColumnX + (colIndex * colWidth);
+                            const textX = cellX + cellPadding;
+                            const textY = tableY + headerHeight - cellPadding;
+                            
+                            // Truncate text if too long
+                            const maxWidth = colWidth - (2 * cellPadding);
+                            const truncatedText = pdf.splitTextToSize(header, maxWidth)[0] || header;
+                            pdf.text(truncatedText, textX, textY);
+
+                            // Draw vertical lines
+                            if (colIndex > 0) {
+                              pdf.line(cellX, tableY, cellX, tableY + headerHeight);
+                            }
+                          });
+
+                          tableY += headerHeight;
+
+                          // Draw data rows
+                          pdf.setFont('times', 'normal');
+                          pdf.setFillColor(255, 255, 255); // White background
+
+                          tableData.forEach((row: string[], rowIndex: number) => {
+                            // Alternate row colors for better readability
+                            if (rowIndex % 2 === 1) {
+                              pdf.setFillColor(248, 248, 248); // Very light gray
+                            } else {
+                              pdf.setFillColor(255, 255, 255); // White
+                            }
+
+                            pdf.rect(currentColumnX, tableY, tableWidth, cellHeight, 'FD');
+
+                            // Add cell text
+                            row.forEach((cell: string, colIndex: number) => {
+                              if (colIndex < headers.length) {
+                                const cellX = currentColumnX + (colIndex * colWidth);
+                                const textX = cellX + cellPadding;
+                                const textY = tableY + cellHeight - cellPadding;
+                                
+                                // Truncate text if too long
+                                const maxWidth = colWidth - (2 * cellPadding);
+                                const truncatedText = pdf.splitTextToSize(cell, maxWidth)[0] || cell;
+                                pdf.text(truncatedText, textX, textY);
+
+                                // Draw vertical lines
+                                if (colIndex > 0) {
+                                  pdf.line(cellX, tableY, cellX, tableY + cellHeight);
+                                }
+                              }
+                            });
+
+                            tableY += cellHeight;
+                          });
+
+                          // Draw outer border
+                          pdf.rect(currentColumnX, currentY, tableWidth, tableY - currentY);
+
+                          // Add table caption
+                          const captionY = tableY + 8;
+                          pdf.setFontSize(9);
+                          pdf.setFont('times', 'normal');
+                          const captionText = `Table ${index + 1}.${blockIndex + 1}: ${tableName}`;
+                          const captionWidth = pdf.getTextWidth(captionText);
+                          const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
+                          pdf.text(captionText, captionX, captionY);
+
+                          // Update column positions
+                          if (currentColumn_Main === 'left') {
+                            leftColumnY_Main = captionY + 15;
+                          } else {
+                            rightColumnY_Main = captionY + 15;
+                          }
+
+                          console.log(`Added interactive table to PDF successfully`);
+
+                        } else if (tableType === 'latex' && (block as any).latexCode) {
+                          // Handle LaTeX tables - render as formatted code
+                          const latexCode = (block as any).latexCode;
+                          const tableName = (block as any).tableName || 'Table';
+
+                          // Add LaTeX code as formatted text
+                          pdf.setFontSize(8);
+                          pdf.setFont('courier', 'normal');
+                          
+                          const codeLines = pdf.splitTextToSize(latexCode, columnWidth * 0.9);
+                          let codeY = currentY;
+
+                          // Draw background for code
+                          const codeHeight = codeLines.length * 10 + 8;
+                          pdf.setFillColor(248, 248, 248);
+                          pdf.rect(currentColumnX, codeY, columnWidth * 0.9, codeHeight, 'F');
+
+                          // Add code text
+                          codeLines.forEach((line: string, lineIndex: number) => {
+                            pdf.text(line, currentColumnX + 4, codeY + 12 + (lineIndex * 10));
+                          });
+
+                          codeY += codeHeight;
+
+                          // Add table caption
+                          const captionY = codeY + 8;
+                          pdf.setFontSize(9);
+                          pdf.setFont('times', 'normal');
+                          const captionText = `Table ${index + 1}.${blockIndex + 1}: ${tableName}`;
+                          const captionWidth = pdf.getTextWidth(captionText);
+                          const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
+                          pdf.text(captionText, captionX, captionY);
+
+                          // Update column positions
+                          if (currentColumn_Main === 'left') {
+                            leftColumnY_Main = captionY + 15;
+                          } else {
+                            rightColumnY_Main = captionY + 15;
+                          }
+
+                          console.log(`Added LaTeX table to PDF successfully`);
+
+                        } else if (block.data && (block as any).tableName) {
+                          // Handle image tables (existing functionality)
+                          const imageData = `data:image/png;base64,${block.data}`;
+
+                          // Add table image centered in current column
+                          const imgWidth = columnWidth * 0.9; // 90% of column width for tables
+                          const imgX = currentColumnX + (columnWidth - imgWidth) / 2;
+
+                          pdf.addImage(imageData, 'PNG', imgX, currentY, imgWidth, 0); // Auto height
+
+                          // Add table caption
+                          const captionY = currentY + 80; // Adjust based on table height
+                          pdf.setFontSize(9);
+                          pdf.setFont('times', 'normal');
+                          const captionText = `Table ${index + 1}.${blockIndex + 1}: ${(block as any).tableName}`;
+                          const captionWidth = pdf.getTextWidth(captionText);
+                          const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
+                          pdf.text(captionText, captionX, captionY);
+
+                          // Update column positions
+                          if (currentColumn_Main === 'left') {
+                            leftColumnY_Main = captionY + 15;
+                          } else {
+                            rightColumnY_Main = captionY + 15;
+                          }
+
+                          console.log(`Added image table to PDF successfully`);
                         }
-
-                        console.log(`Added table to PDF successfully`);
                       } catch (tableError) {
                         console.error('Error adding table to PDF:', tableError);
                       }
@@ -835,9 +1077,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       if (!emailAddress) throw new Error("Please enter an email address.");
 
       console.log('Sending email using Python backend API...');
+      const preparedDocument = prepareDocumentForGeneration(document);
       const result = await documentApi.generateEmail({
         email: emailAddress,
-        documentData: document,
+        documentData: preparedDocument,
       });
 
       return result;
