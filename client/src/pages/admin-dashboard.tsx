@@ -103,7 +103,7 @@ const AdminDashboard: React.FC = () => {
       if (!adminToken) {
         console.log('No admin token found, attempting to create one...');
         try {
-          const sessionResponse = await fetch('/api/admin?path=auth/session', {
+          const sessionResponse = await fetch('/api/admin-fresh?path=auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -137,7 +137,7 @@ const AdminDashboard: React.FC = () => {
 
 
       // Use consolidated admin API with fallback to direct access
-      const baseUrl = '/api/admin';
+      const baseUrl = '/api/admin-fresh';
       const fallbackParams = adminToken ? '' : '&adminEmail=shyamkaarthikeyan@gmail.com';
       
       console.log('Making admin API requests with:', {
