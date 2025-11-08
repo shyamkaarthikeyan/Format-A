@@ -69,400 +69,491 @@ function generateClientSidePDF(document: Document): Blob {
     const columnWidth_IEEE = (contentWidth - columnGap) / 2;
     const leftColumnX_IEEE = margin;
     const rightColumnX_IEEE = margin + columnWidth_IEEE + columnGap;
-    
+
     // Track current column position for 2-column layout
     let leftColumnY_IEEE = 0;
     let rightColumnY_IEEE = 0;
     let currentColumn_IEEE = 'left';
     let inTwoColumnMode = false;
 
-  // Helper function to switch to 2-column layout
-  const startTwoColumnLayout = () => {
-    inTwoColumnMode = true;
-    leftColumnY_IEEE = currentY;
-    rightColumnY_IEEE = currentY;
-    currentColumn_IEEE = 'left';
-    return { 
-      leftColumnX: leftColumnX_IEEE, 
-      rightColumnX: rightColumnX_IEEE, 
-      columnWidth: columnWidth_IEEE 
+    // Helper function to switch to 2-column layout
+    const startTwoColumnLayout = () => {
+      inTwoColumnMode = true;
+      leftColumnY_IEEE = currentY;
+      rightColumnY_IEEE = currentY;
+      currentColumn_IEEE = 'left';
+      return {
+        leftColumnX: leftColumnX_IEEE,
+        rightColumnX: rightColumnX_IEEE,
+        columnWidth: columnWidth_IEEE
+      };
     };
-  };
 
-  // Helper function to add text in 2-column layout
-  const addTextToColumns = (
-    pdf: any,
-    text: string, 
-    leftY: number,
-    rightY: number,
-    currentCol: string,
-    fontSize: number, 
-    fontStyle: string = 'normal',
-    leftX: number,
-    rightX: number,
-    colWidth: number
-  ) => {
-    try {
-      if (!text || typeof text !== 'string') {
+    // Helper function to add text in 2-column layout
+    const addTextToColumns = (
+      pdf: any,
+      text: string,
+      leftY: number,
+      rightY: number,
+      currentCol: string,
+      fontSize: number,
+      fontStyle: string = 'normal',
+      leftX: number,
+      rightX: number,
+      colWidth: number
+    ) => {
+      try {
+        if (!text || typeof text !== 'string') {
+          return { leftY, rightY, currentColumn: currentCol };
+        }
+
+        pdf.setFontSize(fontSize);
+        pdf.setFont('times', fontStyle);
+
+        const lines = pdf.splitTextToSize(text, colWidth);
+        let workingY = currentCol === 'left' ? leftY : rightY;
+        let workingX = currentCol === 'left' ? leftX : rightX;
+        let workingColumn = currentCol;
+
+        lines.forEach((line: string) => {
+          // Check if we need to switch columns or add a new page
+          if (workingY + fontSize + 10 > pageHeight - margin) {
+            if (workingColumn === 'left') {
+              // Switch to right column
+              workingColumn = 'right';
+              workingY = rightY;
+              workingX = rightX;
+            } else {
+              // Add new page and reset to left column
+              pdf.addPage();
+              workingY = margin;
+              leftY = margin;
+              rightY = margin;
+              workingColumn = 'left';
+              workingX = leftX;
+            }
+          }
+
+          pdf.text(line, workingX, workingY);
+          workingY += fontSize + 3;
+
+          // Update column positions
+          if (workingColumn === 'left') {
+            leftY = workingY;
+          } else {
+            rightY = workingY;
+          }
+        });
+
+        return {
+          leftY,
+          rightY,
+          currentColumn: workingColumn
+        };
+      } catch (error) {
+        console.error('Error in addTextToColumns:', error);
         return { leftY, rightY, currentColumn: currentCol };
       }
+    };
 
-      pdf.setFontSize(fontSize);
-      pdf.setFont('times', fontStyle);
-      
-      const lines = pdf.splitTextToSize(text, colWidth);
-      let workingY = currentCol === 'left' ? leftY : rightY;
-      let workingX = currentCol === 'left' ? leftX : rightX;
-      let workingColumn = currentCol;
-      
-      lines.forEach((line: string) => {
-        // Check if we need to switch columns or add a new page
-        if (workingY + fontSize + 10 > pageHeight - margin) {
-          if (workingColumn === 'left') {
-            // Switch to right column
-            workingColumn = 'right';
-            workingY = rightY;
-            workingX = rightX;
-          } else {
-            // Add new page and reset to left column
-            pdf.addPage();
-            workingY = margin;
-            leftY = margin;
-            rightY = margin;
-            workingColumn = 'left';
-            workingX = leftX;
+    // Helper function for single-column text (title, authors, abstract, keywords)
+    const addSingleColumnText = (
+      pdf: any,
+      text: string,
+      startY: number,
+      fontSize: number,
+      fontStyle: string = 'normal',
+      center: boolean = false,
+      continueSameLine: boolean = false,
+      prefixText: string = ''
+    ) => {
+      try {
+        if (!text || typeof text !== 'string') {
+          console.warn('Invalid text provided to addSingleColumnText:', text);
+          return startY;
+        }
+
+        pdf.setFontSize(fontSize);
+        pdf.setFont('times', fontStyle);
+
+        let textY = startY;
+        let textX = margin;
+
+        if (continueSameLine && prefixText) {
+          // Calculate position after prefix text
+          const prefixWidth = pdf.getTextWidth(prefixText);
+          textX = margin + prefixWidth;
+          const remainingWidth = contentWidth - prefixWidth;
+          const lines = pdf.splitTextToSize(text, remainingWidth);
+
+          // First line on same line as prefix
+          if (lines.length > 0) {
+            pdf.text(lines[0], textX, textY);
+            textY += fontSize + 4;
+
+            // Remaining lines at full width
+            for (let i = 1; i < lines.length; i++) {
+              if (textY + fontSize > pageHeight - margin) {
+                pdf.addPage();
+                textY = margin;
+              }
+              pdf.text(lines[i], margin, textY);
+              textY += fontSize + 4;
+            }
           }
-        }
-        
-        pdf.text(line, workingX, workingY);
-        workingY += fontSize + 3;
-        
-        // Update column positions
-        if (workingColumn === 'left') {
-          leftY = workingY;
         } else {
-          rightY = workingY;
-        }
-      });
-      
-      return { 
-        leftY, 
-        rightY, 
-        currentColumn: workingColumn 
-      };
-    } catch (error) {
-      console.error('Error in addTextToColumns:', error);
-      return { leftY, rightY, currentColumn: currentCol };
-    }
-  };
+          // Normal text processing
+          const lines = pdf.splitTextToSize(text, contentWidth);
 
-  // Helper function for single-column text (title, authors, abstract, keywords)
-  const addSingleColumnText = (
-    pdf: any, 
-    text: string, 
-    startY: number, 
-    fontSize: number, 
-    fontStyle: string = 'normal', 
-    center: boolean = false, 
-    continueSameLine: boolean = false, 
-    prefixText: string = ''
-  ) => {
-    try {
-      if (!text || typeof text !== 'string') {
-        console.warn('Invalid text provided to addSingleColumnText:', text);
-        return startY;
-      }
-
-      pdf.setFontSize(fontSize);
-      pdf.setFont('times', fontStyle);
-      
-      let textY = startY;
-      let textX = margin;
-      
-      if (continueSameLine && prefixText) {
-        // Calculate position after prefix text
-        const prefixWidth = pdf.getTextWidth(prefixText);
-        textX = margin + prefixWidth;
-        const remainingWidth = contentWidth - prefixWidth;
-        const lines = pdf.splitTextToSize(text, remainingWidth);
-        
-        // First line on same line as prefix
-        if (lines.length > 0) {
-          pdf.text(lines[0], textX, textY);
-          textY += fontSize + 4;
-          
-          // Remaining lines at full width
-          for (let i = 1; i < lines.length; i++) {
+          for (let i = 0; i < lines.length; i++) {
             if (textY + fontSize > pageHeight - margin) {
               pdf.addPage();
               textY = margin;
             }
-            pdf.text(lines[i], margin, textY);
+
+            if (center) {
+              const textWidth = pdf.getTextWidth(lines[i]);
+              textX = (pageWidth - textWidth) / 2;
+            }
+
+            pdf.text(lines[i], textX, textY);
             textY += fontSize + 4;
           }
         }
-      } else {
-        // Normal text processing
-        const lines = pdf.splitTextToSize(text, contentWidth);
-        
-        for (let i = 0; i < lines.length; i++) {
-          if (textY + fontSize > pageHeight - margin) {
-            pdf.addPage();
-            textY = margin;
-          }
-          
-          if (center) {
-            const textWidth = pdf.getTextWidth(lines[i]);
-            textX = (pageWidth - textWidth) / 2;
-          }
-          
-          pdf.text(lines[i], textX, textY);
-          textY += fontSize + 4;
-        }
+
+        return textY;
+      } catch (error) {
+        console.error('Error in addSingleColumnText:', error);
+        return startY;
       }
-      
-      return textY;
-    } catch (error) {
-      console.error('Error in addSingleColumnText:', error);
-      return startY;
-    }
-  };
+    };
 
-  // Title - IEEE format (24pt bold, centered, single column)
-  if (document.title && typeof document.title === 'string') {
-    try {
-      pdf.setFontSize(24);
-      pdf.setFont('times', 'bold');
-      currentY = addSingleColumnText(pdf, document.title, currentY, 24, 'bold', true);
-      currentY += 12; // IEEE standard spacing after title
-    } catch (error) {
-      console.error('Error adding title:', error);
-    }
-  }
-
-  // Authors - IEEE format (10pt, centered, single column)
-  if (document.authors && Array.isArray(document.authors) && document.authors.length > 0) {
-    try {
-      const validAuthors = document.authors.filter(author => author && author.name && typeof author.name === 'string');
-      
-      if (validAuthors.length > 0) {
-        pdf.setFontSize(10);
-        pdf.setFont('times', 'normal');
-        
-        // Create author lines - IEEE format with proper spacing between authors
-        const authorLines = [];
-        validAuthors.forEach((author, index) => {
-          const authorText = author.name;
-          if (index < validAuthors.length - 1) {
-            authorLines.push(authorText + ',  '); // Add comma and extra space for IEEE format
-          } else {
-            authorLines.push(authorText);
-          }
-        });
-        
-        // Add all authors as single centered line
-        const authorsText = authorLines.join('');
-        currentY = addSingleColumnText(pdf, authorsText, currentY, 10, 'normal', true);
-        
-        // Add author affiliations if available (centered, italic)
-        if (validAuthors[0].organization || validAuthors[0].department) {
-          pdf.setFont('times', 'italic');
-          const affiliations = [];
-          validAuthors.forEach(author => {
-            if (author.department) affiliations.push(author.department);
-            if (author.organization) affiliations.push(author.organization);
-            if (author.city && author.state) affiliations.push(`${author.city}, ${author.state}`);
-          });
-          
-          const uniqueAffiliations = [...new Set(affiliations)];
-          uniqueAffiliations.forEach(affiliation => {
-            currentY = addSingleColumnText(pdf, affiliation, currentY, 10, 'italic', true);
-          });
-        }
-        
-        currentY += 18; // IEEE standard spacing after authors
+    // Title - IEEE format (24pt bold, centered, single column)
+    if (document.title && typeof document.title === 'string') {
+      try {
+        pdf.setFontSize(24);
+        pdf.setFont('times', 'bold');
+        currentY = addSingleColumnText(pdf, document.title, currentY, 24, 'bold', true);
+        currentY += 12; // IEEE standard spacing after title
+      } catch (error) {
+        console.error('Error adding title:', error);
       }
-    } catch (error) {
-      console.error('Error adding authors:', error);
     }
-  }
 
-  // Abstract - IEEE format (9pt bold italic title, content in italic, single column)
-  if (document.abstract && typeof document.abstract === 'string') {
-    try {
-      // Abstract title - bold italic
-      pdf.setFontSize(9);
-      pdf.setFont('times', 'bolditalic');
-      const abstractTitle = 'Abstract—';
-      currentY = addSingleColumnText(pdf, abstractTitle, currentY, 9, 'bolditalic', false, false);
-      
-      // Abstract content - italic, same line
-      pdf.setFont('times', 'italic');
-      const abstractContent = document.abstract;
-      currentY = addSingleColumnText(pdf, abstractContent, currentY - 11, 9, 'italic', false, true, abstractTitle);
-      
-      currentY += 12; // IEEE standard spacing after abstract
-    } catch (error) {
-      console.error('Error adding abstract:', error);
-    }
-  }
+    // Authors - IEEE format (proper table layout: 1 author = centered, 2 authors = 2 columns, 3+ authors = 3 columns per row)
+    if (document.authors && Array.isArray(document.authors) && document.authors.length > 0) {
+      try {
+        const validAuthors = document.authors.filter(author => author && author.name && typeof author.name === 'string');
 
-  // Keywords - IEEE format (9pt bold italic title, content in italic, single column)
-  if (document.keywords && typeof document.keywords === 'string') {
-    try {
-      // Keywords title - bold italic
-      pdf.setFontSize(9);
-      pdf.setFont('times', 'bolditalic');
-      const keywordsTitle = 'Keywords—';
-      currentY = addSingleColumnText(pdf, keywordsTitle, currentY, 9, 'bolditalic', false, false);
-      
-      // Keywords content - italic, same line
-      pdf.setFont('times', 'italic');
-      const keywordsContent = document.keywords;
-      currentY = addSingleColumnText(pdf, keywordsContent, currentY - 11, 9, 'italic', false, true, keywordsTitle);
-      
-      currentY += 18; // IEEE standard spacing after keywords before 2-column content
-    } catch (error) {
-      console.error('Error adding keywords:', error);
-    }
-  }
+        if (validAuthors.length > 0) {
+          pdf.setFontSize(10);
+          pdf.setFont('times', 'normal');
 
-  // Start 2-column layout after keywords
-  const { leftColumnX, rightColumnX, columnWidth } = startTwoColumnLayout();
-  let currentColumn_Main = 'left';
-  let leftColumnY_Main = currentY;
-  let rightColumnY_Main = currentY;
+          // IEEE format: maximum 3 authors per row, create additional rows for more authors
+          const authorsPerRow = 3;
+          const totalAuthors = validAuthors.length;
 
-  // Sections - IEEE format (10pt bold, centered, 2-column layout)
-  if (document.sections && Array.isArray(document.sections) && document.sections.length > 0) {
-    console.log('Processing sections in PDF:', document.sections.length, 'sections found');
-    try {
-      document.sections.forEach((section, index) => {
-        console.log(`Processing section ${index + 1}:`, {
-          title: section.title,
-          contentBlocksCount: section.contentBlocks?.length || 0,
-          contentBlocks: section.contentBlocks?.map(block => ({
-            type: block.type,
-            hasContent: !!block.content,
-            contentPreview: block.content?.substring(0, 50) + '...'
-          })) || []
-        });
-        
-        if (section && section.title && typeof section.title === 'string') {
-          try {
-            // Section title - IEEE format: 10pt bold, left-aligned in columns
-            pdf.setFontSize(10);
-            pdf.setFont('times', 'bold');
-            const sectionTitle = `${index + 1}. ${section.title.toUpperCase()}`;
-            
-            // Add section title to current column
-            const titleResult = addTextToColumns(
-              pdf, sectionTitle, leftColumnY_Main, rightColumnY_Main, currentColumn_Main, 
-              10, 'bold', leftColumnX, rightColumnX, columnWidth
-            );
-            leftColumnY_Main = titleResult.leftY;
-            rightColumnY_Main = titleResult.rightY;
-            currentColumn_Main = titleResult.currentColumn;
-            
-            // Process contentBlocks for section content
-            if (section.contentBlocks && Array.isArray(section.contentBlocks)) {
-              console.log(`Processing ${section.contentBlocks.length} content blocks for section "${section.title}"`);
-              section.contentBlocks
-                .sort((a, b) => a.order - b.order) // Sort by order
-                .forEach((block, blockIndex) => {
-                  console.log(`Processing content block ${blockIndex + 1}:`, {
-                    type: block.type,
-                    hasContent: !!block.content,
-                    contentLength: block.content?.length || 0
-                  });
-                  
-                  if (block.type === 'text' && block.content && typeof block.content === 'string') {
-                    // Add text content to columns
-                    const contentResult = addTextToColumns(
-                      pdf, block.content, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
-                      10, 'normal', leftColumnX, rightColumnX, columnWidth
-                    );
-                    leftColumnY_Main = contentResult.leftY + 6; // Add spacing between blocks
-                    rightColumnY_Main = contentResult.rightY + 6;
-                    currentColumn_Main = contentResult.currentColumn;
-                    console.log(`Added text block to PDF successfully`);
-                  } else {
-                    console.log(`Skipping block - type: ${block.type}, hasContent: ${!!block.content}`);
-                  }
-                  // TODO: Add support for other content block types (image, table, equation)
-                });
+          // Process authors in groups of 3
+          for (let rowStart = 0; rowStart < totalAuthors; rowStart += authorsPerRow) {
+            const rowEnd = Math.min(rowStart + authorsPerRow, totalAuthors);
+            const rowAuthors = validAuthors.slice(rowStart, rowEnd);
+            const numCols = rowAuthors.length;
+
+            // Calculate column positions for this row
+            let columnWidth, startX;
+            if (numCols === 1) {
+              // Single author - centered
+              columnWidth = contentWidth;
+              startX = margin;
+            } else if (numCols === 2) {
+              // Two authors - two equal columns
+              columnWidth = contentWidth / 2;
+              startX = margin;
             } else {
-              console.log(`No contentBlocks found for section "${section.title}"`);
+              // Three authors - three equal columns
+              columnWidth = contentWidth / 3;
+              startX = margin;
             }
-            
-            // Fallback: Check for legacy content/body properties
-            const legacyContent = (section as any).content || (section as any).body;
-            if (legacyContent && typeof legacyContent === 'string' && 
-                (!section.contentBlocks || section.contentBlocks.length === 0)) {
-              console.log(`Using legacy content for section "${section.title}"`);
-              // Add legacy content to columns
-              const contentResult = addTextToColumns(
-                pdf, legacyContent, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
-                10, 'normal', leftColumnX, rightColumnX, columnWidth
-              );
-              leftColumnY_Main = contentResult.leftY;
-              rightColumnY_Main = contentResult.rightY;
-              currentColumn_Main = contentResult.currentColumn;
-            }
-          } catch (sectionError) {
-            console.error('Error adding section:', section.title, sectionError);
-          }
-        } else {
-          console.log(`Skipping section ${index + 1} - no title or invalid title`);
-        }
-      });
-    } catch (error) {
-      console.error('Error adding sections:', error);
-    }
-  } else {
-    console.log('No sections to process - either null, not array, or empty');
-  }
 
-  // References - IEEE format (10pt bold title, 8pt content, 2-column layout)
-  if (document.references && Array.isArray(document.references) && document.references.length > 0) {
-    try {
-      // References title
-      pdf.setFontSize(10);
-      pdf.setFont('times', 'bold');
-      const referencesTitle = 'REFERENCES';
-      
-      const titleResult = addTextToColumns(
-        pdf, referencesTitle, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
-        10, 'bold', leftColumnX, rightColumnX, columnWidth
-      );
-      leftColumnY_Main = titleResult.leftY + 6; // Extra space after title
-      rightColumnY_Main = titleResult.rightY + 6;
-      currentColumn_Main = titleResult.currentColumn;
-      
-      // Reference list
-      pdf.setFontSize(8);
-      pdf.setFont('times', 'normal');
-      
-      document.references.forEach((ref, index) => {
-        if (ref && ref.text && typeof ref.text === 'string') {
-          try {
-            const refText = `[${index + 1}] ${ref.text}`;
-            const refResult = addTextToColumns(
-              pdf, refText, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
-              8, 'normal', leftColumnX, rightColumnX, columnWidth
-            );
-            leftColumnY_Main = refResult.leftY + 3; // Small spacing between references
-            rightColumnY_Main = refResult.rightY + 3;
-            currentColumn_Main = refResult.currentColumn;
-          } catch (refError) {
-            console.error('Error adding reference:', ref.text, refError);
+            // Track the maximum height for this row
+            let maxRowHeight = 0;
+            const authorBlocks = [];
+
+            // Process each author in this row
+            rowAuthors.forEach((author, colIdx) => {
+              const columnX = startX + (colIdx * columnWidth);
+              const centerX = columnX + (columnWidth / 2);
+
+              let blockHeight = 0;
+              const authorLines = [];
+
+              // Author name - bold, centered
+              pdf.setFontSize(10);
+              pdf.setFont('times', 'bold');
+              const nameWidth = pdf.getTextWidth(author.name);
+              const nameX = centerX - (nameWidth / 2);
+              authorLines.push({
+                text: author.name,
+                x: nameX,
+                y: currentY + blockHeight,
+                font: 'bold',
+                size: 10
+              });
+              blockHeight += 14;
+
+              // Add affiliations - italic, centered
+              pdf.setFont('times', 'italic');
+              const affiliationFields = [
+                author.department,
+                author.organization,
+                author.university,
+                author.institution
+              ].filter(Boolean);
+
+              affiliationFields.forEach(field => {
+                const fieldWidth = pdf.getTextWidth(field);
+                const fieldX = centerX - (fieldWidth / 2);
+                authorLines.push({
+                  text: field,
+                  x: fieldX,
+                  y: currentY + blockHeight,
+                  font: 'italic',
+                  size: 10
+                });
+                blockHeight += 12;
+              });
+
+              // Add location if available
+              const locationParts = [author.city, author.state, author.country].filter(Boolean);
+              if (locationParts.length > 0) {
+                const location = locationParts.join(', ');
+                const locationWidth = pdf.getTextWidth(location);
+                const locationX = centerX - (locationWidth / 2);
+                authorLines.push({
+                  text: location,
+                  x: locationX,
+                  y: currentY + blockHeight,
+                  font: 'italic',
+                  size: 10
+                });
+                blockHeight += 12;
+              }
+
+              // Add email if available - slightly smaller font
+              if (author.email) {
+                pdf.setFontSize(9);
+                const emailWidth = pdf.getTextWidth(author.email);
+                const emailX = centerX - (emailWidth / 2);
+                authorLines.push({
+                  text: author.email,
+                  x: emailX,
+                  y: currentY + blockHeight,
+                  font: 'normal',
+                  size: 9
+                });
+                blockHeight += 12;
+              }
+
+              authorBlocks.push(authorLines);
+              maxRowHeight = Math.max(maxRowHeight, blockHeight);
+            });
+
+            // Now render all author blocks for this row
+            authorBlocks.forEach(authorLines => {
+              authorLines.forEach(line => {
+                pdf.setFontSize(line.size);
+                pdf.setFont('times', line.font);
+                pdf.text(line.text, line.x, line.y);
+              });
+            });
+
+            // Move to next row position
+            currentY += maxRowHeight + 8; // Add spacing between author rows
           }
+
+          currentY += 10; // IEEE standard spacing after all authors
         }
-      });
-    } catch (error) {
-      console.error('Error adding references:', error);
+      } catch (error) {
+        console.error('Error adding authors:', error);
+      }
     }
-  }
+
+    // Abstract - IEEE format (9pt bold italic title, content in italic, single column)
+    if (document.abstract && typeof document.abstract === 'string') {
+      try {
+        // Abstract title - bold italic
+        pdf.setFontSize(9);
+        pdf.setFont('times', 'bolditalic');
+        const abstractTitle = 'Abstract—';
+        currentY = addSingleColumnText(pdf, abstractTitle, currentY, 9, 'bolditalic', false, false);
+
+        // Abstract content - italic, same line
+        pdf.setFont('times', 'italic');
+        const abstractContent = document.abstract;
+        currentY = addSingleColumnText(pdf, abstractContent, currentY - 11, 9, 'italic', false, true, abstractTitle);
+
+        currentY += 12; // IEEE standard spacing after abstract
+      } catch (error) {
+        console.error('Error adding abstract:', error);
+      }
+    }
+
+    // Keywords - IEEE format (9pt bold italic title, content in italic, single column)
+    if (document.keywords && typeof document.keywords === 'string') {
+      try {
+        // Keywords title - bold italic
+        pdf.setFontSize(9);
+        pdf.setFont('times', 'bolditalic');
+        const keywordsTitle = 'Keywords—';
+        currentY = addSingleColumnText(pdf, keywordsTitle, currentY, 9, 'bolditalic', false, false);
+
+        // Keywords content - italic, same line
+        pdf.setFont('times', 'italic');
+        const keywordsContent = document.keywords;
+        currentY = addSingleColumnText(pdf, keywordsContent, currentY - 11, 9, 'italic', false, true, keywordsTitle);
+
+        currentY += 18; // IEEE standard spacing after keywords before 2-column content
+      } catch (error) {
+        console.error('Error adding keywords:', error);
+      }
+    }
+
+    // Start 2-column layout after keywords
+    const { leftColumnX, rightColumnX, columnWidth } = startTwoColumnLayout();
+    let currentColumn_Main = 'left';
+    let leftColumnY_Main = currentY;
+    let rightColumnY_Main = currentY;
+
+    // Sections - IEEE format (10pt bold, centered, 2-column layout)
+    if (document.sections && Array.isArray(document.sections) && document.sections.length > 0) {
+      console.log('Processing sections in PDF:', document.sections.length, 'sections found');
+      try {
+        document.sections.forEach((section, index) => {
+          console.log(`Processing section ${index + 1}:`, {
+            title: section.title,
+            contentBlocksCount: section.contentBlocks?.length || 0,
+            contentBlocks: section.contentBlocks?.map(block => ({
+              type: block.type,
+              hasContent: !!block.content,
+              contentPreview: block.content?.substring(0, 50) + '...'
+            })) || []
+          });
+
+          if (section && section.title && typeof section.title === 'string') {
+            try {
+              // Section title - IEEE format: 10pt bold, left-aligned in columns
+              pdf.setFontSize(10);
+              pdf.setFont('times', 'bold');
+              const sectionTitle = `${index + 1}. ${section.title.toUpperCase()}`;
+
+              // Add section title to current column
+              const titleResult = addTextToColumns(
+                pdf, sectionTitle, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+                10, 'bold', leftColumnX, rightColumnX, columnWidth
+              );
+              leftColumnY_Main = titleResult.leftY;
+              rightColumnY_Main = titleResult.rightY;
+              currentColumn_Main = titleResult.currentColumn;
+
+              // Process contentBlocks for section content
+              if (section.contentBlocks && Array.isArray(section.contentBlocks)) {
+                console.log(`Processing ${section.contentBlocks.length} content blocks for section "${section.title}"`);
+                section.contentBlocks
+                  .sort((a, b) => a.order - b.order) // Sort by order
+                  .forEach((block, blockIndex) => {
+                    console.log(`Processing content block ${blockIndex + 1}:`, {
+                      type: block.type,
+                      hasContent: !!block.content,
+                      contentLength: block.content?.length || 0
+                    });
+
+                    if (block.type === 'text' && block.content && typeof block.content === 'string') {
+                      // Add text content to columns
+                      const contentResult = addTextToColumns(
+                        pdf, block.content, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+                        10, 'normal', leftColumnX, rightColumnX, columnWidth
+                      );
+                      leftColumnY_Main = contentResult.leftY + 6; // Add spacing between blocks
+                      rightColumnY_Main = contentResult.rightY + 6;
+                      currentColumn_Main = contentResult.currentColumn;
+                      console.log(`Added text block to PDF successfully`);
+                    } else {
+                      console.log(`Skipping block - type: ${block.type}, hasContent: ${!!block.content}`);
+                    }
+                    // TODO: Add support for other content block types (image, table, equation)
+                  });
+              } else {
+                console.log(`No contentBlocks found for section "${section.title}"`);
+              }
+
+              // Fallback: Check for legacy content/body properties
+              const legacyContent = (section as any).content || (section as any).body;
+              if (legacyContent && typeof legacyContent === 'string' &&
+                (!section.contentBlocks || section.contentBlocks.length === 0)) {
+                console.log(`Using legacy content for section "${section.title}"`);
+                // Add legacy content to columns
+                const contentResult = addTextToColumns(
+                  pdf, legacyContent, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+                  10, 'normal', leftColumnX, rightColumnX, columnWidth
+                );
+                leftColumnY_Main = contentResult.leftY;
+                rightColumnY_Main = contentResult.rightY;
+                currentColumn_Main = contentResult.currentColumn;
+              }
+            } catch (sectionError) {
+              console.error('Error adding section:', section.title, sectionError);
+            }
+          } else {
+            console.log(`Skipping section ${index + 1} - no title or invalid title`);
+          }
+        });
+      } catch (error) {
+        console.error('Error adding sections:', error);
+      }
+    } else {
+      console.log('No sections to process - either null, not array, or empty');
+    }
+
+    // References - IEEE format (10pt bold title, 8pt content, 2-column layout)
+    if (document.references && Array.isArray(document.references) && document.references.length > 0) {
+      try {
+        // References title
+        pdf.setFontSize(10);
+        pdf.setFont('times', 'bold');
+        const referencesTitle = 'REFERENCES';
+
+        const titleResult = addTextToColumns(
+          pdf, referencesTitle, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+          10, 'bold', leftColumnX, rightColumnX, columnWidth
+        );
+        leftColumnY_Main = titleResult.leftY + 6; // Extra space after title
+        rightColumnY_Main = titleResult.rightY + 6;
+        currentColumn_Main = titleResult.currentColumn;
+
+        // Reference list
+        pdf.setFontSize(8);
+        pdf.setFont('times', 'normal');
+
+        document.references.forEach((ref, index) => {
+          if (ref && ref.text && typeof ref.text === 'string') {
+            try {
+              const refText = `[${index + 1}] ${ref.text}`;
+              const refResult = addTextToColumns(
+                pdf, refText, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+                8, 'normal', leftColumnX, rightColumnX, columnWidth
+              );
+              leftColumnY_Main = refResult.leftY + 3; // Small spacing between references
+              rightColumnY_Main = refResult.rightY + 3;
+              currentColumn_Main = refResult.currentColumn;
+            } catch (refError) {
+              console.error('Error adding reference:', ref.text, refError);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error adding references:', error);
+      }
+    }
 
     return pdf.output('blob');
   } catch (error) {
@@ -512,15 +603,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       console.log('Generating PDF for download (client-side)...');
-      
+
       // Since Python backend DOCX generation is not yet implemented for downloads,
       // use client-side PDF generation which already works perfectly
       const pdfBlob = generateClientSidePDF(document);
-      
+
       if (!pdfBlob || pdfBlob.size === 0) {
         throw new Error('Failed to generate PDF document');
       }
-      
+
       // Download as PDF instead of DOCX for now - provides better formatting
       const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
@@ -554,14 +645,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       console.log('Generating PDF for download (client-side)...');
-      
+
       // Use client-side PDF generation for reliable downloads
       const pdfBlob = generateClientSidePDF(document);
-      
+
       if (!pdfBlob || pdfBlob.size === 0) {
         throw new Error('Failed to generate PDF document');
       }
-      
+
       // Download the generated PDF
       const url = URL.createObjectURL(pdfBlob);
       const link = window.document.createElement('a');
@@ -570,9 +661,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       link.click();
       URL.revokeObjectURL(url);
 
-      return { 
-        success: true, 
-        message: "IEEE-formatted PDF file has been downloaded successfully." 
+      return {
+        success: true,
+        message: "IEEE-formatted PDF file has been downloaded successfully."
       };
     },
     onSuccess: (data) => {
@@ -678,14 +769,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
     try {
       console.log('Generating PDF preview (client-side)...');
-      
+
       // Use client-side PDF generation for preview
       const pdfBlob = generateClientSidePDF(document);
-      
+
       if (!pdfBlob || pdfBlob.size === 0) {
         throw new Error('Failed to generate PDF preview');
       }
-      
+
       // Clean up previous URL
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
@@ -696,14 +787,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewMode('pdf');
       setPreviewImages([]);
       setPdfUrl(url);
-      
+
       console.log('✅ PDF preview generated successfully (client-side)');
-      
+
       toast({
         title: 'Preview Generated',
         description: 'PDF preview created successfully',
       });
-      
+
     } catch (error) {
       console.error('❌ PDF preview generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
@@ -888,10 +979,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </div>
             ) : previewMode === 'images' && previewImages.length > 0 ? (
               <div className="h-full relative overflow-auto bg-white">
-                <div 
+                <div
                   className="flex flex-col items-center space-y-4 p-4"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
+                  style={{
+                    transform: `scale(${zoom / 100})`,
                     transformOrigin: 'top center',
                   }}
                 >
@@ -914,10 +1005,10 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
             ) : pdfUrl ? (
               <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
                 {/* Clean PDF Viewer with working zoom controls */}
-                <div 
+                <div
                   className="w-full h-full relative"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`, 
+                  style={{
+                    transform: `scale(${zoom / 100})`,
                     transformOrigin: 'top center',
                     minWidth: `${zoom}%`,
                     minHeight: `${zoom}%`,
