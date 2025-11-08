@@ -484,7 +484,7 @@ function generateClientSidePDF(document: Document): Blob {
                       rightColumnY_Main = contentResult.rightY + 6;
                       currentColumn_Main = contentResult.currentColumn;
                       console.log(`Added text block to PDF successfully`);
-                      
+
                       // Check if this text block also has an image attached
                       if (block.data && block.caption) {
                         try {
@@ -492,13 +492,13 @@ function generateClientSidePDF(document: Document): Blob {
                           const imageData = `data:image/png;base64,${block.data}`;
                           const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
                           const currentY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
-                          
+
                           // Add image centered in current column
                           const imgWidth = columnWidth * 0.8; // 80% of column width
                           const imgX = currentColumnX + (columnWidth - imgWidth) / 2;
-                          
+
                           pdf.addImage(imageData, 'PNG', imgX, currentY, imgWidth, 0); // Auto height
-                          
+
                           // Add caption
                           const captionY = currentY + 60; // Adjust based on image height
                           pdf.setFontSize(9);
@@ -507,14 +507,14 @@ function generateClientSidePDF(document: Document): Blob {
                           const captionWidth = pdf.getTextWidth(captionText);
                           const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
                           pdf.text(captionText, captionX, captionY);
-                          
+
                           // Update column positions
                           if (currentColumn_Main === 'left') {
                             leftColumnY_Main = captionY + 15;
                           } else {
                             rightColumnY_Main = captionY + 15;
                           }
-                          
+
                           console.log(`Added image to PDF successfully`);
                         } catch (imageError) {
                           console.error('Error adding image to PDF:', imageError);
@@ -526,13 +526,13 @@ function generateClientSidePDF(document: Document): Blob {
                         const imageData = `data:image/png;base64,${block.data}`;
                         const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
                         const currentY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
-                        
+
                         // Add image centered in current column
                         const imgWidth = columnWidth * 0.8; // 80% of column width
                         const imgX = currentColumnX + (columnWidth - imgWidth) / 2;
-                        
+
                         pdf.addImage(imageData, 'PNG', imgX, currentY, imgWidth, 0); // Auto height
-                        
+
                         // Add caption
                         const captionY = currentY + 60; // Adjust based on image height
                         pdf.setFontSize(9);
@@ -541,14 +541,14 @@ function generateClientSidePDF(document: Document): Blob {
                         const captionWidth = pdf.getTextWidth(captionText);
                         const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
                         pdf.text(captionText, captionX, captionY);
-                        
+
                         // Update column positions
                         if (currentColumn_Main === 'left') {
                           leftColumnY_Main = captionY + 15;
                         } else {
                           rightColumnY_Main = captionY + 15;
                         }
-                        
+
                         console.log(`Added standalone image to PDF successfully`);
                       } catch (imageError) {
                         console.error('Error adding standalone image to PDF:', imageError);
@@ -559,13 +559,13 @@ function generateClientSidePDF(document: Document): Blob {
                         const imageData = `data:image/png;base64,${block.data}`;
                         const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
                         const currentY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
-                        
+
                         // Add table image centered in current column
                         const imgWidth = columnWidth * 0.9; // 90% of column width for tables
                         const imgX = currentColumnX + (columnWidth - imgWidth) / 2;
-                        
+
                         pdf.addImage(imageData, 'PNG', imgX, currentY, imgWidth, 0); // Auto height
-                        
+
                         // Add table caption
                         const captionY = currentY + 80; // Adjust based on table height
                         pdf.setFontSize(9);
@@ -574,14 +574,14 @@ function generateClientSidePDF(document: Document): Blob {
                         const captionWidth = pdf.getTextWidth(captionText);
                         const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
                         pdf.text(captionText, captionX, captionY);
-                        
+
                         // Update column positions
                         if (currentColumn_Main === 'left') {
                           leftColumnY_Main = captionY + 15;
                         } else {
                           rightColumnY_Main = captionY + 15;
                         }
-                        
+
                         console.log(`Added table to PDF successfully`);
                       } catch (tableError) {
                         console.error('Error adding table to PDF:', tableError);
@@ -591,16 +591,16 @@ function generateClientSidePDF(document: Document): Blob {
                       try {
                         const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
                         const currentY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
-                        
+
                         // Add equation content centered in current column
                         pdf.setFontSize(10);
                         pdf.setFont('times', 'italic');
                         const equationText = block.content;
                         const equationWidth = pdf.getTextWidth(equationText);
                         const equationX = currentColumnX + (columnWidth - equationWidth) / 2;
-                        
+
                         pdf.text(equationText, equationX, currentY);
-                        
+
                         // Add equation number if needed
                         const eqNumberY = currentY + 15;
                         pdf.setFontSize(9);
@@ -609,14 +609,14 @@ function generateClientSidePDF(document: Document): Blob {
                         const eqNumberWidth = pdf.getTextWidth(eqNumberText);
                         const eqNumberX = currentColumnX + columnWidth - eqNumberWidth;
                         pdf.text(eqNumberText, eqNumberX, eqNumberY);
-                        
+
                         // Update column positions
                         if (currentColumn_Main === 'left') {
                           leftColumnY_Main = eqNumberY + 15;
                         } else {
                           rightColumnY_Main = eqNumberY + 15;
                         }
-                        
+
                         console.log(`Added equation to PDF successfully`);
                       } catch (equationError) {
                         console.error('Error adding equation to PDF:', equationError);
@@ -933,17 +933,16 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewImages([]);
       setPdfUrl(url);
 
-      // Calculate total pages from the generated PDF
-      const totalPagesCount = pdf.getNumberOfPages();
-      setTotalPages(totalPagesCount);
+      // For now, set a default page count since we can't easily get page count from blob
+      // The PDF viewer will handle pagination internally
+      setTotalPages(1);
       setCurrentPage(1); // Reset to first page
 
       console.log('✅ PDF preview generated successfully (client-side)');
-      console.log(`📄 Total pages: ${totalPagesCount}`);
 
       toast({
         title: 'Preview Generated',
-        description: `PDF preview created successfully (${totalPagesCount} page${totalPagesCount > 1 ? 's' : ''})`,
+        description: 'PDF preview created successfully',
       });
 
     } catch (error) {
@@ -1083,7 +1082,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               >
                 <RefreshCw className={`w-4 h-4 ${isGeneratingPreview ? 'animate-spin' : ''}`} />
               </Button>
-              
+
               {/* Page Navigation */}
               {pdfUrl && (
                 <>
@@ -1096,7 +1095,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <div className="w-px h-4 bg-gray-300"></div>
                 </>
               )}
-              
+
               <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoom <= 25}>
                 <ZoomOut className="w-4 h-4" />
               </Button>
