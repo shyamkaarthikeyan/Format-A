@@ -1,3 +1,4 @@
+// CACHE BUST: 2025-11-08 17:35 - Force deployment update for admin-fresh endpoint
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { 
