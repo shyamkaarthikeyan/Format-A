@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-// import { neonDb } from './_lib/neon-database'; // Temporarily disabled to isolate issue
+import { neonDb } from './_lib/neon-database';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -60,28 +60,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('Admin API processing endpoint:', endpoint);
 
-    // Temporarily mock database for testing
-    const mockDb = {
-      initialize: async () => { console.log('Mock database initialized'); },
-      getAllUsers: async () => [],
-      getAllDocuments: async () => [],
-      getAllDownloads: async () => []
-    };
-    
-    console.log('Using mock database for testing');
+    // Initialize database with error handling
+    try {
+      console.log('Attempting to initialize database...');
+      await neonDb.initialize();
+      console.log('Database initialized successfully');
+    } catch (dbError) {
+      console.error('Database initialization failed:', dbError);
+      
+      // Provide more detailed error information for debugging
+      const errorDetails = {
+        message: dbError instanceof Error ? dbError.message : 'Unknown database error',
+        stack: dbError instanceof Error ? dbError.stack : undefined,
+        name: dbError instanceof Error ? dbError.name : undefined,
+        hasDbUrl: !!process.env.DATABASE_URL,
+        hasPostgresUrl: !!process.env.POSTGRES_URL,
+        nodeEnv: process.env.NODE_ENV
+      };
+      
+      console.error('Detailed error info:', errorDetails);
+      
+      return res.status(500).json({
+        success: false,
+        error: 'DATABASE_INIT_FAILED',
+        message: 'Failed to initialize database',
+        details: errorDetails
+      });
+    }
 
     // Handle analytics endpoints with both old and new routing patterns
     if (endpoint === 'analytics' && type) {
       // Handle /api/admin?path=analytics&type=users pattern
       switch (type) {
         case 'users':
-          return await handleUserAnalytics(req, res, mockDb);
+          return await handleUserAnalytics(req, res, neonDb);
         case 'documents':
-          return await handleDocumentAnalytics(req, res, mockDb);
+          return await handleDocumentAnalytics(req, res, neonDb);
         case 'downloads':
-          return await handleDownloadAnalytics(req, res, mockDb);
+          return await handleDownloadAnalytics(req, res, neonDb);
         case 'system':
-          return await handleSystemAnalytics(req, res, mockDb);
+          return await handleSystemAnalytics(req, res, neonDb);
         default:
           return res.status(400).json({ 
             error: 'Invalid analytics type', 
@@ -93,28 +111,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Route to different admin functions based on path
     switch (endpoint) {
       case 'analytics/users':
-        return await handleUserAnalytics(req, res, mockDb);
+        return await handleUserAnalytics(req, res, neonDb);
       
       case 'analytics/documents':
-        return await handleDocumentAnalytics(req, res, mockDb);
+        return await handleDocumentAnalytics(req, res, neonDb);
       
       case 'analytics/downloads':
-        return await handleDownloadAnalytics(req, res, mockDb);
+        return await handleDownloadAnalytics(req, res, neonDb);
       
       case 'analytics/system':
-        return await handleSystemAnalytics(req, res, mockDb);
+        return await handleSystemAnalytics(req, res, neonDb);
       
       case 'users':
-        return await handleUsers(req, res, mockDb);
+        return await handleUsers(req, res, neonDb);
       
       case 'auth/session':
-        return await handleAdminSession(req, res, mockDb);
+        return await handleAdminSession(req, res, neonDb);
       
       case 'auth/verify':
-        return await handleAdminVerify(req, res, mockDb);
+        return await handleAdminVerify(req, res, neonDb);
       
       case 'auth/signout':
-        return await handleAdminSignout(req, res, mockDb);
+        return await handleAdminSignout(req, res, neonDb);
       
       // Consolidated endpoints from separate files
       case 'auth-test':
