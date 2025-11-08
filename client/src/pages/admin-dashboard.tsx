@@ -140,11 +140,12 @@ const AdminDashboard: React.FC = () => {
       const baseUrl = '/api/admin-fresh';
       const fallbackParams = adminToken ? '' : '&adminEmail=shyamkaarthikeyan@gmail.com';
       
-      console.log('Making admin API requests with admin-fresh endpoint:', {
+      console.log('Making admin API requests with admin-fresh endpoint - CACHE BUST v2:', {
         baseUrl,
         hasToken: !!adminToken,
         tokenPrefix: adminToken ? adminToken.substring(0, 15) + '...' : 'none',
-        fallbackParams
+        fallbackParams,
+        timestamp: new Date().toISOString()
       });
 
       // Fetch real data from admin API endpoints with authentication
