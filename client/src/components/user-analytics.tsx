@@ -365,7 +365,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analytics.topUsers.map((user, index) => (
+              {(analytics.topUsers || []).map((user, index) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -407,7 +407,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
             </tbody>
           </table>
           
-          {analytics.topUsers.length === 0 && (
+          {(analytics.topUsers || []).length === 0 && (
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No active users found</p>
@@ -435,7 +435,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
           <div>
             <p className="text-gray-600">Top User Activity</p>
             <p className="font-semibold text-purple-600">
-              {analytics.topUsers[0]?.documentsCreated || 0} documents created
+              {(analytics.topUsers || [])[0]?.documentsCreated || 0} documents created
             </p>
           </div>
         </div>
