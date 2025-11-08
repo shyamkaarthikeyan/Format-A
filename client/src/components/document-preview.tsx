@@ -378,51 +378,49 @@ function generateClientSidePDF(document: Document): Blob {
       }
     }
 
-    // Abstract - IEEE format (9pt bold italic title, content in italic, single column)
+    // Start 2-column layout after authors
+    const { leftColumnX, rightColumnX, columnWidth } = startTwoColumnLayout();
+    let currentColumn_Main = 'left';
+    let leftColumnY_Main = currentY;
+    let rightColumnY_Main = currentY;
+
+    // Update column positions for 2-column content
+    leftColumnY_Main = currentY;
+    rightColumnY_Main = currentY;
+
+    // Abstract - IEEE format (9pt bold italic title, content in bold, 2-column layout)
     if (document.abstract && typeof document.abstract === 'string') {
       try {
-        // Abstract title - bold italic
-        pdf.setFontSize(9);
-        pdf.setFont('times', 'bolditalic');
-        const abstractTitle = 'Abstract—';
-        currentY = addSingleColumnText(pdf, abstractTitle, currentY, 9, 'bolditalic', false, false);
-
-        // Abstract content - italic, same line
-        pdf.setFont('times', 'italic');
-        const abstractContent = document.abstract;
-        currentY = addSingleColumnText(pdf, abstractContent, currentY - 11, 9, 'italic', false, true, abstractTitle);
-
-        currentY += 12; // IEEE standard spacing after abstract
+        // Abstract title and content in 2-column layout
+        const abstractText = `Abstract—${document.abstract}`;
+        const abstractResult = addTextToColumns(
+          pdf, abstractText, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+          9, 'bold', leftColumnX, rightColumnX, columnWidth
+        );
+        leftColumnY_Main = abstractResult.leftY + 6;
+        rightColumnY_Main = abstractResult.rightY + 6;
+        currentColumn_Main = abstractResult.currentColumn;
       } catch (error) {
         console.error('Error adding abstract:', error);
       }
     }
 
-    // Keywords - IEEE format (9pt bold italic title, content in italic, single column)
+    // Keywords - IEEE format (9pt bold italic title, content in bold, 2-column layout)
     if (document.keywords && typeof document.keywords === 'string') {
       try {
-        // Keywords title - bold italic
-        pdf.setFontSize(9);
-        pdf.setFont('times', 'bolditalic');
-        const keywordsTitle = 'Keywords—';
-        currentY = addSingleColumnText(pdf, keywordsTitle, currentY, 9, 'bolditalic', false, false);
-
-        // Keywords content - italic, same line
-        pdf.setFont('times', 'italic');
-        const keywordsContent = document.keywords;
-        currentY = addSingleColumnText(pdf, keywordsContent, currentY - 11, 9, 'italic', false, true, keywordsTitle);
-
-        currentY += 18; // IEEE standard spacing after keywords before 2-column content
+        // Keywords title and content in 2-column layout
+        const keywordsText = `Keywords—${document.keywords}`;
+        const keywordsResult = addTextToColumns(
+          pdf, keywordsText, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
+          9, 'bold', leftColumnX, rightColumnX, columnWidth
+        );
+        leftColumnY_Main = keywordsResult.leftY + 12;
+        rightColumnY_Main = keywordsResult.rightY + 12;
+        currentColumn_Main = keywordsResult.currentColumn;
       } catch (error) {
         console.error('Error adding keywords:', error);
       }
     }
-
-    // Start 2-column layout after keywords
-    const { leftColumnX, rightColumnX, columnWidth } = startTwoColumnLayout();
-    let currentColumn_Main = 'left';
-    let leftColumnY_Main = currentY;
-    let rightColumnY_Main = currentY;
 
     // Sections - IEEE format (10pt bold, centered, 2-column layout)
     if (document.sections && Array.isArray(document.sections) && document.sections.length > 0) {
@@ -441,16 +439,25 @@ function generateClientSidePDF(document: Document): Blob {
 
           if (section && section.title && typeof section.title === 'string') {
             try {
-              // Section title - IEEE format: 10pt bold, left-aligned in columns
+              // Section title - IEEE format: 10pt bold, center-aligned within current column
               pdf.setFontSize(10);
               pdf.setFont('times', 'bold');
               const sectionTitle = `${index + 1}. ${section.title.toUpperCase()}`;
 
-              // Add section title to current column
-              const titleResult = addTextToColumns(
-                pdf, sectionTitle, leftColumnY_Main, rightColumnY_Main, currentColumn_Main,
-                10, 'bold', leftColumnX, rightColumnX, columnWidth
-              );
+              // Add section title centered within current column
+              const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
+              const titleWidth = pdf.getTextWidth(sectionTitle);
+              const centeredX = currentColumnX + (columnWidth - titleWidth) / 2;
+              const currentY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
+              
+              pdf.text(sectionTitle, centeredX, currentY);
+              
+              // Update column positions
+              const titleResult = {
+                leftY: currentColumn_Main === 'left' ? currentY + 14 : leftColumnY_Main,
+                rightY: currentColumn_Main === 'right' ? currentY + 14 : rightColumnY_Main,
+                currentColumn: currentColumn_Main
+              };
               leftColumnY_Main = titleResult.leftY;
               rightColumnY_Main = titleResult.rightY;
               currentColumn_Main = titleResult.currentColumn;
@@ -1003,32 +1010,33 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container" style={{ overflow: 'auto' }}>
-                {/* Clean PDF Viewer with working zoom controls */}
+              <div className="h-full relative bg-white pdf-preview-container overflow-auto">
+                {/* Clean PDF Viewer with working zoom controls and scrolling */}
                 <div
-                  className="w-full h-full relative"
+                  className="relative"
                   style={{
                     transform: `scale(${zoom / 100})`,
                     transformOrigin: 'top center',
-                    minWidth: `${zoom}%`,
-                    minHeight: `${zoom}%`,
-                    padding: zoom > 100 ? '20px' : '0px'
+                    width: zoom > 100 ? `${zoom}%` : '100%',
+                    minHeight: zoom > 100 ? `${zoom}%` : '100%',
+                    padding: zoom > 100 ? '20px' : '10px'
                   }}
                 >
                   <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=${zoom}`}
+                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitH`}
                     type="application/pdf"
-                    className="w-full h-full border-0"
+                    className="w-full border-0 shadow-lg"
                     style={{
                       outline: 'none',
                       border: 'none',
                       width: '100%',
-                      height: '600px',
-                      minHeight: '600px'
+                      height: '800px',
+                      minHeight: '800px',
+                      borderRadius: '4px'
                     }}
                   >
                     {/* Fallback message */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
                       <div className="text-center p-6">
                         <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                         <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
