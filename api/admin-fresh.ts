@@ -18,156 +18,201 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('Fresh Admin API:', { endpoint, type, method: req.method });
 
-    // Handle analytics endpoints with real database data
+    // Handle analytics endpoints with real database data (with graceful fallback)
     if (endpoint === 'analytics' && type) {
-      const db = new NeonDatabase();
+      
+      // Define fallback mock data
+      const mockData = {
+        users: {
+          totalUsers: 42,
+          activeUsers: { last24h: 12, last7d: 28, last30d: 35 },
+          userGrowth: { thisMonth: 8, lastMonth: 6, growthRate: 33.3 },
+          newUsers: { today: 2, thisWeek: 8, thisMonth: 8 }
+        },
+        documents: {
+          totalDocuments: 156,
+          documentsThisMonth: 23,
+          documentsThisWeek: 7,
+          documentsToday: 3,
+          growthRate: 15.2,
+          averageLength: 2500,
+          updateRate: 12.5
+        },
+        downloads: {
+          totalDownloads: 89,
+          downloadsToday: 5,
+          downloadsThisWeek: 18,
+          downloadsThisMonth: 45,
+          downloadsByFormat: [
+            { format: 'pdf', count: 67, percentage: 75.3 },
+            { format: 'docx', count: 22, percentage: 24.7 }
+          ]
+        },
+        system: {
+          uptime: Math.round(process.uptime()),
+          memoryUsage: {
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+            percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
+          },
+          systemStatus: 'healthy',
+          nodeVersion: process.version,
+          platform: process.platform,
+          databaseHealth: {
+            isHealthy: false,
+            lastChecked: new Date().toISOString(),
+            responseTime: 0,
+            errorCount: 0
+          }
+        }
+      };
+
+      // Try to get real database data first
+      let useRealData = false;
+      let realData = null;
       
       try {
-        // Initialize database connection
-        await db.initializeTables();
-        
-        switch (type) {
-          case 'users': {
-            const userAnalytics = await db.getUserAnalytics();
-            const data = {
-              totalUsers: parseInt(userAnalytics.total_users) || 0,
-              activeUsers: { 
-                last24h: parseInt(userAnalytics.active_users_7d) || 0, // Using 7d as proxy for 24h
-                last7d: parseInt(userAnalytics.active_users_7d) || 0, 
-                last30d: parseInt(userAnalytics.active_users_30d) || 0 
-              },
-              userGrowth: { 
-                thisMonth: parseInt(userAnalytics.new_users_30d) || 0, 
-                lastMonth: 0, // Would need additional query for previous month
-                growthRate: 0 // Would calculate based on previous month data
-              },
-              newUsers: {
-                today: parseInt(userAnalytics.new_users_today) || 0,
-                thisWeek: parseInt(userAnalytics.new_users_7d) || 0,
-                thisMonth: parseInt(userAnalytics.new_users_30d) || 0
+        // Only attempt database connection if DATABASE_URL exists
+        if (process.env.DATABASE_URL) {
+          console.log('Attempting database connection for analytics...');
+          
+          const db = new NeonDatabase();
+          
+          // Test connection first
+          const isHealthy = await db.testConnection();
+          
+          if (isHealthy) {
+            console.log('Database connection successful, fetching real data...');
+            
+            // Initialize tables if needed
+            await db.initializeTables();
+            
+            // Get real analytics data based on type
+            switch (type) {
+              case 'users': {
+                const userAnalytics = await db.getUserAnalytics();
+                realData = {
+                  totalUsers: parseInt(userAnalytics.total_users) || 0,
+                  activeUsers: { 
+                    last24h: parseInt(userAnalytics.active_users_7d) || 0,
+                    last7d: parseInt(userAnalytics.active_users_7d) || 0, 
+                    last30d: parseInt(userAnalytics.active_users_30d) || 0 
+                  },
+                  userGrowth: { 
+                    thisMonth: parseInt(userAnalytics.new_users_30d) || 0, 
+                    lastMonth: 0,
+                    growthRate: 0
+                  },
+                  newUsers: {
+                    today: parseInt(userAnalytics.new_users_today) || 0,
+                    thisWeek: parseInt(userAnalytics.new_users_7d) || 0,
+                    thisMonth: parseInt(userAnalytics.new_users_30d) || 0
+                  }
+                };
+                useRealData = true;
+                break;
               }
-            };
-            
-            return res.json({
-              success: true,
-              data,
-              message: 'Real user analytics data from database'
-            });
-          }
 
-          case 'documents': {
-            const documentAnalytics = await db.getDocumentAnalytics();
-            const data = {
-              totalDocuments: parseInt(documentAnalytics.total_documents) || 0,
-              documentsThisMonth: parseInt(documentAnalytics.documents_30d) || 0,
-              documentsThisWeek: parseInt(documentAnalytics.documents_7d) || 0,
-              documentsToday: parseInt(documentAnalytics.documents_today) || 0,
-              growthRate: 0, // Would calculate based on previous period
-              averageLength: 0, // Would need additional query
-              updateRate: 0 // Would need additional query
-            };
-            
-            return res.json({
-              success: true,
-              data,
-              message: 'Real document analytics data from database'
-            });
-          }
-
-          case 'downloads': {
-            const downloadAnalytics = await db.getDownloadAnalytics();
-            const data = {
-              totalDownloads: parseInt(downloadAnalytics.total_downloads) || 0,
-              downloadsToday: parseInt(downloadAnalytics.downloads_today) || 0,
-              downloadsThisWeek: parseInt(downloadAnalytics.downloads_7d) || 0,
-              downloadsThisMonth: parseInt(downloadAnalytics.downloads_30d) || 0,
-              downloadsByFormat: [
-                { 
-                  format: 'pdf', 
-                  count: parseInt(downloadAnalytics.pdf_downloads) || 0, 
-                  percentage: downloadAnalytics.total_downloads > 0 ? 
-                    Math.round((parseInt(downloadAnalytics.pdf_downloads) || 0) / parseInt(downloadAnalytics.total_downloads) * 100) : 0
-                },
-                { 
-                  format: 'docx', 
-                  count: parseInt(downloadAnalytics.docx_downloads) || 0, 
-                  percentage: downloadAnalytics.total_downloads > 0 ? 
-                    Math.round((parseInt(downloadAnalytics.docx_downloads) || 0) / parseInt(downloadAnalytics.total_downloads) * 100) : 0
-                }
-              ]
-            };
-            
-            return res.json({
-              success: true,
-              data,
-              message: 'Real download analytics data from database'
-            });
-          }
-
-          case 'system': {
-            const connectionHealth = db.getConnectionHealth();
-            const data = {
-              uptime: Math.round(process.uptime()),
-              memoryUsage: {
-                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-                used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
-              },
-              systemStatus: connectionHealth.isHealthy ? 'healthy' : 'warning',
-              nodeVersion: process.version,
-              platform: process.platform,
-              databaseHealth: {
-                isHealthy: connectionHealth.isHealthy,
-                lastChecked: connectionHealth.lastChecked,
-                responseTime: connectionHealth.responseTime,
-                errorCount: connectionHealth.errorCount
+              case 'documents': {
+                const documentAnalytics = await db.getDocumentAnalytics();
+                realData = {
+                  totalDocuments: parseInt(documentAnalytics.total_documents) || 0,
+                  documentsThisMonth: parseInt(documentAnalytics.documents_30d) || 0,
+                  documentsThisWeek: parseInt(documentAnalytics.documents_7d) || 0,
+                  documentsToday: parseInt(documentAnalytics.documents_today) || 0,
+                  growthRate: 0,
+                  averageLength: 0,
+                  updateRate: 0
+                };
+                useRealData = true;
+                break;
               }
-            };
-            
-            return res.json({
-              success: true,
-              data,
-              message: 'Real system analytics data'
-            });
-          }
 
-          default:
-            return res.status(400).json({ 
-              success: false,
-              error: 'Invalid analytics type', 
-              validTypes: ['users', 'documents', 'downloads', 'system'] 
-            });
+              case 'downloads': {
+                const downloadAnalytics = await db.getDownloadAnalytics();
+                const totalDownloads = parseInt(downloadAnalytics.total_downloads) || 0;
+                const pdfDownloads = parseInt(downloadAnalytics.pdf_downloads) || 0;
+                const docxDownloads = parseInt(downloadAnalytics.docx_downloads) || 0;
+                
+                realData = {
+                  totalDownloads,
+                  downloadsToday: parseInt(downloadAnalytics.downloads_today) || 0,
+                  downloadsThisWeek: parseInt(downloadAnalytics.downloads_7d) || 0,
+                  downloadsThisMonth: parseInt(downloadAnalytics.downloads_30d) || 0,
+                  downloadsByFormat: [
+                    { 
+                      format: 'pdf', 
+                      count: pdfDownloads, 
+                      percentage: totalDownloads > 0 ? Math.round((pdfDownloads / totalDownloads) * 100) : 0
+                    },
+                    { 
+                      format: 'docx', 
+                      count: docxDownloads, 
+                      percentage: totalDownloads > 0 ? Math.round((docxDownloads / totalDownloads) * 100) : 0
+                    }
+                  ]
+                };
+                useRealData = true;
+                break;
+              }
+
+              case 'system': {
+                const connectionHealth = db.getConnectionHealth();
+                realData = {
+                  uptime: Math.round(process.uptime()),
+                  memoryUsage: {
+                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
+                  },
+                  systemStatus: connectionHealth.isHealthy ? 'healthy' : 'warning',
+                  nodeVersion: process.version,
+                  platform: process.platform,
+                  databaseHealth: {
+                    isHealthy: connectionHealth.isHealthy,
+                    lastChecked: connectionHealth.lastChecked,
+                    responseTime: connectionHealth.responseTime,
+                    errorCount: connectionHealth.errorCount
+                  }
+                };
+                useRealData = true;
+                break;
+              }
+            }
+          } else {
+            console.warn('Database connection test failed, using mock data');
+          }
+        } else {
+          console.warn('DATABASE_URL not found, using mock data');
         }
-        
       } catch (dbError) {
-        console.error('Database error in analytics:', dbError);
-        
-        // Fallback to basic data if database fails
-        const fallbackData = {
-          users: { totalUsers: 0, activeUsers: { last24h: 0, last7d: 0, last30d: 0 }, userGrowth: { thisMonth: 0, lastMonth: 0, growthRate: 0 } },
-          documents: { totalDocuments: 0, documentsThisMonth: 0, documentsThisWeek: 0, growthRate: 0 },
-          downloads: { totalDownloads: 0, downloadsByFormat: [{ format: 'pdf', count: 0, percentage: 0 }, { format: 'docx', count: 0, percentage: 0 }] },
-          system: { 
-            uptime: Math.round(process.uptime()), 
-            memoryUsage: { total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100) },
-            systemStatus: 'warning', 
-            nodeVersion: process.version, 
-            platform: process.platform 
-          }
-        };
-        
-        const data = fallbackData[type as keyof typeof fallbackData];
-        if (data) {
-          return res.json({
-            success: true,
-            data,
-            message: `Database connection failed, showing fallback data. Error: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`
-          });
-        }
+        console.error('Database error, falling back to mock data:', dbError);
+        useRealData = false;
+      }
+
+      // Return appropriate data
+      const dataToReturn = useRealData ? realData : mockData[type as keyof typeof mockData];
+      const message = useRealData 
+        ? `Real ${type} analytics data from database`
+        : `Mock ${type} analytics data (database unavailable)`;
+
+      if (dataToReturn) {
+        return res.json({
+          success: true,
+          data: dataToReturn,
+          message,
+          dataSource: useRealData ? 'database' : 'mock'
+        });
+      } else {
+        return res.status(400).json({ 
+          success: false,
+          error: 'Invalid analytics type', 
+          validTypes: ['users', 'documents', 'downloads', 'system'] 
+        });
       }
     }
 
-    // Default response
+    // Default response for non-analytics endpoints
     return res.json({
       success: true,
       message: 'Fresh admin API is working!',
