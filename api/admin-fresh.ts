@@ -1,5 +1,4 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { NeonDatabase } from './_lib/neon-database';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -76,6 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (process.env.DATABASE_URL) {
           console.log('Attempting database connection for analytics...');
           
+          // Dynamic import to avoid issues if module fails to load
+          const { NeonDatabase } = await import('./_lib/neon-database');
           const db = new NeonDatabase();
           
           // Test connection first
