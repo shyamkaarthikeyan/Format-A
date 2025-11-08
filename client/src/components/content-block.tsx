@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { X, Type, Image as ImageIcon, Plus, Table, Calculator } from "lucide-react";
 import FileUpload from "./file-upload";
 import RichTextEditor from "./rich-text-editor";
+import TableBlockEditor from "./table-block-editor";
 import type { ContentBlock as ContentBlockType } from "@shared/schema";
 import { useState } from "react";
 
@@ -226,54 +227,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
             )}
           </div>
         ) : block.type === "table" ? (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Table Name
-              </label>
-              <Input
-                placeholder="Enter table name"
-                value={block.tableName || ""}
-                onChange={(e) => onUpdate({ tableName: e.target.value })}
-              />
-              <div className="text-xs text-gray-500">
-                Will appear as "Table 1: {block.tableName || 'Table Name'}"
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Table Image
-              </label>
-              <FileUpload
-                onFileSelect={(file, base64) => {
-                  onUpdate({ 
-                    imageId: `table_${Date.now()}`,
-                    data: base64.split(',')[1],
-                    fileName: file.name
-                  });
-                }}
-                onClear={() => {
-                  onUpdate({ 
-                    imageId: undefined,
-                    data: undefined,
-                    fileName: undefined
-                  });
-                }}
-                accept="image/*"
-                maxSize={10 * 1024 * 1024}
-                currentFile={block.imageId ? { 
-                  name: block.fileName || 'Table Image',
-                  preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
-                } : undefined}
-              />
-              {block.imageId && (
-                <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                  ✅ Table image uploaded: {block.fileName || 'Table Image'}
-                </div>
-              )}
-            </div>
-          </div>
+          <TableBlockEditor block={block} onUpdate={onUpdate} />
         ) : (
           <div className="space-y-3">
             <div className="space-y-2">

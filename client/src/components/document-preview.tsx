@@ -44,99 +44,7 @@ interface DocumentPreviewProps {
   documentId: string | null;
 }
 
-// Function to prepare document data with integrated tables
-const prepareDocumentForGeneration = (document: Document) => {
-  if (!document.tables || document.tables.length === 0) {
-    return document;
-  }
 
-  // Create a copy of the document
-  const preparedDocument = { ...document };
-  
-  // Group tables by section
-  const tablesBySection: { [sectionId: string]: typeof document.tables } = {};
-  const unassignedTables: typeof document.tables = [];
-  
-  document.tables.forEach(table => {
-    if (table.sectionId) {
-      if (!tablesBySection[table.sectionId]) {
-        tablesBySection[table.sectionId] = [];
-      }
-      tablesBySection[table.sectionId].push(table);
-    } else {
-      unassignedTables.push(table);
-    }
-  });
-
-  // Integrate tables into sections as content blocks
-  preparedDocument.sections = document.sections.map(section => {
-    const sectionTables = tablesBySection[section.id] || [];
-    
-    if (sectionTables.length === 0) {
-      return section;
-    }
-
-    // Create table content blocks
-    const tableContentBlocks = sectionTables.map(table => ({
-      id: `table_block_${table.id}`,
-      type: 'table' as const,
-      tableType: table.type, // Pass the table type to backend
-      tableName: table.tableName,
-      caption: table.caption,
-      size: table.size,
-      position: table.position,
-      order: table.order + 1000, // Ensure tables come after existing content
-      // Pass all table data
-      ...table
-    }));
-
-    // Add table content blocks to section
-    return {
-      ...section,
-      contentBlocks: [
-        ...section.contentBlocks,
-        ...tableContentBlocks
-      ].sort((a, b) => a.order - b.order)
-    };
-  });
-
-  // Add unassigned tables to the first section or create a new section
-  if (unassignedTables.length > 0) {
-    const tableContentBlocks = unassignedTables.map(table => ({
-      id: `table_block_${table.id}`,
-      type: 'table' as const,
-      tableType: table.type,
-      tableName: table.tableName,
-      caption: table.caption,
-      size: table.size,
-      position: table.position,
-      order: table.order + 1000,
-      ...table
-    }));
-
-    if (preparedDocument.sections.length > 0) {
-      // Add to first section
-      preparedDocument.sections[0] = {
-        ...preparedDocument.sections[0],
-        contentBlocks: [
-          ...preparedDocument.sections[0].contentBlocks,
-          ...tableContentBlocks
-        ].sort((a, b) => a.order - b.order)
-      };
-    } else {
-      // Create a new section for tables
-      preparedDocument.sections = [{
-        id: 'tables_section',
-        title: 'Tables',
-        contentBlocks: tableContentBlocks,
-        subsections: [],
-        order: 0
-      }];
-    }
-  }
-
-  return preparedDocument;
-};
 
 // Client-side PDF generation function using jsPDF with proper IEEE format
 function generateClientSidePDF(document: Document): Blob {
@@ -1077,10 +985,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       if (!emailAddress) throw new Error("Please enter an email address.");
 
       console.log('Sending email using Python backend API...');
-      const preparedDocument = prepareDocumentForGeneration(document);
       const result = await documentApi.generateEmail({
         email: emailAddress,
-        documentData: preparedDocument,
+        documentData: document,
       });
 
       return result;

@@ -13,7 +13,6 @@ import AuthorForm from "@/components/author-form";
 import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
-import TableForm from "@/components/table-form";
 import DownloadHistory from "@/components/download-history";
 import AuthDebug from "@/components/auth-debug";
 
@@ -184,99 +183,7 @@ export default function HomeClient() {
     setPendingAction(null);
   };
 
-  // Function to prepare document data with integrated tables
-  const prepareDocumentForGeneration = (document: Document) => {
-    if (!document.tables || document.tables.length === 0) {
-      return document;
-    }
 
-    // Create a copy of the document
-    const preparedDocument = { ...document };
-    
-    // Group tables by section
-    const tablesBySection: { [sectionId: string]: typeof document.tables } = {};
-    const unassignedTables: typeof document.tables = [];
-    
-    document.tables.forEach(table => {
-      if (table.sectionId) {
-        if (!tablesBySection[table.sectionId]) {
-          tablesBySection[table.sectionId] = [];
-        }
-        tablesBySection[table.sectionId].push(table);
-      } else {
-        unassignedTables.push(table);
-      }
-    });
-
-    // Integrate tables into sections as content blocks
-    preparedDocument.sections = document.sections.map(section => {
-      const sectionTables = tablesBySection[section.id] || [];
-      
-      if (sectionTables.length === 0) {
-        return section;
-      }
-
-      // Create table content blocks
-      const tableContentBlocks = sectionTables.map(table => ({
-        id: `table_block_${table.id}`,
-        type: 'table' as const,
-        tableType: table.type, // Pass the table type to backend
-        tableName: table.tableName,
-        caption: table.caption,
-        size: table.size,
-        position: table.position,
-        order: table.order + 1000, // Ensure tables come after existing content
-        // Pass all table data
-        ...table
-      }));
-
-      // Add table content blocks to section
-      return {
-        ...section,
-        contentBlocks: [
-          ...section.contentBlocks,
-          ...tableContentBlocks
-        ].sort((a, b) => a.order - b.order)
-      };
-    });
-
-    // Add unassigned tables to the first section or create a new section
-    if (unassignedTables.length > 0) {
-      const tableContentBlocks = unassignedTables.map(table => ({
-        id: `table_block_${table.id}`,
-        type: 'table' as const,
-        tableType: table.type,
-        tableName: table.tableName,
-        caption: table.caption,
-        size: table.size,
-        position: table.position,
-        order: table.order + 1000,
-        ...table
-      }));
-
-      if (preparedDocument.sections.length > 0) {
-        // Add to first section
-        preparedDocument.sections[0] = {
-          ...preparedDocument.sections[0],
-          contentBlocks: [
-            ...preparedDocument.sections[0].contentBlocks,
-            ...tableContentBlocks
-          ].sort((a, b) => a.order - b.order)
-        };
-      } else {
-        // Create a new section for tables
-        preparedDocument.sections = [{
-          id: 'tables_section',
-          title: 'Tables',
-          contentBlocks: tableContentBlocks,
-          subsections: [],
-          order: 0
-        }];
-      }
-    }
-
-    return preparedDocument;
-  };
 
   const handleGenerateDocx = async () => {
     if (!currentDocument) return;
@@ -290,8 +197,7 @@ export default function HomeClient() {
     setIsGenerating(true);
     try {
       console.log('Generating DOCX using Python backend API...');
-      const preparedDocument = prepareDocumentForGeneration(currentDocument);
-      const result = await documentApi.generateDocx(preparedDocument);
+      const result = await documentApi.generateDocx(currentDocument);
       
       // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
@@ -347,8 +253,7 @@ export default function HomeClient() {
     setIsGenerating(true);
     try {
       console.log('Generating PDF using Python backend API...');
-      const preparedDocument = prepareDocumentForGeneration(currentDocument);
-      const result = await documentApi.generatePdf(preparedDocument, false); // false = download mode
+      const result = await documentApi.generatePdf(currentDocument, false); // false = download mode
       
       // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
@@ -604,23 +509,7 @@ export default function HomeClient() {
                 </CardContent>
               </Card>
 
-              {/* Tables - Compact */}
-              <Card className="bg-white/90 border border-purple-200 shadow-sm">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                    <Image className="w-4 h-4 text-indigo-600" />
-                    Tables
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <TableForm 
-                    tables={documentToDisplay.tables || []} 
-                    documentId={currentDocument?.id || null}
-                    sections={documentToDisplay.sections}
-                    onUpdate={(tables) => handleUpdateDocument({ tables })} 
-                  />
-                </CardContent>
-              </Card>
+
 
               {/* References - Compact */}
               <Card className="bg-white/90 border border-purple-200 shadow-sm">
