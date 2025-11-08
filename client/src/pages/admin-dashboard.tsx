@@ -140,7 +140,8 @@ const AdminDashboard: React.FC = () => {
       const baseUrl = '/api/admin-fresh';
       const fallbackParams = adminToken ? '' : '&adminEmail=shyamkaarthikeyan@gmail.com';
       
-      console.log('Making admin API requests with:', {
+      console.log('Making admin API requests with admin-fresh endpoint:', {
+        baseUrl,
         hasToken: !!adminToken,
         tokenPrefix: adminToken ? adminToken.substring(0, 15) + '...' : 'none',
         fallbackParams
