@@ -46,56 +46,38 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
         return;
       }
 
-      // For admin users, ensure they have an admin session
+      // For admin users, create a simple local session if none exists
       if (!adminSession && !isInitializing && isAdmin) {
-        console.log('Creating admin session for admin user...');
+        console.log('Creating local admin session for admin user...');
         setIsInitializing(true);
         setInitializationError(null);
         
         try {
-          // Try to create admin session via API first
-          const response = await fetch('/api/admin/auth/session', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: user.id,
-              email: user.email
-            })
-          });
-
-          if (response.ok) {
-            const { adminSession: newSession, adminToken } = await response.json();
-            localStorage.setItem('admin-session', JSON.stringify(newSession));
-            localStorage.setItem('admin-token', adminToken);
-            console.log('Admin session created via API');
-          } else {
-            // Fallback to local session creation
-            console.log('API session creation failed, creating local session');
-            const localAdminSession = {
-              sessionId: 'local_admin_' + Date.now(),
-              userId: user.id,
-              adminPermissions: [
-                'view_analytics',
-                'manage_users',
-                'system_monitoring',
-                'download_reports',
-                'admin_panel_access'
-              ],
-              createdAt: new Date().toISOString(),
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-              lastAccessedAt: new Date().toISOString()
-            };
-            
-            const adminToken = 'admin_token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('admin-session', JSON.stringify(localAdminSession));
-            localStorage.setItem('admin-token', adminToken);
-            console.log('Local admin session created with token:', adminToken);
-          }
+          // Create a simple local admin session without API calls to avoid loops
+          const localAdminSession = {
+            sessionId: 'local_admin_' + Date.now(),
+            userId: user.id,
+            adminPermissions: [
+              'view_analytics',
+              'manage_users',
+              'system_monitoring',
+              'download_reports',
+              'admin_panel_access'
+            ] as AdminPermission[],
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            lastAccessedAt: new Date().toISOString()
+          };
           
-          // Trigger a re-render to pick up the new session
-          window.location.reload();
+          const adminToken = 'admin_token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('admin-session', JSON.stringify(localAdminSession));
+          localStorage.setItem('admin-token', adminToken);
+          console.log('Local admin session created successfully');
+          
+          // Force a re-render by updating the auth context
+          if (initializeAdminAccess) {
+            await initializeAdminAccess();
+          }
           
         } catch (error) {
           console.error('Failed to create admin session:', error);
@@ -107,7 +89,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
     };
 
     handleAdminAccess();
-  }, [user, isAdmin, adminSession, loading, isInitializing, setLocation, showUnauthorized, fallbackPath]);
+  }, [user, isAdmin, adminSession, loading, isInitializing, setLocation, showUnauthorized, fallbackPath, initializeAdminAccess]);
 
   // Check if user has required permissions
   const hasRequiredPermissions = () => {
