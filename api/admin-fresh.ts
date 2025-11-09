@@ -20,31 +20,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Handle analytics endpoints with real database data (with graceful fallback)
     if (endpoint === 'analytics' && type) {
       
-      // Define fallback mock data
-      const mockData = {
+      // Define empty data structure for when no real data is available
+      const emptyData = {
         users: {
-          totalUsers: 42,
-          activeUsers: { last24h: 12, last7d: 28, last30d: 35 },
-          userGrowth: { thisMonth: 8, lastMonth: 6, growthRate: 33.3 },
-          newUsers: { today: 2, thisWeek: 8, thisMonth: 8 }
+          totalUsers: 0,
+          activeUsers: { last24h: 0, last7d: 0, last30d: 0 },
+          userGrowth: { thisMonth: 0, lastMonth: 0, growthRate: 0 },
+          newUsers: { today: 0, thisWeek: 0, thisMonth: 0 }
         },
         documents: {
-          totalDocuments: 156,
-          documentsThisMonth: 23,
-          documentsThisWeek: 7,
-          documentsToday: 3,
-          growthRate: 15.2,
-          averageLength: 2500,
-          updateRate: 12.5
+          totalDocuments: 0,
+          documentsThisMonth: 0,
+          documentsThisWeek: 0,
+          documentsToday: 0,
+          growthRate: 0,
+          averageLength: 0,
+          updateRate: 0
         },
         downloads: {
-          totalDownloads: 89,
-          downloadsToday: 5,
-          downloadsThisWeek: 18,
-          downloadsThisMonth: 45,
+          totalDownloads: 0,
+          downloadsToday: 0,
+          downloadsThisWeek: 0,
+          downloadsThisMonth: 0,
           downloadsByFormat: [
-            { format: 'pdf', count: 67, percentage: 75.3 },
-            { format: 'docx', count: 22, percentage: 24.7 }
+            { format: 'pdf', count: 0, percentage: 0 },
+            { format: 'docx', count: 0, percentage: 0 }
           ]
         },
         system: {
@@ -54,14 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
             percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
           },
-          systemStatus: 'healthy',
+          systemStatus: 'warning',
           nodeVersion: process.version,
           platform: process.platform,
           databaseHealth: {
             isHealthy: false,
             lastChecked: new Date().toISOString(),
             responseTime: 0,
-            errorCount: 0
+            errorCount: 1
           }
         }
       };
@@ -181,28 +181,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               }
             }
           } else {
-            console.warn('Database connection test failed, using mock data');
+            console.warn('Database connection test failed, showing empty data');
           }
         } else {
-          console.warn('DATABASE_URL not found, using mock data');
+          console.warn('DATABASE_URL not found, showing empty data');
         }
       } catch (dbError) {
-        console.error('Database error, falling back to mock data:', dbError);
+        console.error('Database error, falling back to empty data:', dbError);
         useRealData = false;
       }
 
       // Return appropriate data
-      const dataToReturn = useRealData ? realData : mockData[type as keyof typeof mockData];
+      const dataToReturn = useRealData ? realData : emptyData[type as keyof typeof emptyData];
       const message = useRealData 
         ? `Real ${type} analytics data from database`
-        : `Mock ${type} analytics data (database unavailable)`;
+        : `No real data available - showing zeros (database unavailable)`;
 
       if (dataToReturn) {
         return res.json({
           success: true,
           data: dataToReturn,
           message,
-          dataSource: useRealData ? 'database' : 'mock'
+          dataSource: useRealData ? 'database' : 'empty'
         });
       } else {
         return res.status(400).json({ 
