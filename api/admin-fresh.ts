@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('✅ DATABASE_URL found, attempting database connection...');
         
         // Dynamic import to avoid issues if module fails to load
-        const { NeonDatabase } = await import('./_lib/neon-database');
+        const { NeonDatabase } = await import('./_lib/neon-database.js');
         const db = new NeonDatabase();
         
         // Test connection first
@@ -169,7 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log('Attempting database connection for analytics...');
           
           // Dynamic import to avoid issues if module fails to load
-          const { NeonDatabase } = await import('./_lib/neon-database');
+          const { NeonDatabase } = await import('./_lib/neon-database.js');
           const db = new NeonDatabase();
           
           // Test connection first
