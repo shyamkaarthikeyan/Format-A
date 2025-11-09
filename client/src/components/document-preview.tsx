@@ -48,189 +48,7 @@ interface DocumentPreviewProps {
 
 
 
-// Client-side DOCX generation function using docx library with IEEE format
-async function generateClientSideDOCX(document: Document): Promise<Blob> {
-  try {
-    // Validate document data
-    if (!document) {
-      throw new Error('Document data is missing');
-    }
-
-    // Create document sections array
-    const docSections = [];
-
-    // Title paragraph
-    if (document.title) {
-      docSections.push(
-        new Paragraph({
-          text: document.title,
-          heading: HeadingLevel.TITLE,
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 240 }
-        })
-      );
-    }
-
-    // Authors
-    if (document.authors && document.authors.length > 0) {
-      const validAuthors = document.authors.filter(author => author && author.name);
-      
-      validAuthors.forEach(author => {
-        // Author name
-        docSections.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: author.name,
-                bold: true,
-                size: 20
-              })
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 120 }
-          })
-        );
-
-        // Author affiliations
-        const affiliations = [
-          author.department,
-          author.organization,
-          author.city,
-          author.email
-        ].filter(Boolean);
-
-        if (affiliations.length > 0) {
-          docSections.push(
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: affiliations.join(', '),
-                  italics: true,
-                  size: 20
-                })
-              ],
-              alignment: AlignmentType.CENTER,
-              spacing: { after: 120 }
-            })
-          );
-        }
-      });
-    }
-
-    // Abstract
-    if (document.abstract) {
-      docSections.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "Abstract—",
-              bold: true,
-              size: 18
-            }),
-            new TextRun({
-              text: document.abstract,
-              size: 18
-            })
-          ],
-          spacing: { before: 240, after: 120 }
-        })
-      );
-    }
-
-    // Keywords
-    if (document.keywords) {
-      docSections.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "Keywords—",
-              bold: true,
-              size: 18
-            }),
-            new TextRun({
-              text: document.keywords,
-              size: 18
-            })
-          ],
-          spacing: { after: 240 }
-        })
-      );
-    }
-
-    // Sections
-    if (document.sections && document.sections.length > 0) {
-      document.sections.forEach((section, index) => {
-        if (section && section.title) {
-          // Section heading
-          docSections.push(
-            new Paragraph({
-              text: `${index + 1}. ${section.title.toUpperCase()}`,
-              heading: HeadingLevel.HEADING_1,
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 240, after: 120 }
-            })
-          );
-
-          // Section content
-          if (section.contentBlocks && section.contentBlocks.length > 0) {
-            section.contentBlocks
-              .sort((a, b) => a.order - b.order)
-              .forEach(block => {
-                if (block.type === 'text' && block.content) {
-                  docSections.push(
-                    new Paragraph({
-                      text: block.content,
-                      spacing: { after: 120 }
-                    })
-                  );
-                }
-              });
-          }
-        }
-      });
-    }
-
-    // References
-    if (document.references && document.references.length > 0) {
-      docSections.push(
-        new Paragraph({
-          text: "REFERENCES",
-          heading: HeadingLevel.HEADING_1,
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 240, after: 120 }
-        })
-      );
-
-      document.references.forEach((ref, index) => {
-        if (ref && (ref.title || ref.authors)) {
-          const refText = `[${index + 1}] ${ref.authors || 'Unknown'}, "${ref.title || 'Untitled'}", ${ref.journal || ''} ${ref.year || ''}`.trim();
-          docSections.push(
-            new Paragraph({
-              text: refText,
-              spacing: { after: 120 }
-            })
-          );
-        }
-      });
-    }
-
-    // Create the document
-    const doc = new DocxDocument({
-      sections: [{
-        properties: {},
-        children: docSections
-      }]
-    });
-
-    // Generate and return blob (browser-compatible)
-    const blob = await Packer.toBlob(doc);
-    return blob;
-
-  } catch (error) {
-    console.error('Error generating DOCX:', error);
-    throw new Error(`DOCX generation failed: ${error.message}`);
-  }
-}
+// DOCX generation now uses Python backend API for proper IEEE formatting (same as PDF)
 
 // Client-side PDF generation function using jsPDF with proper IEEE format
 function generateClientSidePDF(document: Document): Blob {
@@ -1086,22 +904,38 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       console.log('Generating DOCX for download (client-side)...');
 
       try {
-        // Use client-side DOCX generation (like PDF generation)
-        const docxBlob = await generateClientSideDOCX(document);
+        // Use Python backend API for proper IEEE formatting (same as PDF)
+        console.log('Generating DOCX using Python backend API...');
+        const result = await documentApi.generateDocx(document);
 
-        if (!docxBlob || docxBlob.size === 0) {
-          throw new Error('Failed to generate DOCX document');
+        if (!result.success) {
+          throw new Error(result.message || 'DOCX generation failed');
         }
 
-        // Download the DOCX file
-        const url = URL.createObjectURL(docxBlob);
-        const link = window.document.createElement('a');
-        link.href = url;
-        link.download = `${document.title || 'ieee_paper'}.docx`;
-        link.click();
-        URL.revokeObjectURL(url);
+        // Handle base64 file data
+        if (result.file_data) {
+          const byteCharacters = atob(result.file_data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const docxBlob = new Blob([byteArray], { 
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+          });
 
-        return { success: true, size: docxBlob.size };
+          // Download the DOCX file
+          const url = URL.createObjectURL(docxBlob);
+          const link = window.document.createElement('a');
+          link.href = url;
+          link.download = `${document.title || 'ieee_paper'}.docx`;
+          link.click();
+          URL.revokeObjectURL(url);
+
+          return { success: true, size: docxBlob.size };
+        } else {
+          throw new Error('No file data received from server');
+        }
 
       } catch (error) {
         console.error('DOCX generation failed:', error);
