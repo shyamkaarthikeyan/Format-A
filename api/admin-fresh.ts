@@ -182,52 +182,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('📥 Fetching downloads for user:', userId);
         const downloads = await db.getUserDownloads(userId, page, limit);
         
-        // Handle both response formats (array or object with pagination)
-        let downloadsArray = [];
-        let paginationInfo = {
-          currentPage: page,
-          totalPages: 1,
-          totalItems: 0,
-          hasNext: false,
-          hasPrev: false,
-          limit
-        };
-        
-        if (Array.isArray(downloads)) {
-          // Old format: plain array
-          downloadsArray = downloads;
-          paginationInfo.totalItems = downloads.length;
-          paginationInfo.totalPages = Math.ceil(downloads.length / limit);
-          paginationInfo.hasNext = page < paginationInfo.totalPages;
-          paginationInfo.hasPrev = page > 1;
-        } else if (downloads && typeof downloads === 'object') {
-          // New format: object with downloads and pagination
-          downloadsArray = downloads.downloads || [];
-          paginationInfo = downloads.pagination || paginationInfo;
-        }
-        
         console.log('✅ Downloads retrieved successfully:', {
-          downloadsCount: downloadsArray.length,
-          totalItems: paginationInfo.totalItems,
-          isArray: Array.isArray(downloads),
+          downloadsCount: downloads?.downloads?.length || downloads?.length || 0,
+          totalItems: downloads?.pagination?.totalItems || downloads?.length || 0,
           downloadsData: downloads
         });
         
-        // Ensure we return the correct structure
+        // Handle both response formats - if it's an array, wrap it properly
+        let responseData;
+        if (Array.isArray(downloads)) {
+          responseData = {
+            downloads: downloads,
+            pagination: {
+              currentPage: page,
+              totalPages: Math.ceil(downloads.length / limit),
+              totalItems: downloads.length,
+              hasNext: page < Math.ceil(downloads.length / limit),
+              hasPrev: page > 1,
+              limit
+            }
+          };
+        } else {
+          responseData = downloads || {
+            downloads: [],
+            pagination: {
+              currentPage: page,
+              totalPages: 0,
+              totalItems: 0,
+              hasNext: false,
+              hasPrev: false,
+              limit
+            }
+          };
+        }
+        
         const response = {
           success: true,
-          data: {
-            downloads: downloadsArray,
-            pagination: paginationInfo
-          },
+          data: responseData,
           message: `Retrieved downloads for user ${userId}`,
           debug: {
             userId,
             page,
             limit,
-            downloadsFound: downloadsArray.length,
-            endpoint: 'user-downloads',
-            responseType: Array.isArray(downloads) ? 'array' : 'object'
+            downloadsFound: responseData.downloads?.length || 0,
+            endpoint: 'user-downloads'
           }
         };
         
