@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { documentApi } from "@/lib/api";
 import type { Document } from "@shared/schema";
 import jsPDF from "jspdf";
+import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 
 // CSS to hide PDF browser controls while keeping interactivity
 const pdfHideControlsCSS = `
@@ -46,6 +47,192 @@ interface DocumentPreviewProps {
 }
 
 
+
+// Client-side DOCX generation function using docx library with IEEE format
+async function generateClientSideDOCX(document: Document): Promise<Blob> {
+  try {
+    // Validate document data
+    if (!document) {
+      throw new Error('Document data is missing');
+    }
+
+    // Create document sections array
+    const docSections = [];
+
+    // Title paragraph
+    if (document.title) {
+      docSections.push(
+        new Paragraph({
+          text: document.title,
+          heading: HeadingLevel.TITLE,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 240 }
+        })
+      );
+    }
+
+    // Authors
+    if (document.authors && document.authors.length > 0) {
+      const validAuthors = document.authors.filter(author => author && author.name);
+      
+      validAuthors.forEach(author => {
+        // Author name
+        docSections.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: author.name,
+                bold: true,
+                size: 20
+              })
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 120 }
+          })
+        );
+
+        // Author affiliations
+        const affiliations = [
+          author.department,
+          author.organization,
+          author.city,
+          author.email
+        ].filter(Boolean);
+
+        if (affiliations.length > 0) {
+          docSections.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: affiliations.join(', '),
+                  italics: true,
+                  size: 20
+                })
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 120 }
+            })
+          );
+        }
+      });
+    }
+
+    // Abstract
+    if (document.abstract) {
+      docSections.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Abstract—",
+              bold: true,
+              size: 18
+            }),
+            new TextRun({
+              text: document.abstract,
+              size: 18
+            })
+          ],
+          spacing: { before: 240, after: 120 }
+        })
+      );
+    }
+
+    // Keywords
+    if (document.keywords) {
+      docSections.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Keywords—",
+              bold: true,
+              size: 18
+            }),
+            new TextRun({
+              text: document.keywords,
+              size: 18
+            })
+          ],
+          spacing: { after: 240 }
+        })
+      );
+    }
+
+    // Sections
+    if (document.sections && document.sections.length > 0) {
+      document.sections.forEach((section, index) => {
+        if (section && section.title) {
+          // Section heading
+          docSections.push(
+            new Paragraph({
+              text: `${index + 1}. ${section.title.toUpperCase()}`,
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 240, after: 120 }
+            })
+          );
+
+          // Section content
+          if (section.contentBlocks && section.contentBlocks.length > 0) {
+            section.contentBlocks
+              .sort((a, b) => a.order - b.order)
+              .forEach(block => {
+                if (block.type === 'text' && block.content) {
+                  docSections.push(
+                    new Paragraph({
+                      text: block.content,
+                      spacing: { after: 120 }
+                    })
+                  );
+                }
+              });
+          }
+        }
+      });
+    }
+
+    // References
+    if (document.references && document.references.length > 0) {
+      docSections.push(
+        new Paragraph({
+          text: "REFERENCES",
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 240, after: 120 }
+        })
+      );
+
+      document.references.forEach((ref, index) => {
+        if (ref && (ref.title || ref.authors)) {
+          const refText = `[${index + 1}] ${ref.authors || 'Unknown'}, "${ref.title || 'Untitled'}", ${ref.journal || ''} ${ref.year || ''}`.trim();
+          docSections.push(
+            new Paragraph({
+              text: refText,
+              spacing: { after: 120 }
+            })
+          );
+        }
+      });
+    }
+
+    // Create the document
+    const doc = new DocxDocument({
+      sections: [{
+        properties: {},
+        children: docSections
+      }]
+    });
+
+    // Generate and return blob
+    const buffer = await Packer.toBuffer(doc);
+    return new Blob([buffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+    });
+
+  } catch (error) {
+    console.error('Error generating DOCX:', error);
+    throw new Error(`DOCX generation failed: ${error.message}`);
+  }
+}
 
 // Client-side PDF generation function using jsPDF with proper IEEE format
 function generateClientSidePDF(document: Document): Blob {
@@ -898,22 +1085,15 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      console.log('Generating DOCX for download...');
+      console.log('Generating DOCX for download (client-side)...');
 
       try {
-        // Generate DOCX using Python backend
-        const result = await documentApi.generateDocx(document);
+        // Use client-side DOCX generation (like PDF generation)
+        const docxBlob = await generateClientSideDOCX(document);
 
-        // Convert base64 to blob and download
-        const binaryString = atob(result.file_data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        if (!docxBlob || docxBlob.size === 0) {
+          throw new Error('Failed to generate DOCX document');
         }
-        
-        const docxBlob = new Blob([bytes], { 
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-        });
 
         // Download the DOCX file
         const url = URL.createObjectURL(docxBlob);
@@ -922,7 +1102,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         link.download = `${document.title || 'ieee_paper'}.docx`;
         link.click();
         URL.revokeObjectURL(url);
-        return result;
+
+        return { success: true, size: docxBlob.size };
 
       } catch (error) {
         console.error('DOCX generation failed:', error);
