@@ -92,6 +92,51 @@ export default function EnhancedPreviewSystem({
     }
   };
 
+  // Function to estimate pages based on document content
+  const estimatePagesFromContent = () => {
+    try {
+      // Calculate total content length
+      const titleLength = document.title?.length || 0;
+      const abstractLength = document.abstract?.length || 0;
+      const keywordsLength = document.keywords?.length || 0;
+      
+      // Calculate authors content length
+      const authorsLength = document.authors.reduce((total, author) => {
+        return total + (author.name?.length || 0) + 
+               (author.department?.length || 0) + 
+               (author.organization?.length || 0) + 
+               (author.email?.length || 0);
+      }, 0);
+      
+      // Calculate sections content length
+      const sectionsLength = document.sections.reduce((total, section) => {
+        const sectionTitleLength = section.title?.length || 0;
+        const contentBlocksLength = section.contentBlocks.reduce((blockTotal, block) => {
+          return blockTotal + (block.content?.length || 0);
+        }, 0);
+        return total + sectionTitleLength + contentBlocksLength;
+      }, 0);
+      
+      // Calculate references length
+      const referencesLength = document.references.reduce((total, ref) => {
+        return total + (ref.text?.length || 0);
+      }, 0);
+      
+      const totalContentLength = titleLength + abstractLength + keywordsLength + 
+                                authorsLength + sectionsLength + referencesLength;
+      
+      // Estimate pages (IEEE format: ~2500-3000 characters per page in 2-column layout)
+      const estimatedPages = Math.max(1, Math.ceil(totalContentLength / 2800));
+      
+      console.log(`Content-based page estimation: ${estimatedPages} pages (${totalContentLength} total characters)`);
+      setTotalPages(estimatedPages);
+      
+    } catch (error) {
+      console.error('Error estimating pages from content:', error);
+      setTotalPages(1); // Default fallback
+    }
+  };
+
   // Generate PDF preview with debouncing
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -114,7 +159,7 @@ export default function EnhancedPreviewSystem({
       const result = await documentApi.generatePdf(document, true); // true = preview mode
       
       if (result.file_data) {
-        // Convert base64 to blob for preview
+        // Handle PDF file data (if backend returns actual PDF)
         const byteCharacters = atob(result.file_data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -131,6 +176,20 @@ export default function EnhancedPreviewSystem({
         
         // Count pages in the PDF
         countPdfPages(blob);
+      } else if (result.preview_html) {
+        // Handle HTML preview (current backend behavior)
+        console.log('Backend returned HTML preview, estimating pages...');
+        
+        // Create a blob URL for the HTML content
+        const htmlBlob = new Blob([result.preview_html], { type: 'text/html' });
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
+        }
+        const url = URL.createObjectURL(htmlBlob);
+        setPdfUrl(url);
+        
+        // Estimate pages based on content length
+        estimatePagesFromContent();
       } else {
         throw new Error('Invalid response format from preview generation service');
       }
