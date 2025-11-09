@@ -312,6 +312,7 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
     );
 
     console.log('✅ User authenticated and saved to database:', user.email);
+    console.log('🔧 Returning response with camelCase field names...');
 
     return res.status(200).json({
       success: true,
