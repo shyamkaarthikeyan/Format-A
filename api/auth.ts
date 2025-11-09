@@ -324,10 +324,11 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
         google_id: user.google_id,
         createdAt: user.created_at,
         lastLoginAt: user.last_login_at,
-        preferences: user.preferences || {
+        preferences: {
           emailNotifications: true,
           defaultExportFormat: 'pdf',
-          theme: 'light'
+          theme: 'light',
+          ...(user.preferences || {})
         }
       },
       token: appToken,
