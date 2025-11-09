@@ -871,20 +871,7 @@ export class NeonDatabase {
     }
   }
 
-  async getUserDownloads(userId: string): Promise<Download[]> {
-    try {
-      const sql = getSqlConnection();
-      const result = await sql`
-        SELECT * FROM downloads 
-        WHERE user_id = ${userId} 
-        ORDER BY downloaded_at DESC
-      `;
-      return result.rows as Download[];
-    } catch (error) {
-      console.error('Error getting user downloads:', error);
-      return [];
-    }
-  }
+  // Removed duplicate getUserDownloads method - using the paginated version above
 
   async getAllDownloads(): Promise<Download[]> {
     try {
@@ -1085,4 +1072,76 @@ export class NeonDatabase {
 }
 
 // Export singleton instance
-export const neonDb = new NeonDatabase();
+export const neonDb = new NeonDatabase();  /
+/ User suspension functionality
+  async suspendUser(userId: string, suspend: boolean, adminEmail?: string, reason?: string): Promise<any> {
+    try {
+      const sql = getSqlConnection();
+      
+      // Get user information first
+      const userResult = await sql`
+        SELECT * FROM users WHERE id = ${userId}
+      `;
+      
+      if (userResult.rows.length === 0) {
+        throw new Error('User not found');
+      }
+      
+      const user = userResult.rows[0];
+      
+      // Update user suspension status
+      const updateResult = await sql`
+        UPDATE users 
+        SET 
+          suspended = ${suspend},
+          suspended_at = ${suspend ? new Date().toISOString() : null},
+          suspended_by = ${suspend ? adminEmail || 'admin' : null},
+          suspension_reason = ${suspend ? reason || 'No reason provided' : null},
+          is_active = ${!suspend}
+        WHERE id = ${userId}
+        RETURNING *
+      `;
+      
+      return {
+        success: true,
+        user_id: userId,
+        user_name: user.name,
+        user_email: user.email,
+        suspended: suspend,
+        suspended_at: suspend ? new Date().toISOString() : null,
+        suspended_by: suspend ? adminEmail || 'admin' : null,
+        reason: suspend ? reason || 'No reason provided' : null,
+        previous_status: user.suspended || false
+      };
+      
+    } catch (error) {
+      console.error('Error suspending user:', error);
+      throw error;
+    }
+  }
+
+  // Get user suspension status
+  async getUserSuspensionStatus(userId: string): Promise<any> {
+    try {
+      const sql = getSqlConnection();
+      const result = await sql`
+        SELECT 
+          id,
+          name,
+          email,
+          is_active,
+          suspended,
+          suspended_at,
+          suspended_by,
+          suspension_reason
+        FROM users 
+        WHERE id = ${userId}
+      `;
+      
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      console.error('Error getting user suspension status:', error);
+      throw error;
+    }
+  }
+}

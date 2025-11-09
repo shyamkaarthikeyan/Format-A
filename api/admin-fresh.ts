@@ -112,6 +112,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Handle user suspension/unsuspension
+    if (req.method === 'POST' && req.query.userId && req.query.action === 'suspend') {
+      const userId = req.query.userId as string;
+      const { suspend, reason, adminEmail } = req.body;
+      
+      console.log('🔒 Processing user suspension request:', { userId, suspend, reason, adminEmail });
+      
+      try {
+        if (!process.env.DATABASE_URL) {
+          return res.status(500).json({
+            success: false,
+            error: 'Database not configured'
+          });
+        }
+
+        const { NeonDatabase } = await import('./_lib/neon-database.js');
+        const db = new NeonDatabase();
+        
+        // Suspend/unsuspend user
+        const result = await db.suspendUser(userId, suspend, adminEmail, reason);
+        
+        return res.json({
+          success: true,
+          message: suspend ? `User ${userId} suspended successfully` : `User ${userId} unsuspended successfully`,
+          data: result
+        });
+        
+      } catch (error) {
+        console.error('Error suspending user:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to suspend user',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
     // Handle user downloads endpoint - ABSOLUTE HIGHEST PRIORITY
     // This MUST be checked before any other endpoint logic
     if (req.query.action === 'downloads' && req.query.userId) {
@@ -145,33 +182,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('📥 Fetching downloads for user:', userId);
         const downloads = await db.getUserDownloads(userId, page, limit);
         
+        // Handle both response formats (array or object with pagination)
+        let downloadsArray = [];
+        let paginationInfo = {
+          currentPage: page,
+          totalPages: 1,
+          totalItems: 0,
+          hasNext: false,
+          hasPrev: false,
+          limit
+        };
+        
+        if (Array.isArray(downloads)) {
+          // Old format: plain array
+          downloadsArray = downloads;
+          paginationInfo.totalItems = downloads.length;
+          paginationInfo.totalPages = Math.ceil(downloads.length / limit);
+          paginationInfo.hasNext = page < paginationInfo.totalPages;
+          paginationInfo.hasPrev = page > 1;
+        } else if (downloads && typeof downloads === 'object') {
+          // New format: object with downloads and pagination
+          downloadsArray = downloads.downloads || [];
+          paginationInfo = downloads.pagination || paginationInfo;
+        }
+        
         console.log('✅ Downloads retrieved successfully:', {
-          downloadsCount: downloads?.downloads?.length || 0,
-          totalItems: downloads?.pagination?.totalItems || 0,
+          downloadsCount: downloadsArray.length,
+          totalItems: paginationInfo.totalItems,
+          isArray: Array.isArray(downloads),
           downloadsData: downloads
         });
         
         // Ensure we return the correct structure
         const response = {
           success: true,
-          data: downloads || {
-            downloads: [],
-            pagination: {
-              currentPage: page,
-              totalPages: 0,
-              totalItems: 0,
-              hasNext: false,
-              hasPrev: false,
-              limit
-            }
+          data: {
+            downloads: downloadsArray,
+            pagination: paginationInfo
           },
           message: `Retrieved downloads for user ${userId}`,
           debug: {
             userId,
             page,
             limit,
-            downloadsFound: downloads?.downloads?.length || 0,
-            endpoint: 'user-downloads'
+            downloadsFound: downloadsArray.length,
+            endpoint: 'user-downloads',
+            responseType: Array.isArray(downloads) ? 'array' : 'object'
           }
         };
         
