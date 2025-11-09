@@ -279,10 +279,11 @@ export default function EnhancedPreviewSystem({
                   }}
                 >
                   <iframe
-                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitV&page=${currentPage}`}
                     style={{
                       width: '100%',
-                      height: '11in',
+                      height: '100vh',
+                      minHeight: '600px',
                       border: 'none',
                       backgroundColor: 'white'
                     }}
