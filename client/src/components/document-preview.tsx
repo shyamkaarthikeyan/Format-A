@@ -1338,14 +1338,32 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               </Button>
 
               {/* Page Navigation */}
-              {pdfUrl && (
+              {pdfUrl && totalPages > 1 && (
                 <>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-2"
+                  >
+                    ←
+                  </Button>
                   <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
                     <span className="text-gray-600">Page</span>
                     <span className="font-medium text-gray-800">{currentPage}</span>
                     <span className="text-gray-600">of</span>
                     <span className="font-medium text-gray-800">{totalPages}</span>
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-2"
+                  >
+                    →
+                  </Button>
                   <div className="w-px h-4 bg-gray-300"></div>
                 </>
               )}
@@ -1433,9 +1451,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     padding: zoom > 100 ? '20px' : '10px'
                   }}
                 >
-                  <object
-                    data={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitH`}
-                    type="application/pdf"
+                  <iframe
+                    src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitV&page=${currentPage}`}
                     className="w-full border-0 shadow-lg"
                     style={{
                       outline: 'none',
@@ -1445,6 +1462,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                       minHeight: '800px',
                       borderRadius: '4px'
                     }}
+                    title="PDF Preview"
+                    key={`pdf-${currentPage}`} // Force re-render when page changes
                   >
                     {/* Fallback message */}
                     <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
