@@ -274,28 +274,24 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Use Python backend main endpoint
+  // Generate DOCX document - Use Python backend DOCX endpoint
   generateDocx: async (documentData: any) => {
-    const pythonUrl = getPythonApiUrl('/document-generator');
+    const pythonUrl = getPythonApiUrl('/docx-generator');
     
     const response = await fetchWithFallback(pythonUrl, {
       method: 'POST',
-      body: JSON.stringify({
-        ...documentData,
-        format: 'docx',
-        action: 'download'
-      }),
+      body: JSON.stringify(documentData),
     });
     
     if (!response.ok) {
-      throw new Error(`Document generation failed: ${response.status} ${response.statusText}`);
+      throw new Error(`DOCX generation failed: ${response.status} ${response.statusText}`);
     }
     
     const result = await response.json();
     
     // Record download if successful
     if (result.success) {
-      await recordDownload(documentData, 'docx', result.fileSize || 0);
+      await recordDownload(documentData, 'docx', result.file_size || 0);
     }
     
     return result;

@@ -901,12 +901,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       console.log('Generating DOCX for download...');
 
       try {
-        // Use the proper DOCX API
+        // Generate DOCX using Python backend
         const result = await documentApi.generateDocx(document);
-
-        if (!result.success) {
-          throw new Error(result.message || 'DOCX generation failed');
-        }
 
         // Convert base64 to blob and download
         const binaryString = atob(result.file_data);
@@ -926,8 +922,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         link.download = `${document.title || 'ieee_paper'}.docx`;
         link.click();
         URL.revokeObjectURL(url);
-
-        console.log('✅ DOCX downloaded successfully');
         return result;
 
       } catch (error) {
