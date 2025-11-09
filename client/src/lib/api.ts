@@ -180,35 +180,73 @@ export async function fetchWithFallback(url: string, options: RequestInit = {}, 
   }
 }
 
-// Helper function to record download
+// Helper function to record download with enhanced error handling and retry logic
 async function recordDownload(documentData: any, format: string, fileSize: number = 0) {
-  try {
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-    if (!token) return; // Skip if not authenticated
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      if (!token) {
+        console.warn('No auth token found - skipping download recording');
+        return false;
+      }
 
-    await fetch(getApiUrl('/api/record-download'), {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        documentTitle: documentData.title || 'Untitled Document',
-        fileFormat: format,
-        fileSize: fileSize,
-        documentMetadata: {
-          authors: documentData.authors?.length || 0,
-          sections: documentData.sections?.length || 0,
-          references: documentData.references?.length || 0,
-          figures: documentData.figures?.length || 0,
-          wordCount: estimateWordCount(documentData)
+      console.log(`Recording download: ${documentData.title} (${format}) - attempt ${retryCount + 1}`);
+
+      const response = await fetch(getApiUrl('/api/record-download'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          documentTitle: documentData.title || 'Untitled Document',
+          fileFormat: format,
+          fileSize: fileSize,
+          documentMetadata: {
+            authors: documentData.authors?.map((a: any) => a.name).filter(Boolean) || [],
+            authorsCount: documentData.authors?.length || 0,
+            sections: documentData.sections?.length || 0,
+            references: documentData.references?.length || 0,
+            figures: documentData.figures?.length || 0,
+            wordCount: estimateWordCount(documentData),
+            generatedAt: new Date().toISOString(),
+            source: 'frontend_api'
+          }
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          console.log('✅ Download recorded successfully:', result.data?.id);
+          return true;
+        } else {
+          throw new Error(result.error?.message || 'Recording failed');
         }
-      })
-    });
-  } catch (error) {
-    console.warn('Failed to record download:', error);
-    // Don't throw - download tracking shouldn't break document generation
+      } else {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+    } catch (error) {
+      retryCount++;
+      console.warn(`Failed to record download (attempt ${retryCount}/${maxRetries}):`, error);
+      
+      if (retryCount >= maxRetries) {
+        console.error('❌ Failed to record download after all retries:', error);
+        // Don't throw - download tracking shouldn't break document generation
+        return false;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+    }
   }
+  
+  return false;
 }
 
 // Helper function to estimate word count
