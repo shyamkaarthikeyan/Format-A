@@ -898,75 +898,108 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      console.log('Generating PDF for download (client-side)...');
+      console.log('Generating DOCX for download...');
 
-      // Since Python backend DOCX generation is not yet implemented for downloads,
-      // use client-side PDF generation which already works perfectly
-      const pdfBlob = generateClientSidePDF(document);
+      try {
+        // Use the proper DOCX API
+        const result = await documentApi.generateDocx(document);
 
-      if (!pdfBlob || pdfBlob.size === 0) {
-        throw new Error('Failed to generate PDF document');
-      }
-
-      // Download as PDF instead of DOCX for now - provides better formatting
-      const url = URL.createObjectURL(pdfBlob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = "ieee_paper.pdf";
-      link.click();
-      URL.revokeObjectURL(url);
-
-      // Record the download if user is authenticated
-      if (isAuthenticated) {
-        try {
-          console.log('Recording PDF download (from DOCX button)...');
-          const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-          if (token) {
-            const response = await fetch('/api/record-download', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                documentTitle: document.title || 'Untitled Document',
-                fileFormat: 'pdf',
-                fileSize: pdfBlob.size,
-                documentMetadata: {
-                  authors: document.authors?.map((a: any) => a.name).filter(Boolean) || [],
-                  authorsCount: document.authors?.length || 0,
-                  sections: document.sections?.length || 0,
-                  references: document.references?.length || 0,
-                  figures: document.figures?.length || 0,
-                  generatedAt: new Date().toISOString(),
-                  source: 'client_side_pdf_docx_button'
-                }
-              })
-            });
-
-            if (response.ok) {
-              const result = await response.json();
-              if (result.success) {
-                console.log('✅ Download recorded successfully:', result.data?.id);
-              } else {
-                console.warn('❌ Failed to record download:', result.error?.message);
-              }
-            } else {
-              console.warn('❌ Download recording failed:', response.status);
-            }
-          }
-        } catch (error) {
-          console.warn('❌ Error recording download:', error);
-          // Don't fail the download if recording fails
+        if (!result.success) {
+          throw new Error(result.message || 'DOCX generation failed');
         }
-      }
 
-      return { success: true };
+        // Convert base64 to blob and download
+        const binaryString = atob(result.file_data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const docxBlob = new Blob([bytes], { 
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        });
+
+        // Download the DOCX file
+        const url = URL.createObjectURL(docxBlob);
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = `${document.title || 'ieee_paper'}.docx`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        console.log('✅ DOCX downloaded successfully');
+        return result;
+
+      } catch (error) {
+        console.error('DOCX generation failed, falling back to PDF:', error);
+        
+        // Fallback to PDF generation if DOCX fails
+        const pdfBlob = generateClientSidePDF(document);
+
+        if (!pdfBlob || pdfBlob.size === 0) {
+          throw new Error('Both DOCX and PDF generation failed');
+        }
+
+        // Download as PDF fallback
+        const url = URL.createObjectURL(pdfBlob);
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = `${document.title || 'ieee_paper'}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        // Record the download if user is authenticated
+        if (isAuthenticated) {
+          try {
+            console.log('Recording PDF download (DOCX fallback)...');
+            const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+            if (token) {
+              const response = await fetch('/api/record-download', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  documentTitle: document.title || 'Untitled Document',
+                  fileFormat: 'pdf',
+                  fileSize: pdfBlob.size,
+                  documentMetadata: {
+                    authors: document.authors?.map((a: any) => a.name).filter(Boolean) || [],
+                    authorsCount: document.authors?.length || 0,
+                    sections: document.sections?.length || 0,
+                    references: document.references?.length || 0,
+                    figures: document.figures?.length || 0,
+                    generatedAt: new Date().toISOString(),
+                    source: 'docx_fallback_to_pdf'
+                  }
+                })
+              });
+
+              if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                  console.log('✅ Fallback PDF download recorded successfully:', result.data?.id);
+                } else {
+                  console.warn('❌ Failed to record download:', result.error?.message);
+                }
+              } else {
+                console.warn('❌ Download recording failed:', response.status);
+              }
+            }
+          } catch (error) {
+            console.warn('❌ Error recording download:', error);
+            // Don't fail the download if recording fails
+          }
+        }
+
+        throw new Error('DOCX generation failed, downloaded PDF instead');
+      }
     },
     onSuccess: () => {
       toast({
-        title: "PDF Document Generated",
-        description: "IEEE-formatted PDF document has been downloaded successfully.",
+        title: "DOCX Document Generated",
+        description: "IEEE-formatted DOCX document has been downloaded successfully.",
       });
     },
     onError: (error: Error) => {
@@ -1260,7 +1293,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <Download className="w-4 h-4 mr-2" />
-              {generateDocxMutation.isPending ? "Generating..." : "Download PDF"}
+              {generateDocxMutation.isPending ? "Generating..." : "Download DOCX"}
             </Button>
             <Button
               onClick={handleDownloadPdf}
