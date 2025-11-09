@@ -222,11 +222,9 @@ async function generateClientSideDOCX(document: Document): Promise<Blob> {
       }]
     });
 
-    // Generate and return blob
-    const buffer = await Packer.toBuffer(doc);
-    return new Blob([buffer], { 
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-    });
+    // Generate and return blob (browser-compatible)
+    const blob = await Packer.toBlob(doc);
+    return blob;
 
   } catch (error) {
     console.error('Error generating DOCX:', error);
