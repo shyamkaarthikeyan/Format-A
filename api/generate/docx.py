@@ -146,16 +146,59 @@ class handler(BaseHTTPRequestHandler):
             return None
 
     def _local_fallback(self, document_data, format_type):
-        """Provide a fallback response when Python backend is unavailable"""
-        print(f"Using local fallback for {format_type} generation", file=sys.stderr)
+        """Generate document using local IEEE generator when Python backend is unavailable"""
+        print(f"Using local IEEE generator fallback for {format_type} generation", file=sys.stderr)
         
-        return {
-            'success': False,
-            'error': 'Service temporarily unavailable',
-            'message': f'{format_type.upper()} generation service is currently unavailable. Please try again later.',
-            'fallback': True,
-            'data': {
-                'title': document_data.get('title', 'Document'),
-                'status': 'fallback_mode'
+        try:
+            # Import the local IEEE generator
+            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+            from ieee_generator_fixed import generate_ieee_document
+            
+            print("Successfully imported local IEEE generator", file=sys.stderr)
+            
+            # Generate the document using local generator
+            document_bytes = generate_ieee_document(document_data)
+            
+            # Convert to base64 for JSON response
+            import base64
+            document_base64 = base64.b64encode(document_bytes).decode('utf-8')
+            
+            print(f"Successfully generated {format_type} document locally", file=sys.stderr)
+            
+            return {
+                'success': True,
+                'message': f'{format_type.upper()} document generated successfully using local generator',
+                'fallback': True,
+                'data': {
+                    'title': document_data.get('title', 'Document'),
+                    'status': 'generated_locally',
+                    'document': document_base64,
+                    'filename': f"{document_data.get('title', 'document').replace(' ', '_')}.docx",
+                    'content_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                }
             }
-        }
+            
+        except ImportError as e:
+            print(f"Failed to import local IEEE generator: {e}", file=sys.stderr)
+            return {
+                'success': False,
+                'error': 'Local generator unavailable',
+                'message': f'Both Python backend and local {format_type} generator are unavailable.',
+                'fallback': True,
+                'data': {
+                    'title': document_data.get('title', 'Document'),
+                    'status': 'fallback_failed'
+                }
+            }
+        except Exception as e:
+            print(f"Local generator error: {e}", file=sys.stderr)
+            return {
+                'success': False,
+                'error': 'Local generation failed',
+                'message': f'Local {format_type} generation failed: {str(e)}',
+                'fallback': True,
+                'data': {
+                    'title': document_data.get('title', 'Document'),
+                    'status': 'generation_error'
+                }
+            }
