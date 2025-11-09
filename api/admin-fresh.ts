@@ -127,11 +127,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
-        const { NeonDatabase } = await import('./_lib/neon-database.js');
-        const db = new NeonDatabase();
+        // Use direct database connection to avoid issues with the NeonDatabase class
+        const { neon } = await import('@neondatabase/serverless');
+        const sql = neon(process.env.DATABASE_URL);
         
-        // Suspend/unsuspend user
-        const result = await db.suspendUser(userId, suspend, adminEmail, reason);
+        // Get user information first
+        const userResult = await sql`SELECT * FROM users WHERE id = ${userId}`;
+        
+        if (userResult.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'User not found',
+            user_id: userId
+          });
+        }
+        
+        const user = userResult[0];
+        
+        // Update user suspension status
+        const updateResult = await sql`
+          UPDATE users 
+          SET 
+            suspended = ${suspend},
+            suspended_at = ${suspend ? new Date().toISOString() : null},
+            suspended_by = ${suspend ? adminEmail || 'admin' : null},
+            suspension_reason = ${suspend ? reason || 'No reason provided' : null},
+            is_active = ${!suspend},
+            updated_at = NOW()
+          WHERE id = ${userId}
+          RETURNING *
+        `;
+        
+        const result = {
+          success: true,
+          user_id: userId,
+          user_name: user.name,
+          user_email: user.email,
+          suspended: suspend,
+          suspended_at: suspend ? new Date().toISOString() : null,
+          suspended_by: suspend ? adminEmail || 'admin' : null,
+          reason: suspend ? reason || 'No reason provided' : null,
+          previous_status: user.suspended || false
+        };
         
         return res.json({
           success: true,
