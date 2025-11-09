@@ -1450,7 +1450,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   }}
                 >
                   <iframe
-                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH&page=${currentPage}`}
+                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH&page=${currentPage}`}
                     className="border-0 shadow-lg"
                     style={{
                       outline: 'none',
