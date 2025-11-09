@@ -1461,7 +1461,6 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     }}
                     title="PDF Preview"
                     key={`pdf-${currentPage}`}
-                    sandbox="allow-same-origin allow-scripts"
                   >
                     {/* Fallback message */}
                     <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
