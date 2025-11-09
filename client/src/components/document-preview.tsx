@@ -10,14 +10,14 @@ import { documentApi } from "@/lib/api";
 import type { Document } from "@shared/schema";
 import jsPDF from "jspdf";
 
-// CSS to hide PDF browser controls
+// CSS to hide PDF browser controls while keeping interactivity
 const pdfHideControlsCSS = `
   object[type="application/pdf"] {
     outline: none;
     border: none;
   }
   
-  /* Hide context menu and selection */
+  /* Allow PDF interaction while hiding context menu */
   .pdf-preview-container {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -27,8 +27,9 @@ const pdfHideControlsCSS = `
     -webkit-tap-highlight-color: transparent;
   }
   
-  .pdf-preview-container * {
-    pointer-events: none !important;
+  /* Keep iframe interactive */
+  .pdf-preview-container iframe {
+    pointer-events: auto !important;
   }
 `;
 
@@ -1439,29 +1440,28 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container">
-                {/* Clean PDF Viewer - let iframe handle its own scrolling */}
+              <div className="h-full relative bg-white">
+                {/* Interactive PDF Viewer with proper scrolling */}
                 <div
-                  className="relative flex justify-center"
+                  className="relative w-full h-full"
                   style={{
                     transform: `scale(${zoom / 100})`,
                     transformOrigin: 'top center',
-                    padding: '10px'
+                    height: zoom > 100 ? `${zoom}%` : '100%'
                   }}
                 >
                   <iframe
-                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH&page=${currentPage}`}
-                    className="border-0 shadow-lg"
+                    src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitV&page=${currentPage}`}
+                    className="w-full h-full border-0 shadow-lg"
                     style={{
                       outline: 'none',
                       border: 'none',
-                      width: '100%',
-                      height: '75vh',
-                      maxWidth: '800px',
-                      borderRadius: '4px'
+                      borderRadius: '4px',
+                      pointerEvents: 'auto'
                     }}
                     title="PDF Preview"
-                    key={`pdf-${currentPage}`} // Force re-render when page changes
+                    key={`pdf-${currentPage}`}
+                    allowFullScreen
                   >
                     {/* Fallback message */}
                     <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
