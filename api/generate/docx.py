@@ -151,7 +151,11 @@ class handler(BaseHTTPRequestHandler):
         
         try:
             # Import the local IEEE generator
-            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+            current_dir = os.path.dirname(__file__)
+            api_dir = os.path.dirname(current_dir)
+            sys.path.insert(0, api_dir)
+            
+            print(f"Looking for IEEE generator in: {api_dir}", file=sys.stderr)
             from ieee_generator_fixed import generate_ieee_document
             
             print("Successfully imported local IEEE generator", file=sys.stderr)
@@ -169,12 +173,13 @@ class handler(BaseHTTPRequestHandler):
                 'success': True,
                 'message': f'{format_type.upper()} document generated successfully using local generator',
                 'fallback': True,
+                'file_data': document_base64,  # Frontend expects this field
+                'file_size': len(document_bytes),
+                'file_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'data': {
                     'title': document_data.get('title', 'Document'),
                     'status': 'generated_locally',
-                    'document': document_base64,
-                    'filename': f"{document_data.get('title', 'document').replace(' ', '_')}.docx",
-                    'content_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    'filename': f"{document_data.get('title', 'document').replace(' ', '_')}.docx"
                 }
             }
             
