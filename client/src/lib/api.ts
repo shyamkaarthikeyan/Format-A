@@ -274,22 +274,24 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Use Python backend API
+  // Generate DOCX document - Use Python backend API ONLY
   generateDocx: async (documentData: any) => {
     console.log('Generating DOCX using Python backend API...');
     
-    // Try the dedicated DOCX endpoint first, then fallback to main endpoint
-    const docxUrl = getApiUrl('/api/generate/docx');
-    const fallbackUrl = getPythonApiUrl('/document-generator');
+    // Use Python backend directly for consistency with PDF
+    const pythonUrl = getPythonApiUrl('/document-generator');
     
-    const response = await fetchWithFallback(docxUrl, {
+    const response = await fetch(pythonUrl, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         ...documentData,
         format: 'docx',
         action: 'download'
       }),
-    }, fallbackUrl);
+    });
     
     if (!response.ok) {
       throw new Error(`DOCX generation failed: ${response.status} ${response.statusText}`);
@@ -305,12 +307,18 @@ export const documentApi = {
     return result;
   },
 
-  // Generate PDF document - Use Python backend PDF endpoint  
+  // Generate PDF document - Use Python backend main endpoint for consistency
   generatePdf: async (documentData: any, preview: boolean = false) => {
-    const pythonUrl = getPythonApiUrl('/pdf-generator');
+    console.log('Generating PDF using Python backend API...');
     
-    const response = await fetchWithFallback(pythonUrl, {
+    // Use same endpoint as DOCX for consistency
+    const pythonUrl = getPythonApiUrl('/document-generator');
+    
+    const response = await fetch(pythonUrl, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         ...documentData,
         format: 'pdf',

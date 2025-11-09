@@ -73,37 +73,10 @@ export const OptimizedPreview = withPerformanceOptimization<OptimizedPreviewProp
           throw new Error('Invalid response format from preview generation service');
         }
       } catch (error) {
-        console.error('Python backend preview failed, trying fallback:', error);
+        console.error('Python backend preview failed:', error);
         
-        // Fallback to Node.js endpoint
-        try {
-          const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(doc),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to generate PDF: ${response.statusText}`);
-          }
-
-          const blob = await response.blob();
-          if (blob.size === 0) {
-            throw new Error('Generated PDF is empty');
-          }
-
-          // Clean up previous URL
-          if (pdfUrl) {
-            URL.revokeObjectURL(pdfUrl);
-          }
-
-          const url = URL.createObjectURL(blob);
-          setPdfUrl(url);
-          onPreviewGenerated?.(url);
-        } catch (fallbackError) {
-          console.error('Fallback preview generation also failed:', fallbackError);
-          throw fallbackError;
-        }
+        // No fallback - Python backend is the only reliable source with our fixes
+        setError(`Preview generation failed: ${error.message}`);
       }
     }, [pdfUrl, onPreviewGenerated]);
 

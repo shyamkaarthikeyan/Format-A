@@ -194,30 +194,11 @@ export default function EnhancedPreviewSystem({
         throw new Error('Invalid response format from preview generation service');
       }
     } catch (error) {
-      console.error('Python backend preview failed, trying fallback:', error);
+      console.error('Python backend preview failed:', error);
       
-      // Fallback to Node.js endpoint
-      try {
-        const response = await fetch('/api/generate/docx-to-pdf?preview=true', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(document),
-        });
-
-        if (response.ok) {
-          const blob = await response.blob();
-          if (pdfUrl) {
-            URL.revokeObjectURL(pdfUrl);
-          }
-          const url = URL.createObjectURL(blob);
-          setPdfUrl(url);
-          
-          // Count pages in the fallback PDF too
-          countPdfPages(blob);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback preview generation also failed:', fallbackError);
-      }
+      // No fallback - Python backend is the only reliable source with our fixes
+      // Estimate pages based on content as fallback
+      estimatePagesFromContent();
     } finally {
       setIsGenerating(false);
     }
