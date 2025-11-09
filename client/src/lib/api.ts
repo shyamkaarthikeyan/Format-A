@@ -274,16 +274,17 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Use local Vercel endpoint with Python backend fallback
+  // Generate DOCX document - Use Python backend directly
   generateDocx: async (documentData: any) => {
-    // Use local Vercel endpoint which has Python backend + local fallback
-    const localUrl = getApiUrl('/api/generate/docx');
-    const pythonUrl = getPythonApiUrl('/document-generator');
+    // Call Python backend's dedicated DOCX endpoint
+    const pythonUrl = getPythonApiUrl('/docx-generator');
     
-    const response = await fetchWithFallback(localUrl, {
+    console.log('Calling Python backend DOCX generator:', pythonUrl);
+    
+    const response = await fetchWithFallback(pythonUrl, {
       method: 'POST',
       body: JSON.stringify(documentData),
-    }, pythonUrl); // Python backend as fallback
+    });
     
     if (!response.ok) {
       throw new Error(`DOCX generation failed: ${response.status} ${response.statusText}`);
@@ -291,25 +292,20 @@ export const documentApi = {
     
     const result = await response.json();
     
-    // Handle both response formats (Python backend vs local fallback)
-    const fileData = result.file_data || result.data?.document;
-    const fileSize = result.file_size || result.data?.fileSize || 0;
+    if (!result.success) {
+      throw new Error(result.message || 'DOCX generation failed');
+    }
     
-    if (!fileData) {
+    if (!result.file_data) {
       throw new Error('No document data received from server');
     }
     
     // Record download if successful
     if (result.success) {
-      await recordDownload(documentData, 'docx', fileSize);
+      await recordDownload(documentData, 'docx', result.file_size || 0);
     }
     
-    // Normalize response format for frontend compatibility
-    return {
-      ...result,
-      file_data: fileData,
-      file_size: fileSize
-    };
+    return result;
   },
 
   // Generate PDF document - Use Python backend main endpoint  
