@@ -197,21 +197,17 @@ export default function SigninPage() {
           throw new Error(`Authentication failed: ${errorMsg}`);
         }
 
-        const { user: serverUser, sessionId } = responseData;
+        const { user: serverUser, token } = responseData;
 
-        if (!serverUser || !sessionId) {
+        if (!serverUser || !token) {
           console.error('❌ Missing user or session data in response');
           throw new Error('Invalid response from server - missing user or session data');
         }
 
         console.log('🍪 Setting session cookie...');
 
-        // Store session ID in cookie
-        const isProduction = window.location.protocol === 'https:';
-        const cookieOptions = isProduction
-          ? `sessionId=${sessionId}; path=/; max-age=${7 * 24 * 60 * 60}; secure; samesite=strict`
-          : `sessionId=${sessionId}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
-        document.cookie = cookieOptions;
+        // Store auth token in localStorage (modern approach)
+        localStorage.setItem('authToken', token);
 
         console.log('🎉 Authentication successful! Redirecting to app...');
 
