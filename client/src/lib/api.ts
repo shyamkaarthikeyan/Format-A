@@ -274,13 +274,17 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Use Python backend DOCX endpoint
+  // Generate DOCX document - Use Python backend main endpoint with DOCX format
   generateDocx: async (documentData: any) => {
-    const pythonUrl = getPythonApiUrl('/docx-generator');
+    const pythonUrl = getPythonApiUrl('/document-generator');
     
     const response = await fetchWithFallback(pythonUrl, {
       method: 'POST',
-      body: JSON.stringify(documentData),
+      body: JSON.stringify({
+        ...documentData,
+        format: 'docx',
+        action: 'download'
+      }),
     });
     
     if (!response.ok) {
