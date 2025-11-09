@@ -931,69 +931,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         return result;
 
       } catch (error) {
-        console.error('DOCX generation failed, falling back to PDF:', error);
-        
-        // Fallback to PDF generation if DOCX fails
-        const pdfBlob = generateClientSidePDF(document);
-
-        if (!pdfBlob || pdfBlob.size === 0) {
-          throw new Error('Both DOCX and PDF generation failed');
-        }
-
-        // Download as PDF fallback
-        const url = URL.createObjectURL(pdfBlob);
-        const link = window.document.createElement('a');
-        link.href = url;
-        link.download = `${document.title || 'ieee_paper'}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-
-        // Record the download if user is authenticated
-        if (isAuthenticated) {
-          try {
-            console.log('Recording PDF download (DOCX fallback)...');
-            const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-            if (token) {
-              const response = await fetch('/api/record-download', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  documentTitle: document.title || 'Untitled Document',
-                  fileFormat: 'pdf',
-                  fileSize: pdfBlob.size,
-                  documentMetadata: {
-                    authors: document.authors?.map((a: any) => a.name).filter(Boolean) || [],
-                    authorsCount: document.authors?.length || 0,
-                    sections: document.sections?.length || 0,
-                    references: document.references?.length || 0,
-                    figures: document.figures?.length || 0,
-                    generatedAt: new Date().toISOString(),
-                    source: 'docx_fallback_to_pdf'
-                  }
-                })
-              });
-
-              if (response.ok) {
-                const result = await response.json();
-                if (result.success) {
-                  console.log('✅ Fallback PDF download recorded successfully:', result.data?.id);
-                } else {
-                  console.warn('❌ Failed to record download:', result.error?.message);
-                }
-              } else {
-                console.warn('❌ Download recording failed:', response.status);
-              }
-            }
-          } catch (error) {
-            console.warn('❌ Error recording download:', error);
-            // Don't fail the download if recording fails
-          }
-        }
-
-        throw new Error('DOCX generation failed, downloaded PDF instead');
+        console.error('DOCX generation failed:', error);
+        throw new Error(`DOCX generation failed: ${error.message}`);
       }
     },
     onSuccess: () => {
