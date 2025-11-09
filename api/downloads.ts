@@ -271,46 +271,57 @@ async function handleRecordDownload(req: VercelRequest, res: VercelResponse) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  try {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
 
-  // Route based on URL path and method
-  const { id, action } = req.query;
-  const pathSegments = req.url?.split('/').filter(Boolean) || [];
-  const isRecordEndpoint = pathSegments.includes('record');
+    // Route based on URL path and method
+    const { id, action } = req.query;
+    const pathSegments = req.url?.split('/').filter(Boolean) || [];
+    const isRecordEndpoint = pathSegments.includes('record');
 
-  if (req.method === 'POST' && isRecordEndpoint) {
-    // Handle recording downloads: POST /api/downloads/record
-    return handleRecordDownload(req, res);
-  }
+    if (req.method === 'POST' && isRecordEndpoint) {
+      // Handle recording downloads: POST /api/downloads/record
+      return handleRecordDownload(req, res);
+    }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({
+    if (req.method !== 'GET') {
+      return res.status(405).json({
+        success: false,
+        error: {
+          code: 'METHOD_NOT_ALLOWED',
+          message: 'Only GET method is allowed for this endpoint'
+        }
+      });
+    }
+
+    // Route GET requests based on query parameters
+    if (id) {
+      // Handle individual download by ID: /api/downloads?id=123
+      return handleDownloadById(req, res);
+    } else if (action === 'history') {
+      // Handle download history: /api/downloads?action=history
+      return handleDownloadHistory(req, res);
+    } else {
+      // Default to history if no specific action
+      return handleDownloadHistory(req, res);
+    }
+  } catch (error) {
+    console.error('Unexpected error in downloads handler:', error);
+    return res.status(500).json({
       success: false,
       error: {
-        code: 'METHOD_NOT_ALLOWED',
-        message: 'Only GET method is allowed for this endpoint'
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred'
       }
     });
-  }
-
-  // Route GET requests based on query parameters
-  if (id) {
-    // Handle individual download by ID: /api/downloads?id=123
-    return handleDownloadById(req, res);
-  } else if (action === 'history') {
-    // Handle download history: /api/downloads?action=history
-    return handleDownloadHistory(req, res);
-  } else {
-    // Default to history if no specific action
-    return handleDownloadHistory(req, res);
   }
 }

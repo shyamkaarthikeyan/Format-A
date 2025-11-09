@@ -11,6 +11,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Debug request details
+    console.log('Admin API Request Debug:', {
+      method: req.method,
+      body: req.body,
+      hasBody: !!req.body,
+      bodyAction: req.body?.action,
+      bodyType: typeof req.body
+    });
+
+    // Handle database clear operation FIRST (DANGER: Clears all data)
+    if (req.method === 'POST' && req.body?.action === 'clear_all_data') {
+      console.log('🧹 Database clear operation requested:', req.body);
+      
+      const { confirm, keep_structure } = req.body;
+      
+      if (confirm !== 'yes_clear_everything') {
+        return res.status(400).json({
+          success: false,
+          error: 'Confirmation required',
+          message: 'Must confirm with "yes_clear_everything"',
+          received: { confirm, action: req.body.action }
+        });
+      }
+      
+      try {
+        if (!process.env.DATABASE_URL) {
+          return res.status(500).json({
+            success: false,
+            error: 'Database not configured'
+          });
+        }
+
+        const { NeonDatabase } = await import('./_lib/neon-database.js');
+        const db = new NeonDatabase();
+        
+        // Clear all data while preserving structure
+        const result = await db.clearAllData(keep_structure);
+        
+        return res.json({
+          success: true,
+          message: 'All database data cleared successfully',
+          data: result,
+          warning: 'All user data, documents, downloads, and sessions have been deleted'
+        });
+        
+      } catch (error) {
+        console.error('Error clearing database data:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to clear database data',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
     const { path, type } = req.query;
     
     // Fix path processing
@@ -23,16 +78,123 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const endpoint = pathArray.join('/');
 
-    console.log('Fresh Admin API:', { 
-      endpoint, 
-      type, 
-      method: req.method, 
-      pathArray, 
-      rawPath: path 
-    });
+    // Handle user deletion
+    if (req.method === 'DELETE' && (endpoint === 'users' || pathArray.includes('users') || path === 'users') && req.query.userId) {
+      const userId = req.query.userId as string;
+      
+      try {
+        if (!process.env.DATABASE_URL) {
+          return res.status(500).json({
+            success: false,
+            error: 'Database not configured'
+          });
+        }
 
-    // Handle users endpoint for user management
-    if (endpoint === 'users' || pathArray.includes('users') || path === 'users') {
+        const { NeonDatabase } = await import('./_lib/neon-database.js');
+        const db = new NeonDatabase();
+        
+        // Delete user and all related data
+        const result = await db.deleteUser(userId);
+        
+        return res.json({
+          success: true,
+          message: `User ${userId} deleted successfully`,
+          data: result
+        });
+        
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to delete user',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    // Handle user downloads endpoint - ABSOLUTE HIGHEST PRIORITY
+    // This MUST be checked before any other endpoint logic
+    if (req.query.action === 'downloads' && req.query.userId) {
+      const userId = req.query.userId as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      console.log('🔍 DOWNLOADS ENDPOINT HIT - Processing user downloads request:', { 
+        userId, 
+        page, 
+        limit,
+        queryParams: req.query 
+      });
+      
+      try {
+        if (!process.env.DATABASE_URL) {
+          console.error('❌ DATABASE_URL not configured');
+          return res.status(500).json({
+            success: false,
+            error: 'Database not configured'
+          });
+        }
+
+        const { NeonDatabase } = await import('./_lib/neon-database.js');
+        const db = new NeonDatabase();
+        
+        // Initialize tables if needed
+        await db.initializeTables();
+        
+        // Get user downloads with pagination
+        console.log('📥 Fetching downloads for user:', userId);
+        const downloads = await db.getUserDownloads(userId, page, limit);
+        
+        console.log('✅ Downloads retrieved successfully:', {
+          downloadsCount: downloads?.downloads?.length || 0,
+          totalItems: downloads?.pagination?.totalItems || 0,
+          downloadsData: downloads
+        });
+        
+        // Ensure we return the correct structure
+        const response = {
+          success: true,
+          data: downloads || {
+            downloads: [],
+            pagination: {
+              currentPage: page,
+              totalPages: 0,
+              totalItems: 0,
+              hasNext: false,
+              hasPrev: false,
+              limit
+            }
+          },
+          message: `Retrieved downloads for user ${userId}`,
+          debug: {
+            userId,
+            page,
+            limit,
+            downloadsFound: downloads?.downloads?.length || 0,
+            endpoint: 'user-downloads'
+          }
+        };
+        
+        console.log('📤 Returning downloads response:', response);
+        return res.json(response);
+        
+      } catch (error) {
+        console.error('❌ Error fetching user downloads:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to fetch user downloads',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          debug: { 
+            userId, 
+            error: error instanceof Error ? error.message : 'Unknown',
+            endpoint: 'user-downloads-error'
+          }
+        });
+      }
+    }
+
+    // Handle users endpoint for user management (but NOT downloads)
+    if ((endpoint === 'users' || pathArray.includes('users') || path === 'users') && !req.query.action) {
       console.log('🔍 Processing users endpoint request...', { endpoint, pathArray, path });
       
       try {
@@ -74,26 +236,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         console.log('📊 Fetching all users from database...');
         
-        // Get all users from database
-        const users = await db.getAllUsers();
+        // Get all users with download counts from database
+        const usersWithStats = await db.getAllUsersWithStats();
         
-        console.log(`✅ Successfully retrieved ${users.length} users from database`);
+        console.log(`✅ Successfully retrieved ${usersWithStats.length} users with stats from database`);
         
         return res.json({
           success: true,
-          data: users,
-          message: `Retrieved ${users.length} users from database`,
+          data: usersWithStats,
+          message: `Retrieved ${usersWithStats.length} users with download statistics from database`,
           dataSource: 'database',
           timestamp: new Date().toISOString(),
           summary: {
-            totalUsers: users.length,
-            activeUsers: users.filter(u => u.is_active).length,
-            recentLogins: users.filter(u => {
+            totalUsers: usersWithStats.length,
+            activeUsers: usersWithStats.filter(u => u.is_active).length,
+            recentLogins: usersWithStats.filter(u => {
               if (!u.last_login_at) return false;
               const loginDate = new Date(u.last_login_at);
               const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
               return loginDate > dayAgo;
-            }).length
+            }).length,
+            totalDownloads: usersWithStats.reduce((sum, u) => sum + (parseInt(u.total_downloads) || 0), 0),
+            totalDocuments: usersWithStats.reduce((sum, u) => sum + (parseInt(u.total_documents) || 0), 0)
           }
         });
         

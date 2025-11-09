@@ -363,6 +363,131 @@ export class NeonDatabase {
     }
   }
 
+  async getAllUsersWithStats(): Promise<any[]> {
+    try {
+      const sql = getSqlConnection();
+      const result = await sql`
+        SELECT 
+          u.*,
+          COUNT(DISTINCT d.id) as total_documents,
+          COUNT(DISTINCT dl.id) as total_downloads,
+          MAX(d.created_at) as last_document_created,
+          MAX(dl.downloaded_at) as last_download,
+          COALESCE(SUM(dl.file_size), 0) as total_download_size
+        FROM users u
+        LEFT JOIN documents d ON u.id = d.user_id
+        LEFT JOIN downloads dl ON u.id = dl.user_id
+        GROUP BY u.id, u.google_id, u.email, u.name, u.picture, u.created_at, u.updated_at, u.last_login_at, u.is_active, u.preferences
+        ORDER BY u.created_at DESC
+      `;
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting all users with stats:', error);
+      return [];
+    }
+  }
+
+  // DANGER: Clear all data from database while preserving structure
+  async clearAllData(keepStructure: boolean = true): Promise<any> {
+    try {
+      const sql = getSqlConnection();
+      
+      console.log('🧹 Starting database data clearing operation...');
+      
+      // Get counts before deletion for reporting
+      const beforeCounts = await sql`
+        SELECT 
+          (SELECT COUNT(*) FROM users) as users_count,
+          (SELECT COUNT(*) FROM documents) as documents_count,
+          (SELECT COUNT(*) FROM downloads) as downloads_count,
+          (SELECT COUNT(*) FROM user_sessions) as sessions_count
+      `;
+      
+      const initialCounts = beforeCounts.rows[0];
+      
+      console.log('📊 Data before clearing:', {
+        users: initialCounts.users_count,
+        documents: initialCounts.documents_count,
+        downloads: initialCounts.downloads_count,
+        sessions: initialCounts.sessions_count
+      });
+      
+      // Clear data in correct order (respecting foreign key constraints)
+      console.log('🗑️  Clearing user_sessions...');
+      const sessionsResult = await sql`DELETE FROM user_sessions RETURNING id`;
+      
+      console.log('🗑️  Clearing downloads...');
+      const downloadsResult = await sql`DELETE FROM downloads RETURNING id`;
+      
+      console.log('🗑️  Clearing documents...');
+      const documentsResult = await sql`DELETE FROM documents RETURNING id`;
+      
+      console.log('🗑️  Clearing users...');
+      const usersResult = await sql`DELETE FROM users RETURNING id`;
+      
+      // Get counts after deletion to verify
+      const afterCounts = await sql`
+        SELECT 
+          (SELECT COUNT(*) FROM users) as users_count,
+          (SELECT COUNT(*) FROM documents) as documents_count,
+          (SELECT COUNT(*) FROM downloads) as downloads_count,
+          (SELECT COUNT(*) FROM user_sessions) as sessions_count
+      `;
+      
+      const finalCounts = afterCounts.rows[0];
+      
+      console.log('📊 Data after clearing:', {
+        users: finalCounts.users_count,
+        documents: finalCounts.documents_count,
+        downloads: finalCounts.downloads_count,
+        sessions: finalCounts.sessions_count
+      });
+      
+      // Reset sequences if they exist (PostgreSQL auto-increment)
+      if (keepStructure) {
+        try {
+          console.log('🔄 Resetting sequences...');
+          // Note: Our tables use custom IDs, not auto-increment, so no sequences to reset
+          console.log('✅ No sequences to reset (using custom IDs)');
+        } catch (seqError) {
+          console.warn('⚠️  Sequence reset warning:', seqError);
+        }
+      }
+      
+      const deletionSummary = {
+        before: {
+          users: parseInt(initialCounts.users_count),
+          documents: parseInt(initialCounts.documents_count),
+          downloads: parseInt(initialCounts.downloads_count),
+          sessions: parseInt(initialCounts.sessions_count)
+        },
+        after: {
+          users: parseInt(finalCounts.users_count),
+          documents: parseInt(finalCounts.documents_count),
+          downloads: parseInt(finalCounts.downloads_count),
+          sessions: parseInt(finalCounts.sessions_count)
+        },
+        deleted: {
+          users: usersResult.rows.length,
+          documents: documentsResult.rows.length,
+          downloads: downloadsResult.rows.length,
+          sessions: sessionsResult.rows.length
+        },
+        structurePreserved: keepStructure,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('✅ Database clearing completed successfully');
+      console.log('📋 Summary:', deletionSummary);
+      
+      return deletionSummary;
+      
+    } catch (error) {
+      console.error('❌ Error clearing database data:', error);
+      throw new Error(`Failed to clear database data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async getUserByEmail(email: string): Promise<User | null> {
     try {
       const sql = getSqlConnection();
@@ -441,19 +566,96 @@ export class NeonDatabase {
     }
   }
 
-  async deleteUser(userId: string): Promise<boolean> {
+  async deleteUser(userId: string): Promise<any> {
     try {
       const sql = getSqlConnection();
+      
+      // Get user info before deletion
+      const userInfo = await sql`SELECT name, email FROM users WHERE id = ${userId}`;
+      
+      // Count related records before deletion
+      const downloadCount = await sql`SELECT COUNT(*) as count FROM downloads WHERE user_id = ${userId}`;
+      const documentCount = await sql`SELECT COUNT(*) as count FROM documents WHERE user_id = ${userId}`;
+      
       // This will cascade delete related records due to foreign key constraints
       const result = await sql`
         DELETE FROM users WHERE id = ${userId}
         RETURNING id
       `;
       
-      return result.rows.length > 0;
+      return {
+        success: result.rows.length > 0,
+        deletedUser: userInfo.rows[0] || null,
+        deletedRecords: {
+          downloads: parseInt(downloadCount.rows[0].count),
+          documents: parseInt(documentCount.rows[0].count)
+        }
+      };
     } catch (error) {
       console.error('Error deleting user:', error);
-      return false;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  async getUserDownloads(userId: string, page: number = 1, limit: number = 20): Promise<any> {
+    try {
+      const sql = getSqlConnection();
+      const offset = (page - 1) * limit;
+      
+      // Get total count
+      const countResult = await sql`
+        SELECT COUNT(*) as total FROM downloads WHERE user_id = ${userId}
+      `;
+      const totalItems = parseInt(countResult.rows[0].total);
+      
+      // Get paginated downloads
+      const downloads = await sql`
+        SELECT 
+          id,
+          document_title,
+          file_format,
+          file_size,
+          downloaded_at,
+          ip_address,
+          user_agent,
+          status,
+          email_sent,
+          document_metadata
+        FROM downloads 
+        WHERE user_id = ${userId}
+        ORDER BY downloaded_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      return {
+        downloads: downloads.rows,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting user downloads:', error);
+      return {
+        downloads: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalItems: 0,
+          hasNext: false,
+          hasPrev: false,
+          limit
+        }
+      };
     }
   }
 
