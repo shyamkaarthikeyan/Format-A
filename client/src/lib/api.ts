@@ -180,6 +180,60 @@ export async function fetchWithFallback(url: string, options: RequestInit = {}, 
   }
 }
 
+// Helper function to record download
+async function recordDownload(documentData: any, format: string, fileSize: number = 0) {
+  try {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (!token) return; // Skip if not authenticated
+
+    await fetch(getApiUrl('/api/record-download'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        documentTitle: documentData.title || 'Untitled Document',
+        fileFormat: format,
+        fileSize: fileSize,
+        documentMetadata: {
+          authors: documentData.authors?.length || 0,
+          sections: documentData.sections?.length || 0,
+          references: documentData.references?.length || 0,
+          figures: documentData.figures?.length || 0,
+          wordCount: estimateWordCount(documentData)
+        }
+      })
+    });
+  } catch (error) {
+    console.warn('Failed to record download:', error);
+    // Don't throw - download tracking shouldn't break document generation
+  }
+}
+
+// Helper function to estimate word count
+function estimateWordCount(documentData: any): number {
+  let wordCount = 0;
+  
+  if (documentData.abstract) {
+    wordCount += documentData.abstract.split(' ').length;
+  }
+  
+  if (documentData.sections) {
+    documentData.sections.forEach((section: any) => {
+      if (section.contentBlocks) {
+        section.contentBlocks.forEach((block: any) => {
+          if (block.type === 'text' && block.content) {
+            wordCount += block.content.split(' ').length;
+          }
+        });
+      }
+    });
+  }
+  
+  return wordCount;
+}
+
 // Document generation API functions
 export const documentApi = {
   // Generate DOCX document - Use Python backend main endpoint
@@ -199,7 +253,14 @@ export const documentApi = {
       throw new Error(`Document generation failed: ${response.status} ${response.statusText}`);
     }
     
-    return response.json();
+    const result = await response.json();
+    
+    // Record download if successful
+    if (result.success) {
+      await recordDownload(documentData, 'docx', result.fileSize || 0);
+    }
+    
+    return result;
   },
 
   // Generate PDF document - Use Python backend main endpoint  
@@ -219,7 +280,14 @@ export const documentApi = {
       throw new Error(`PDF generation failed: ${response.status} ${response.statusText}`);
     }
     
-    return response.json();
+    const result = await response.json();
+    
+    // Record download if successful and not a preview
+    if (result.success && !preview) {
+      await recordDownload(documentData, 'pdf', result.fileSize || 0);
+    }
+    
+    return result;
   },
 
   // Generate email - Use Python backend main endpoint
@@ -240,7 +308,14 @@ export const documentApi = {
       throw new Error(`Email generation failed: ${response.status} ${response.statusText}`);
     }
     
-    return response.json();
+    const result = await response.json();
+    
+    // Record email generation as download
+    if (result.success) {
+      await recordDownload(emailData.documentData, 'email', 0);
+    }
+    
+    return result;
   },
 
   // Generate preview (HTML/images) - Use Python backend main endpoint
@@ -261,5 +336,68 @@ export const documentApi = {
     }
     
     return response.json();
+  }
+};
+
+// Download history API functions
+export const downloadApi = {
+  // Get user's download history
+  getDownloadHistory: async (page: number = 1, limit: number = 10) => {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams({
+      action: 'history',
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    const response = await fetch(getApiUrl(`/api/downloads?${params}`), {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch downloads: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error?.message || 'Failed to fetch download history');
+    }
+
+    return data.data;
+  },
+
+  // Get specific download by ID
+  getDownloadById: async (downloadId: string) => {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    const response = await fetch(getApiUrl(`/api/downloads?id=${downloadId}`), {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch download: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error?.message || 'Failed to fetch download');
+    }
+
+    return data.data;
   }
 };

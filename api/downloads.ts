@@ -149,6 +149,67 @@ async function handleDownloadHistory(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+// Handle recording a new download
+async function handleRecordDownload(req: VercelRequest, res: VercelResponse) {
+  try {
+    const user = await extractUser(req);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_REQUIRED',
+          message: 'Authentication required to record download'
+        }
+      });
+    }
+
+    const { documentTitle, fileFormat, fileSize, documentMetadata } = req.body;
+
+    if (!documentTitle || !fileFormat) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_REQUIRED_FIELDS',
+          message: 'Document title and file format are required'
+        }
+      });
+    }
+
+    // Get client IP and user agent
+    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    const downloadRecord = await storage.recordDownload({
+      userId: user.id,
+      documentTitle,
+      fileFormat: fileFormat.toLowerCase(),
+      fileSize: fileSize || 0,
+      ipAddress: Array.isArray(ipAddress) ? ipAddress[0] : ipAddress,
+      userAgent,
+      status: 'completed',
+      emailSent: false,
+      downloadedAt: new Date().toISOString(),
+      documentMetadata: documentMetadata || {}
+    });
+
+    res.json({
+      success: true,
+      data: downloadRecord,
+      message: 'Download recorded successfully'
+    });
+  } catch (error) {
+    console.error('Error recording download:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DOWNLOAD_RECORD_ERROR',
+        message: 'Failed to record download'
+      }
+    });
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -161,19 +222,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
+  // Route based on URL path and method
+  const { id, action } = req.query;
+  const pathSegments = req.url?.split('/').filter(Boolean) || [];
+  const isRecordEndpoint = pathSegments.includes('record');
+
+  if (req.method === 'POST' && isRecordEndpoint) {
+    // Handle recording downloads: POST /api/downloads/record
+    return handleRecordDownload(req, res);
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({
       success: false,
       error: {
         code: 'METHOD_NOT_ALLOWED',
-        message: 'Only GET method is allowed'
+        message: 'Only GET method is allowed for this endpoint'
       }
     });
   }
 
-  // Route based on query parameters
-  const { id, action } = req.query;
-
+  // Route GET requests based on query parameters
   if (id) {
     // Handle individual download by ID: /api/downloads?id=123
     return handleDownloadById(req, res);
