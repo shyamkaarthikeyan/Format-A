@@ -48,7 +48,7 @@ interface DocumentPreviewProps {
 
 
 
-// Client-side DOCX generation function using docx library with proper IEEE format
+// Client-side DOCX generation function - fallback to server with better error handling
 async function generateClientSideDocx(document: Document): Promise<Blob> {
   try {
     // Validate document data
@@ -56,183 +56,159 @@ async function generateClientSideDocx(document: Document): Promise<Blob> {
       throw new Error('Document data is missing');
     }
 
-    // Create new document with IEEE formatting
-    const doc = new DocxDocument({
-      sections: [{
-        properties: {
-          page: {
-            margin: {
-              top: 1080,    // 0.75 inch in twips
-              right: 1080,  // 0.75 inch in twips
-              bottom: 1080, // 0.75 inch in twips
-              left: 1080,   // 0.75 inch in twips
-            },
+    console.log('Attempting DOCX generation with improved reliability...');
+
+    // Try server-side generation with better error handling and retry logic
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`DOCX generation attempt ${attempt}/${maxRetries}`);
+
+        // Use the Python backend with timeout and proper error handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+        const response = await fetch('/api/documents?path=docx', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        },
-        children: [
-          // Title - IEEE format (24pt bold, centered)
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: document.title || 'Untitled Document',
-                bold: true,
-                size: 48, // 24pt in half-points
-                font: 'Times New Roman',
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 240 }, // 12pt spacing after
+          body: JSON.stringify({
+            ...document,
+            format: 'docx',
+            action: 'download'
           }),
+          signal: controller.signal
+        });
 
-          // Authors - IEEE format
-          ...((document.authors || []).map((author, index) => 
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: author.name || '',
-                  size: 20, // 10pt in half-points
-                  font: 'Times New Roman',
-                }),
-                ...(author.department ? [new TextRun({
-                  text: `\n${author.department}`,
-                  size: 20,
-                  font: 'Times New Roman',
-                  italics: true,
-                })] : []),
-                ...(author.organization ? [new TextRun({
-                  text: `\n${author.organization}`,
-                  size: 20,
-                  font: 'Times New Roman',
-                  italics: true,
-                })] : []),
-                ...(author.email ? [new TextRun({
-                  text: `\n${author.email}`,
-                  size: 18, // 9pt in half-points
-                  font: 'Times New Roman',
-                })] : []),
-              ],
-              alignment: AlignmentType.CENTER,
-              spacing: { after: index === (document.authors || []).length - 1 ? 240 : 120 },
-            })
-          )),
+        clearTimeout(timeoutId);
 
-          // Abstract - IEEE format
-          ...(document.abstract ? [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: 'Abstract—',
-                  bold: true,
-                  size: 18, // 9pt in half-points
-                  font: 'Times New Roman',
-                }),
-                new TextRun({
-                  text: document.abstract,
-                  bold: true,
-                  size: 18,
-                  font: 'Times New Roman',
-                }),
-              ],
-              spacing: { after: 120 },
-            }),
-          ] : []),
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+        }
 
-          // Keywords - IEEE format
-          ...(document.keywords ? [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: 'Keywords—',
-                  bold: true,
-                  size: 18, // 9pt in half-points
-                  font: 'Times New Roman',
-                }),
-                new TextRun({
-                  text: document.keywords,
-                  bold: true,
-                  size: 18,
-                  font: 'Times New Roman',
-                }),
-              ],
-              spacing: { after: 240 },
-            }),
-          ] : []),
+        const result = await response.json();
 
-          // Sections - IEEE format
-          ...((document.sections || []).flatMap((section, sectionIndex) => [
-            // Section heading
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: `${sectionIndex + 1}. ${(section.title || '').toUpperCase()}`,
-                  bold: true,
-                  size: 20, // 10pt in half-points
-                  font: 'Times New Roman',
-                }),
-              ],
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 120, after: 120 },
-            }),
-            
-            // Section content blocks
-            ...((section.contentBlocks || [])
-              .sort((a, b) => a.order - b.order)
-              .filter(block => block.type === 'text' && block.content)
-              .map(block => 
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: block.content || '',
-                      size: 20, // 10pt in half-points
-                      font: 'Times New Roman',
-                    }),
-                  ],
-                  spacing: { after: 120 },
-                })
-              )
-            ),
-          ])),
+        if (!result.success) {
+          throw new Error(result.message || 'DOCX generation failed on server');
+        }
 
-          // References - IEEE format
-          ...(document.references && document.references.length > 0 ? [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: 'REFERENCES',
-                  bold: true,
-                  size: 20, // 10pt in half-points
-                  font: 'Times New Roman',
-                }),
-              ],
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 240, after: 120 },
-            }),
-            ...document.references.map((ref, index) => 
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: `[${index + 1}] ${ref}`,
-                    size: 18, // 9pt in half-points
-                    font: 'Times New Roman',
-                  }),
-                ],
-                spacing: { after: 60 },
-              })
-            ),
-          ] : []),
-        ],
-      }],
-    });
+        if (!result.file_data) {
+          throw new Error('No file data received from server');
+        }
 
-    // Generate the DOCX blob
-    const buffer = await Packer.toBuffer(doc);
-    return new Blob([buffer], { 
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-    });
+        // Convert base64 to blob with proper error handling
+        try {
+          const byteCharacters = atob(result.file_data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const docxBlob = new Blob([byteArray], { 
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+          });
+
+          if (docxBlob.size === 0) {
+            throw new Error('Generated DOCX file is empty');
+          }
+
+          console.log(`DOCX generated successfully on attempt ${attempt}, size: ${docxBlob.size} bytes`);
+          return docxBlob;
+
+        } catch (conversionError) {
+          throw new Error(`Failed to convert server response to DOCX: ${conversionError.message}`);
+        }
+
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`DOCX generation attempt ${attempt} failed:`, error);
+
+        // If this isn't the last attempt, wait before retrying
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // If all server attempts failed, create a simple fallback DOCX
+    console.log('All server attempts failed, creating fallback document...');
+    return createFallbackDocx(document, lastError?.message || 'Unknown error');
 
   } catch (error) {
-    console.error('Error generating client-side DOCX:', error);
-    throw new Error(`DOCX generation failed: ${error.message}`);
+    console.error('Error in DOCX generation:', error);
+    // Create fallback document even if everything fails
+    return createFallbackDocx(document, error.message);
+  }
+}
+
+// Create a simple fallback DOCX when server generation fails
+function createFallbackDocx(document: Document, errorMessage: string): Blob {
+  try {
+    // Create a simple RTF document that can be opened by Word
+    const rtfContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}
+\\f0\\fs24\\b ${document.title || 'Untitled Document'}\\b0\\par
+\\par
+${(document.authors || []).map(author => `${author.name || ''}${author.organization ? ` - ${author.organization}` : ''}`).join('\\par ')}\\par
+\\par
+${document.abstract ? `\\b Abstract:\\b0 ${document.abstract}\\par\\par` : ''}
+${document.keywords ? `\\b Keywords:\\b0 ${document.keywords}\\par\\par` : ''}
+${(document.sections || []).map((section, index) => 
+  `\\b ${index + 1}. ${(section.title || '').toUpperCase()}\\b0\\par
+${(section.contentBlocks || [])
+  .filter(block => block.type === 'text' && block.content)
+  .map(block => block.content)
+  .join('\\par ')}\\par\\par`
+).join('')}
+${document.references && document.references.length > 0 ? 
+  `\\b REFERENCES\\b0\\par
+${document.references.map((ref, index) => `[${index + 1}] ${ref}`).join('\\par ')}` : ''}
+\\par
+\\par
+\\i Note: This document was generated in fallback mode due to server connectivity issues.\\i0
+\\par
+\\i Error: ${errorMessage}\\i0
+}`;
+
+    // Convert RTF to blob (Word can open RTF files)
+    const blob = new Blob([rtfContent], { 
+      type: 'application/rtf' 
+    });
+
+    console.log('Created fallback RTF document');
+    return blob;
+
+  } catch (fallbackError) {
+    console.error('Even fallback generation failed:', fallbackError);
+    
+    // Last resort: create a plain text file
+    const textContent = `${document.title || 'Untitled Document'}
+
+Authors: ${(document.authors || []).map(a => a.name).filter(Boolean).join(', ')}
+
+${document.abstract ? `Abstract: ${document.abstract}\n\n` : ''}
+${document.keywords ? `Keywords: ${document.keywords}\n\n` : ''}
+${(document.sections || []).map((section, index) => 
+  `${index + 1}. ${(section.title || '').toUpperCase()}
+${(section.contentBlocks || [])
+  .filter(block => block.type === 'text' && block.content)
+  .map(block => block.content)
+  .join('\n\n')}
+`).join('\n\n')}
+${document.references && document.references.length > 0 ? 
+  `\nREFERENCES
+${document.references.map((ref, index) => `[${index + 1}] ${ref}`).join('\n')}` : ''}
+
+Note: This document was generated in emergency fallback mode.
+Error: ${errorMessage}
+Fallback Error: ${fallbackError.message}
+`;
+
+    return new Blob([textContent], { type: 'text/plain' });
   }
 }
 
@@ -1090,19 +1066,31 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       console.log('Generating DOCX for download (client-side)...');
 
       try {
-        // Use client-side DOCX generation for reliability (same approach as PDF)
-        console.log('Generating DOCX using client-side library...');
+        // Use server-side DOCX generation with improved reliability
+        console.log('Generating DOCX using server-side generation...');
         const docxBlob = await generateClientSideDocx(document);
 
         if (!docxBlob || docxBlob.size === 0) {
           throw new Error('Failed to generate DOCX document');
         }
 
-        // Download the DOCX file
+        // Determine file extension based on blob type
+        let fileExtension = '.docx';
+        let fileName = `${document.title || 'ieee_paper'}`;
+        
+        if (docxBlob.type === 'application/rtf') {
+          fileExtension = '.rtf';
+          fileName += '_fallback';
+        } else if (docxBlob.type === 'text/plain') {
+          fileExtension = '.txt';
+          fileName += '_emergency';
+        }
+
+        // Download the file
         const url = URL.createObjectURL(docxBlob);
         const link = window.document.createElement('a');
         link.href = url;
-        link.download = `${document.title || 'ieee_paper'}.docx`;
+        link.download = fileName + fileExtension;
         link.click();
         URL.revokeObjectURL(url);
 
@@ -1120,14 +1108,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 },
                 body: JSON.stringify({
                   documentTitle: document.title || 'Untitled Document',
-                  fileFormat: 'docx',
+                  fileFormat: fileExtension.replace('.', ''),
                   fileSize: docxBlob.size,
                   documentMetadata: {
                     authors: document.authors?.map(a => a.name).filter(Boolean) || [],
                     sections: document.sections?.length || 0,
                     references: document.references?.length || 0,
-                    generated_by: 'client_side',
-                    generation_method: 'docx_js'
+                    generated_by: 'server_side_with_fallback',
+                    generation_method: 'python_backend'
                   }
                 })
               });
