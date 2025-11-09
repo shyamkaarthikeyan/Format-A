@@ -45,6 +45,53 @@ export default function EnhancedPreviewSystem({
 
   const zoomLevels = [50, 75, 100, 125, 150, 200];
 
+  // Function to count pages in PDF blob
+  const countPdfPages = async (pdfBlob: Blob) => {
+    try {
+      // Read the PDF blob as array buffer
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert to string to search for page count patterns
+      const pdfText = String.fromCharCode.apply(null, Array.from(uint8Array));
+      
+      // Method 1: Look for /Count in PDF structure (most reliable)
+      const countMatch = pdfText.match(/\/Count\s+(\d+)/);
+      if (countMatch) {
+        const pageCount = parseInt(countMatch[1], 10);
+        if (pageCount > 0) {
+          console.log(`PDF page count detected: ${pageCount} pages`);
+          setTotalPages(pageCount);
+          return;
+        }
+      }
+      
+      // Method 2: Count /Page objects
+      const pageMatches = pdfText.match(/\/Type\s*\/Page[^s]/g);
+      if (pageMatches && pageMatches.length > 0) {
+        console.log(`PDF page count from /Page objects: ${pageMatches.length} pages`);
+        setTotalPages(pageMatches.length);
+        return;
+      }
+      
+      // Method 3: Estimate based on content length (fallback)
+      const estimatedPages = Math.max(1, Math.ceil(pdfBlob.size / 50000)); // Rough estimate: 50KB per page
+      console.log(`PDF page count estimated: ${estimatedPages} pages (based on file size: ${pdfBlob.size} bytes)`);
+      setTotalPages(estimatedPages);
+      
+    } catch (error) {
+      console.error('Error counting PDF pages:', error);
+      // Default to estimated pages based on document content
+      const contentLength = (document.abstract?.length || 0) + 
+                           document.sections.reduce((total, section) => 
+                             total + section.contentBlocks.reduce((blockTotal, block) => 
+                               blockTotal + (block.content?.length || 0), 0), 0);
+      const estimatedPages = Math.max(1, Math.ceil(contentLength / 3000)); // ~3000 chars per page
+      console.log(`Fallback page estimation: ${estimatedPages} pages (based on content length: ${contentLength} chars)`);
+      setTotalPages(estimatedPages);
+    }
+  };
+
   // Generate PDF preview with debouncing
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -81,6 +128,9 @@ export default function EnhancedPreviewSystem({
         }
         const url = URL.createObjectURL(blob);
         setPdfUrl(url);
+        
+        // Count pages in the PDF
+        countPdfPages(blob);
       } else {
         throw new Error('Invalid response format from preview generation service');
       }
@@ -102,6 +152,9 @@ export default function EnhancedPreviewSystem({
           }
           const url = URL.createObjectURL(blob);
           setPdfUrl(url);
+          
+          // Count pages in the fallback PDF too
+          countPdfPages(blob);
         }
       } catch (fallbackError) {
         console.error('Fallback preview generation also failed:', fallbackError);
@@ -526,6 +579,9 @@ export default function EnhancedPreviewSystem({
         </div>
         
         <div className="flex items-center gap-4">
+          {previewMode === 'live' && pdfUrl && (
+            <span>{totalPages} {totalPages === 1 ? 'page' : 'pages'}</span>
+          )}
           {document.sections.length > 0 && (
             <span>{document.sections.length} sections</span>
           )}
