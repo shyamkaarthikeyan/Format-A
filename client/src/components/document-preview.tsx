@@ -915,6 +915,51 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       link.click();
       URL.revokeObjectURL(url);
 
+      // Record the download if user is authenticated
+      if (isAuthenticated) {
+        try {
+          console.log('Recording PDF download (from DOCX button)...');
+          const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+          if (token) {
+            const response = await fetch('/api/record-download', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                documentTitle: document.title || 'Untitled Document',
+                fileFormat: 'pdf',
+                fileSize: pdfBlob.size,
+                documentMetadata: {
+                  authors: document.authors?.map((a: any) => a.name).filter(Boolean) || [],
+                  authorsCount: document.authors?.length || 0,
+                  sections: document.sections?.length || 0,
+                  references: document.references?.length || 0,
+                  figures: document.figures?.length || 0,
+                  generatedAt: new Date().toISOString(),
+                  source: 'client_side_pdf_docx_button'
+                }
+              })
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success) {
+                console.log('✅ Download recorded successfully:', result.data?.id);
+              } else {
+                console.warn('❌ Failed to record download:', result.error?.message);
+              }
+            } else {
+              console.warn('❌ Download recording failed:', response.status);
+            }
+          }
+        } catch (error) {
+          console.warn('❌ Error recording download:', error);
+          // Don't fail the download if recording fails
+        }
+      }
+
       return { success: true };
     },
     onSuccess: () => {
@@ -955,6 +1000,51 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       link.download = "ieee_paper.pdf";
       link.click();
       URL.revokeObjectURL(url);
+
+      // Record the download if user is authenticated
+      if (isAuthenticated) {
+        try {
+          console.log('Recording PDF download...');
+          const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+          if (token) {
+            const response = await fetch('/api/record-download', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                documentTitle: document.title || 'Untitled Document',
+                fileFormat: 'pdf',
+                fileSize: pdfBlob.size,
+                documentMetadata: {
+                  authors: document.authors?.map((a: any) => a.name).filter(Boolean) || [],
+                  authorsCount: document.authors?.length || 0,
+                  sections: document.sections?.length || 0,
+                  references: document.references?.length || 0,
+                  figures: document.figures?.length || 0,
+                  generatedAt: new Date().toISOString(),
+                  source: 'client_side_pdf'
+                }
+              })
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success) {
+                console.log('✅ Download recorded successfully:', result.data?.id);
+              } else {
+                console.warn('❌ Failed to record download:', result.error?.message);
+              }
+            } else {
+              console.warn('❌ Download recording failed:', response.status);
+            }
+          }
+        } catch (error) {
+          console.warn('❌ Error recording download:', error);
+          // Don't fail the download if recording fails
+        }
+      }
 
       return {
         success: true,
