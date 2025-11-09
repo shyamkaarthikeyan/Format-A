@@ -13,7 +13,7 @@ import AuthorForm from "@/components/author-form";
 import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
-import DownloadHistory from "@/components/download-history";
+import { DownloadHistory } from "@/components/download-history";
 import AuthDebug from "@/components/auth-debug";
 
 import { clientStorage } from "@/lib/localStorage";
