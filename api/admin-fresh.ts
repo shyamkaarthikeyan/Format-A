@@ -172,15 +172,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
-        const { NeonDatabase } = await import('./_lib/neon-database.js');
-        const db = new NeonDatabase();
+        // Use direct database connection to avoid issues with the NeonDatabase class
+        const { neon } = await import('@neondatabase/serverless');
+        const sql = neon(process.env.DATABASE_URL);
         
-        // Initialize tables if needed
-        await db.initializeTables();
+        console.log('📥 Fetching downloads for user with direct SQL:', userId);
         
-        // Get user downloads with pagination
-        console.log('📥 Fetching downloads for user:', userId);
-        const downloads = await db.getUserDownloads(userId, page, limit);
+        // Get total count of downloads for this user
+        const countResult = await sql`
+          SELECT COUNT(*) as total FROM downloads WHERE user_id = ${userId}
+        `;
+        const totalItems = parseInt(countResult[0].total) || 0;
+        
+        // Get paginated downloads
+        const offset = (page - 1) * limit;
+        const downloadsResult = await sql`
+          SELECT 
+            id,
+            document_title,
+            file_format,
+            file_size,
+            downloaded_at,
+            status,
+            email_sent,
+            document_metadata
+          FROM downloads 
+          WHERE user_id = ${userId}
+          ORDER BY downloaded_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
+        
+        const totalPages = Math.ceil(totalItems / limit);
+        
+        const downloads = {
+          downloads: downloadsResult,
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalItems,
+            hasNext: page < totalPages,
+            hasPrev: page > 1,
+            limit
+          }
+        };
         
         console.log('✅ Downloads retrieved successfully:', {
           downloadsCount: downloads?.downloads?.length || downloads?.length || 0,
@@ -263,35 +297,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
-        console.log('✅ DATABASE_URL found, attempting database connection...');
+        console.log('✅ DATABASE_URL found, attempting direct database connection...');
         
-        // Dynamic import to avoid issues if module fails to load
-        const { NeonDatabase } = await import('./_lib/neon-database.js');
-        const db = new NeonDatabase();
+        // Use direct database connection to avoid issues with the NeonDatabase class
+        const { neon } = await import('@neondatabase/serverless');
+        const sql = neon(process.env.DATABASE_URL);
         
-        // Test connection first
-        console.log('🔗 Testing database connection...');
-        const isHealthy = await db.testConnection();
+        console.log('📊 Fetching all users with stats using direct SQL...');
         
-        if (!isHealthy) {
-          console.warn('❌ Database connection test failed');
-          return res.json({
-            success: true,
-            data: [],
-            message: 'Database connection test failed',
-            dataSource: 'connection_failed'
-          });
-        }
-
-        console.log('✅ Database connection successful, initializing tables...');
-        
-        // Initialize tables if needed
-        await db.initializeTables();
-        
-        console.log('📊 Fetching all users from database...');
-        
-        // Get all users with download counts from database
-        const usersWithStats = await db.getAllUsersWithStats();
+        // Get all users with download and document counts using direct SQL
+        const usersWithStats = await sql`
+          SELECT 
+            u.*,
+            COUNT(DISTINCT d.id) as total_documents,
+            COUNT(DISTINCT dl.id) as total_downloads,
+            MAX(d.created_at) as last_document_created,
+            MAX(dl.downloaded_at) as last_download,
+            COALESCE(SUM(dl.file_size), 0) as total_download_size
+          FROM users u
+          LEFT JOIN documents d ON u.id = d.user_id
+          LEFT JOIN downloads dl ON u.id = dl.user_id
+          GROUP BY u.id, u.google_id, u.email, u.name, u.picture, u.created_at, u.updated_at, u.last_login_at, u.is_active, u.preferences, u.suspended, u.suspended_at, u.suspended_by, u.suspension_reason
+          ORDER BY u.created_at DESC
+        `;
         
         console.log(`✅ Successfully retrieved ${usersWithStats.length} users with stats from database`);
         
