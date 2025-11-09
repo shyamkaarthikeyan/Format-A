@@ -442,56 +442,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       };
 
-      // Try to get real database data first
+      // Try to get real database data first using direct SQL (same approach as users endpoint)
       let useRealData = false;
       let realData = null;
       
       try {
         // Only attempt database connection if DATABASE_URL exists
         if (process.env.DATABASE_URL) {
-          console.log('Attempting database connection for analytics...');
+          console.log('Attempting direct database connection for analytics...');
           
-          // Dynamic import to avoid issues if module fails to load
-          const { NeonDatabase } = await import('./_lib/neon-database.js');
-          const db = new NeonDatabase();
+          // Use direct database connection like the users endpoint
+          const { neon } = await import('@neondatabase/serverless');
+          const sql = neon(process.env.DATABASE_URL);
           
-          // Test connection first
-          const isHealthy = await db.testConnection();
+          console.log('Database connection successful, fetching real analytics data...');
           
-          if (isHealthy) {
-            console.log('Database connection successful, fetching real data...');
-            
-            // Initialize tables if needed
-            await db.initializeTables();
-            
-            // Get real analytics data based on type
-            switch (type) {
-              case 'users': {
-                const userAnalytics = await db.getUserAnalytics();
-                realData = {
-                  totalUsers: parseInt(userAnalytics.total_users) || 0,
-                  activeUsers: { 
-                    last24h: parseInt(userAnalytics.active_users_7d) || 0,
-                    last7d: parseInt(userAnalytics.active_users_7d) || 0, 
-                    last30d: parseInt(userAnalytics.active_users_30d) || 0 
-                  },
-                  userGrowth: { 
-                    thisMonth: parseInt(userAnalytics.new_users_30d) || 0, 
-                    lastMonth: 0,
-                    growthRate: 0
-                  },
-                  newUsers: {
-                    today: parseInt(userAnalytics.new_users_today) || 0,
-                    thisWeek: parseInt(userAnalytics.new_users_7d) || 0,
-                    thisMonth: parseInt(userAnalytics.new_users_30d) || 0
-                  }
-                };
-                useRealData = true;
-                break;
-              }
+          // Get real analytics data based on type using direct SQL
+          switch (type) {
+            case 'users': {
+              console.log('Fetching user analytics...');
+              const userResult = await sql`
+                SELECT 
+                  COUNT(*) as total_users,
+                  COUNT(CASE WHEN created_at >= NOW() - INTERVAL '1 day' THEN 1 END) as new_users_today,
+                  COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as new_users_7d,
+                  COUNT(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as new_users_30d,
+                  COUNT(CASE WHEN last_login_at >= NOW() - INTERVAL '7 days' THEN 1 END) as active_users_7d,
+                  COUNT(CASE WHEN last_login_at >= NOW() - INTERVAL '30 days' THEN 1 END) as active_users_30d,
+                  COUNT(CASE WHEN is_active = true THEN 1 END) as active_users
+                FROM users
+              `;
+              const userAnalytics = userResult[0];
+              
+              realData = {
+                totalUsers: parseInt(userAnalytics.total_users) || 0,
+                activeUsers: { 
+                  last24h: parseInt(userAnalytics.active_users_7d) || 0,
+                  last7d: parseInt(userAnalytics.active_users_7d) || 0, 
+                  last30d: parseInt(userAnalytics.active_users_30d) || 0 
+                },
+                userGrowth: { 
+                  thisMonth: parseInt(userAnalytics.new_users_30d) || 0, 
+                  lastMonth: 0,
+                  growthRate: 0
+                },
+                newUsers: {
+                  today: parseInt(userAnalytics.new_users_today) || 0,
+                  thisWeek: parseInt(userAnalytics.new_users_7d) || 0,
+                  thisMonth: parseInt(userAnalytics.new_users_30d) || 0
+                }
+              };
+              useRealData = true;
+              break;
+            }
 
-              case 'documents': {
-                const documentAnalytics = await db.getDocumentAnalytics();
+            case 'documents': {
+              console.log('Fetching document analytics...');
+              // Check if documents table exists first
+              try {
+                const documentResult = await sql`
+                  SELECT 
+                    COUNT(*) as total_documents,
+                    COUNT(CASE WHEN created_at >= NOW() - INTERVAL '1 day' THEN 1 END) as documents_today,
+                    COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as documents_7d,
+                    COUNT(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as documents_30d
+                  FROM documents
+                `;
+                const documentAnalytics = documentResult[0];
+                
                 realData = {
                   totalDocuments: parseInt(documentAnalytics.total_documents) || 0,
                   documentsThisMonth: parseInt(documentAnalytics.documents_30d) || 0,
@@ -502,62 +520,98 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   updateRate: 0
                 };
                 useRealData = true;
-                break;
-              }
-
-              case 'downloads': {
-                const downloadAnalytics = await db.getDownloadAnalytics();
-                const totalDownloads = parseInt(downloadAnalytics.total_downloads) || 0;
-                const pdfDownloads = parseInt(downloadAnalytics.pdf_downloads) || 0;
-                const docxDownloads = parseInt(downloadAnalytics.docx_downloads) || 0;
-                
+              } catch (docError) {
+                console.log('Documents table may not exist, using zero values');
                 realData = {
-                  totalDownloads,
-                  downloadsToday: parseInt(downloadAnalytics.downloads_today) || 0,
-                  downloadsThisWeek: parseInt(downloadAnalytics.downloads_7d) || 0,
-                  downloadsThisMonth: parseInt(downloadAnalytics.downloads_30d) || 0,
-                  downloadsByFormat: [
-                    { 
-                      format: 'pdf', 
-                      count: pdfDownloads, 
-                      percentage: totalDownloads > 0 ? Math.round((pdfDownloads / totalDownloads) * 100) : 0
-                    },
-                    { 
-                      format: 'docx', 
-                      count: docxDownloads, 
-                      percentage: totalDownloads > 0 ? Math.round((docxDownloads / totalDownloads) * 100) : 0
-                    }
-                  ]
+                  totalDocuments: 0,
+                  documentsThisMonth: 0,
+                  documentsThisWeek: 0,
+                  documentsToday: 0,
+                  growthRate: 0,
+                  averageLength: 0,
+                  updateRate: 0
                 };
                 useRealData = true;
-                break;
               }
-
-              case 'system': {
-                const connectionHealth = db.getConnectionHealth();
-                realData = {
-                  uptime: Math.round(process.uptime()),
-                  memoryUsage: {
-                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                    percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
-                  },
-                  systemStatus: connectionHealth.isHealthy ? 'healthy' : 'warning',
-                  nodeVersion: process.version,
-                  platform: process.platform,
-                  databaseHealth: {
-                    isHealthy: connectionHealth.isHealthy,
-                    lastChecked: connectionHealth.lastChecked,
-                    responseTime: connectionHealth.responseTime,
-                    errorCount: connectionHealth.errorCount
-                  }
-                };
-                useRealData = true;
-                break;
-              }
+              break;
             }
-          } else {
-            console.warn('Database connection test failed, showing empty data');
+
+            case 'downloads': {
+              console.log('Fetching download analytics...');
+              const downloadResult = await sql`
+                SELECT 
+                  COUNT(*) as total_downloads,
+                  COUNT(CASE WHEN downloaded_at >= NOW() - INTERVAL '1 day' THEN 1 END) as downloads_today,
+                  COUNT(CASE WHEN downloaded_at >= NOW() - INTERVAL '7 days' THEN 1 END) as downloads_7d,
+                  COUNT(CASE WHEN downloaded_at >= NOW() - INTERVAL '30 days' THEN 1 END) as downloads_30d,
+                  COUNT(CASE WHEN file_format = 'pdf' THEN 1 END) as pdf_downloads,
+                  COUNT(CASE WHEN file_format = 'docx' THEN 1 END) as docx_downloads
+                FROM downloads
+              `;
+              const downloadAnalytics = downloadResult[0];
+              
+              const totalDownloads = parseInt(downloadAnalytics.total_downloads) || 0;
+              const pdfDownloads = parseInt(downloadAnalytics.pdf_downloads) || 0;
+              const docxDownloads = parseInt(downloadAnalytics.docx_downloads) || 0;
+              
+              realData = {
+                totalDownloads,
+                downloadsToday: parseInt(downloadAnalytics.downloads_today) || 0,
+                downloadsThisWeek: parseInt(downloadAnalytics.downloads_7d) || 0,
+                downloadsThisMonth: parseInt(downloadAnalytics.downloads_30d) || 0,
+                downloadsByFormat: [
+                  { 
+                    format: 'pdf', 
+                    count: pdfDownloads, 
+                    percentage: totalDownloads > 0 ? Math.round((pdfDownloads / totalDownloads) * 100) : 0
+                  },
+                  { 
+                    format: 'docx', 
+                    count: docxDownloads, 
+                    percentage: totalDownloads > 0 ? Math.round((docxDownloads / totalDownloads) * 100) : 0
+                  }
+                ]
+              };
+              useRealData = true;
+              break;
+            }
+
+            case 'system': {
+              console.log('Fetching system analytics...');
+              // Test database connection
+              let dbHealthy = false;
+              let dbResponseTime = 0;
+              
+              try {
+                const startTime = Date.now();
+                await sql`SELECT 1`;
+                dbResponseTime = Date.now() - startTime;
+                dbHealthy = true;
+              } catch (dbTestError) {
+                console.error('Database health check failed:', dbTestError);
+                dbHealthy = false;
+              }
+              
+              realData = {
+                uptime: Math.round(process.uptime()),
+                memoryUsage: {
+                  total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+                  used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                  percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
+                },
+                systemStatus: dbHealthy ? 'healthy' : 'warning',
+                nodeVersion: process.version,
+                platform: process.platform,
+                databaseHealth: {
+                  isHealthy: dbHealthy,
+                  lastChecked: new Date().toISOString(),
+                  responseTime: dbResponseTime,
+                  errorCount: dbHealthy ? 0 : 1
+                }
+              };
+              useRealData = true;
+              break;
+            }
           }
         } else {
           console.warn('DATABASE_URL not found, showing empty data');
