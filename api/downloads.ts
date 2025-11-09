@@ -1,117 +1,118 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../server/storage.js';
-import { RestrictionMiddleware, RESTRICTION_CONFIGS } from './_lib/restriction-middleware';
+import jwt from 'jsonwebtoken';
+import { neon } from '@neondatabase/serverless';
 
-// Extract user from session token in Authorization header or cookie
-async function extractUser(req: VercelRequest) {
+// Initialize SQL connection
+let sql: any = null;
+function getSql() {
+  if (!sql) {
+    sql = neon(process.env.DATABASE_URL!, {
+      fullResults: true,
+      arrayMode: false
+    });
+  }
+  return sql;
+}
+
+// Extract user from JWT token in Authorization header
+async function extractUserFromToken(req: VercelRequest) {
   try {
-    // Try to get session ID from Authorization header first
-    let sessionId = req.headers.authorization?.toString().replace('Bearer ', '');
+    let token = req.headers.authorization?.replace('Bearer ', '');
     
-    // If not in header, try cookie - manual parsing since req.cookies might not work
-    if (!sessionId) {
-      const cookieHeader = req.headers.cookie;
-      if (cookieHeader) {
-        const cookies = cookieHeader.split(';').reduce((acc: any, cookie) => {
-          const [name, value] = cookie.trim().split('=');
-          acc[name] = value;
-          return acc;
-        }, {});
-        sessionId = cookies.sessionId;
-      }
-      
-      // Also try req.cookies as fallback
-      if (!sessionId && req.cookies?.sessionId) {
-        sessionId = req.cookies.sessionId;
-      }
-    }
-
-    if (!sessionId) {
+    if (!token) {
       return null;
     }
 
-    // Get session from storage
-    const session = await storage.getSession(sessionId);
-    if (!session || !session.isActive) {
+    // Verify JWT token
+    const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+    const decoded = jwt.verify(token, jwtSecret) as any;
+    
+    if (!decoded.userId || !decoded.email) {
       return null;
     }
 
-    // Update last accessed time
-    await storage.updateSessionAccess(sessionId);
-
-    // Get user from storage
-    const user = await storage.getUserById(session.userId);
-    if (!user || !user.isActive) {
-      return null;
-    }
-
-    return user;
+    // Get user from database
+    const sql = getSql();
+    const result = await sql`SELECT * FROM users WHERE id = ${decoded.userId} AND is_active = true LIMIT 1`;
+    const users = result.rows || result;
+    
+    return users.length > 0 ? users[0] : null;
   } catch (error) {
-    console.error('Error extracting user:', error);
+    console.error('Error extracting user from token:', error);
     return null;
   }
 }
 
 // Handle individual download by ID
 async function handleDownloadById(req: VercelRequest, res: VercelResponse) {
-  await RestrictionMiddleware.enforce(
-    req,
-    res,
-    RESTRICTION_CONFIGS.download,
-    async () => {
-      try {
-        await RestrictionMiddleware.logRestrictedAttempt(req, 'download', true);
-
-        const user = (req as any).user; // User attached by middleware
-        const downloadId = req.query.id as string;
-        const download = await storage.getDownloadById(downloadId);
-
-        if (!download) {
-          res.status(404).json({
-            success: false,
-            error: {
-              code: 'DOWNLOAD_NOT_FOUND',
-              message: 'Download record not found'
-            }
-          });
-          return;
+  try {
+    const user = await extractUserFromToken(req);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_REQUIRED',
+          message: 'Authentication required to access this resource'
         }
-
-        // Check if user owns this download
-        if (download.userId !== user.id) {
-          res.status(403).json({
-            success: false,
-            error: {
-              code: 'ACCESS_DENIED',
-              message: 'You do not have access to this download'
-            }
-          });
-          return;
-        }
-
-        res.json({
-          success: true,
-          data: download
-        });
-      } catch (error) {
-        console.error('Error fetching download:', error);
-        await RestrictionMiddleware.logRestrictedAttempt(req, 'download', false, 'Internal error');
-        res.status(500).json({
-          success: false,
-          error: {
-            code: 'DOWNLOAD_FETCH_ERROR',
-            message: 'Failed to fetch download'
-          }
-        });
-      }
+      });
     }
-  );
+
+    const downloadId = req.query.id as string;
+    
+    // Get download from database
+    const sql = getSql();
+    const result = await sql`
+      SELECT * FROM downloads 
+      WHERE id = ${downloadId} AND user_id = ${user.id}
+      LIMIT 1
+    `;
+    const downloads = result.rows || result;
+    
+    if (downloads.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'DOWNLOAD_NOT_FOUND',
+          message: 'Download record not found'
+        }
+      });
+    }
+
+    const download = downloads[0];
+    
+    res.json({
+      success: true,
+      data: {
+        id: download.id,
+        userId: download.user_id,
+        documentTitle: download.document_title,
+        fileFormat: download.file_format,
+        fileSize: download.file_size,
+        downloadedAt: download.downloaded_at,
+        ipAddress: download.ip_address,
+        userAgent: download.user_agent,
+        status: download.status,
+        emailSent: download.email_sent,
+        documentMetadata: download.document_metadata
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching download:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DOWNLOAD_FETCH_ERROR',
+        message: 'Failed to fetch download'
+      }
+    });
+  }
 }
 
 // Handle download history
 async function handleDownloadHistory(req: VercelRequest, res: VercelResponse) {
   try {
-    const user = await extractUser(req);
+    const user = await extractUserFromToken(req);
     
     if (!user) {
       return res.status(401).json({
@@ -125,13 +126,54 @@ async function handleDownloadHistory(req: VercelRequest, res: VercelResponse) {
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
     
-    const paginatedDownloads = await storage.getUserDownloads(user.id, {
-      page,
-      limit,
-      sortBy: 'downloadedAt',
-      sortOrder: 'desc'
-    });
+    // Get downloads from database
+    const sql = getSql();
+    
+    // Get total count
+    const countResult = await sql`
+      SELECT COUNT(*) as total 
+      FROM downloads 
+      WHERE user_id = ${user.id}
+    `;
+    const totalItems = parseInt((countResult.rows || countResult)[0].total);
+    
+    // Get paginated downloads
+    const downloadsResult = await sql`
+      SELECT * FROM downloads 
+      WHERE user_id = ${user.id}
+      ORDER BY downloaded_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+    const downloads = downloadsResult.rows || downloadsResult;
+
+    const totalPages = Math.ceil(totalItems / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    const paginatedDownloads = {
+      downloads: downloads.map(download => ({
+        id: download.id,
+        userId: download.user_id,
+        documentTitle: download.document_title,
+        fileFormat: download.file_format,
+        fileSize: download.file_size,
+        downloadedAt: download.downloaded_at,
+        ipAddress: download.ip_address,
+        userAgent: download.user_agent,
+        status: download.status,
+        emailSent: download.email_sent,
+        documentMetadata: download.document_metadata
+      })),
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        hasNext,
+        hasPrev
+      }
+    };
 
     res.json({
       success: true,
@@ -152,7 +194,7 @@ async function handleDownloadHistory(req: VercelRequest, res: VercelResponse) {
 // Handle recording a new download
 async function handleRecordDownload(req: VercelRequest, res: VercelResponse) {
   try {
-    const user = await extractUser(req);
+    const user = await extractUserFromToken(req);
     
     if (!user) {
       return res.status(401).json({
@@ -177,25 +219,43 @@ async function handleRecordDownload(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get client IP and user agent
-    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
+    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
 
-    const downloadRecord = await storage.recordDownload({
-      userId: user.id,
-      documentTitle,
-      fileFormat: fileFormat.toLowerCase(),
-      fileSize: fileSize || 0,
-      ipAddress: Array.isArray(ipAddress) ? ipAddress[0] : ipAddress,
-      userAgent,
-      status: 'completed',
-      emailSent: false,
-      downloadedAt: new Date().toISOString(),
-      documentMetadata: documentMetadata || {}
-    });
+    // Record download in database
+    const sql = getSql();
+    const downloadId = `download_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    
+    const result = await sql`
+      INSERT INTO downloads (
+        id, user_id, document_title, file_format, file_size, 
+        downloaded_at, ip_address, user_agent, status, email_sent, document_metadata
+      )
+      VALUES (
+        ${downloadId}, ${user.id}, ${documentTitle}, ${fileFormat.toLowerCase()}, ${fileSize || 0},
+        NOW(), ${Array.isArray(ipAddress) ? ipAddress[0] : ipAddress}, ${userAgent}, 
+        'completed', false, ${JSON.stringify(documentMetadata || {})}
+      )
+      RETURNING *
+    `;
+
+    const downloadRecord = (result.rows || result)[0];
 
     res.json({
       success: true,
-      data: downloadRecord,
+      data: {
+        id: downloadRecord.id,
+        userId: downloadRecord.user_id,
+        documentTitle: downloadRecord.document_title,
+        fileFormat: downloadRecord.file_format,
+        fileSize: downloadRecord.file_size,
+        downloadedAt: downloadRecord.downloaded_at,
+        ipAddress: downloadRecord.ip_address,
+        userAgent: downloadRecord.user_agent,
+        status: downloadRecord.status,
+        emailSent: downloadRecord.email_sent,
+        documentMetadata: downloadRecord.document_metadata
+      },
       message: 'Download recorded successfully'
     });
   } catch (error) {
