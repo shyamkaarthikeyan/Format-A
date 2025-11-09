@@ -321,8 +321,13 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
         name: user.name,
         picture: user.picture,
         google_id: user.google_id,
-        created_at: user.created_at,
-        last_login_at: user.last_login_at
+        createdAt: user.created_at,
+        lastLoginAt: user.last_login_at,
+        preferences: user.preferences || {
+          emailNotifications: true,
+          defaultExportFormat: 'pdf',
+          theme: 'light'
+        }
       },
       token: appToken,
       message: user.created_at === user.updated_at ? 'Welcome! Account created.' : 'Welcome back!'
