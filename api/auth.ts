@@ -304,7 +304,8 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
         email: user.email,
         name: user.name,
         picture: user.picture,
-        googleId: user.google_id
+        googleId: user.google_id,
+        iat: Math.floor(Date.now() / 1000) // Issued at time
       },
       jwtSecret,
       { expiresIn: '7d' }
@@ -324,7 +325,6 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
         last_login_at: user.last_login_at
       },
       token: appToken,
-      sessionId: `session_${user.id}_${Date.now()}`, // For compatibility
       message: user.created_at === user.updated_at ? 'Welcome! Account created.' : 'Welcome back!'
     });
 
@@ -376,27 +376,11 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
         }
       });
     } catch (jwtError) {
-      // If JWT verification fails, try session ID format
-      if (!token.startsWith('session_')) {
-        return res.status(401).json({ error: 'Invalid token format' });
-      }
-
-      // Get first user (simplified approach for session fallback)
-      const users = await getAllUsers();
-      const user = users.length > 0 ? users[0] : null;
-      
-      if (!user) {
-        return res.status(401).json({ error: 'User not found' });
-      }
-
-      return res.json({
-        success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture
-        }
+      // FIXED: No dangerous fallback - return error instead of wrong user
+      console.log('JWT verification failed:', jwtError.message);
+      return res.status(401).json({ 
+        error: 'Invalid or expired token',
+        code: 'TOKEN_INVALID'
       });
     }
   } catch (error) {
