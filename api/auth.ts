@@ -372,7 +372,14 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
           id: user.id,
           email: user.email,
           name: user.name,
-          picture: user.picture
+          picture: user.picture,
+          createdAt: user.created_at,
+          lastLoginAt: user.last_login_at,
+          preferences: user.preferences || {
+            emailNotifications: true,
+            defaultExportFormat: 'pdf',
+            theme: 'light'
+          }
         }
       });
     } catch (jwtError) {
