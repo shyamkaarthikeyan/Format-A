@@ -44,7 +44,7 @@ class handler(BaseHTTPRequestHandler):
             
             print(f"Received DOCX request: {str(document_data)[:200]}...", file=sys.stderr)
             
-            # Try to proxy to Python backend first
+            # Proxy to Python backend only (no fallback)
             python_response = self._proxy_to_python_backend(document_data, 'docx-generator')
             
             if python_response:
@@ -54,13 +54,16 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(python_response).encode())
                 return
             
-            # Fallback: Try to use local IEEE generator
-            print("Python backend failed, trying local fallback", file=sys.stderr)
-            fallback_response = self._local_fallback(document_data, 'docx')
-            
+            # No fallback - return error if Python backend fails
+            print("Python backend failed, no fallback available", file=sys.stderr)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(fallback_response).encode())
+            error_response = json.dumps({
+                'success': False,
+                'error': 'Python backend unavailable',
+                'message': 'DOCX generation requires Python backend connection. Please try again later.'
+            })
+            self.wfile.write(error_response.encode())
             
         except json.JSONDecodeError as e:
             self.send_response(400)
@@ -145,81 +148,3 @@ class handler(BaseHTTPRequestHandler):
             print(f"Failed to proxy to Python backend: {e}", file=sys.stderr)
             return None
 
-    def _local_fallback(self, document_data, format_type):
-        """Generate document using local IEEE generator when Python backend is unavailable"""
-        print(f"Using local IEEE generator fallback for {format_type} generation", file=sys.stderr)
-        
-        try:
-            # Import the local IEEE generator - try multiple paths
-            current_dir = os.path.dirname(__file__)
-            api_dir = os.path.dirname(current_dir)
-            
-            # Try to import from the Python backend directory first (most up-to-date)
-            backend_dir = os.path.join(os.path.dirname(os.path.dirname(api_dir)), 'format-a-python-backend')
-            if os.path.exists(backend_dir):
-                sys.path.insert(0, backend_dir)
-                print(f"Looking for IEEE generator in Python backend: {backend_dir}", file=sys.stderr)
-            else:
-                # Fallback to local API directory
-                sys.path.insert(0, api_dir)
-                print(f"Looking for IEEE generator in API directory: {api_dir}", file=sys.stderr)
-            
-            from ieee_generator_fixed import generate_ieee_document
-            
-            print("Successfully imported local IEEE generator", file=sys.stderr)
-            
-            # Generate the document using the same generator as PDF
-            document_buffer = generate_ieee_document(document_data)
-            
-            # Handle both BytesIO buffer and bytes
-            if hasattr(document_buffer, 'getvalue'):
-                document_bytes = document_buffer.getvalue()
-            else:
-                document_bytes = document_buffer
-            
-            # Convert to base64 for JSON response
-            import base64
-            document_base64 = base64.b64encode(document_bytes).decode('utf-8')
-            
-            print(f"Successfully generated {format_type} document locally using same IEEE generator as PDF", file=sys.stderr)
-            
-            return {
-                'success': True,
-                'message': f'{format_type.upper()} document generated successfully using same IEEE generator as PDF',
-                'fallback': True,
-                'file_data': document_base64,  # Frontend expects this field
-                'file_size': len(document_bytes),
-                'file_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'generator': 'ieee_generator_fixed.py',
-                'note': 'Generated using same IEEE formatting as PDF',
-                'data': {
-                    'title': document_data.get('title', 'Document'),
-                    'status': 'generated_locally',
-                    'filename': f"{document_data.get('title', 'document').replace(' ', '_')}.docx"
-                }
-            }
-            
-        except ImportError as e:
-            print(f"Failed to import local IEEE generator: {e}", file=sys.stderr)
-            return {
-                'success': False,
-                'error': 'Local generator unavailable',
-                'message': f'Both Python backend and local {format_type} generator are unavailable. Error: {str(e)}',
-                'fallback': True,
-                'data': {
-                    'title': document_data.get('title', 'Document'),
-                    'status': 'fallback_failed'
-                }
-            }
-        except Exception as e:
-            print(f"Local generator error: {e}", file=sys.stderr)
-            return {
-                'success': False,
-                'error': 'Local generation failed',
-                'message': f'Local {format_type} generation failed: {str(e)}',
-                'fallback': True,
-                'data': {
-                    'title': document_data.get('title', 'Document'),
-                    'status': 'generation_error'
-                }
-            }
