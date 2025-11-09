@@ -1451,7 +1451,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   }}
                 >
                   <iframe
-                    src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitV&page=${currentPage}`}
+                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitV&page=${currentPage}`}
                     className="w-full h-full border-0 shadow-lg"
                     style={{
                       outline: 'none',
@@ -1461,7 +1461,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     }}
                     title="PDF Preview"
                     key={`pdf-${currentPage}`}
-                    allowFullScreen
+                    sandbox="allow-same-origin allow-scripts"
                   >
                     {/* Fallback message */}
                     <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
