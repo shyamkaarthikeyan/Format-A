@@ -194,10 +194,22 @@ export default function HomeClient() {
       return;
     }
     
+    // Get the latest document data from storage to ensure we have all form updates
+    const latestDocument = clientStorage.getDocument(currentDocument.id);
+    if (!latestDocument) {
+      toast({
+        title: "Document Error",
+        description: "Could not load document data.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsGenerating(true);
     try {
       console.log('Generating DOCX using Python backend API...');
-      const result = await documentApi.generateDocx(currentDocument);
+      console.log('Document data being sent:', JSON.stringify(latestDocument, null, 2));
+      const result = await documentApi.generateDocx(latestDocument);
       
       // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
@@ -250,10 +262,22 @@ export default function HomeClient() {
       return;
     }
     
+    // Get the latest document data from storage to ensure we have all form updates
+    const latestDocument = clientStorage.getDocument(currentDocument.id);
+    if (!latestDocument) {
+      toast({
+        title: "Document Error",
+        description: "Could not load document data.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsGenerating(true);
     try {
       console.log('Generating PDF using Python backend API...');
-      const result = await documentApi.generatePdf(currentDocument, false); // false = download mode
+      console.log('Document data being sent:', JSON.stringify(latestDocument, null, 2));
+      const result = await documentApi.generatePdf(latestDocument, false); // false = download mode
       
       // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
