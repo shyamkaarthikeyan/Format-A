@@ -274,18 +274,35 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Use client-side generation (like PDF)
+  // Generate DOCX document - Use Python backend API
   generateDocx: async (documentData: any) => {
-    console.log('Generating DOCX client-side (like PDF generation)...');
+    console.log('Generating DOCX using Python backend API...');
     
-    // For now, return a simple response that indicates we need client-side generation
-    // This will be handled in the component using a JavaScript DOCX library
-    return {
-      success: true,
-      client_side: true,
-      message: 'DOCX generation will be handled client-side',
-      data: documentData
-    };
+    // Try the dedicated DOCX endpoint first, then fallback to main endpoint
+    const docxUrl = getApiUrl('/api/generate/docx');
+    const fallbackUrl = getPythonApiUrl('/document-generator');
+    
+    const response = await fetchWithFallback(docxUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...documentData,
+        format: 'docx',
+        action: 'download'
+      }),
+    }, fallbackUrl);
+    
+    if (!response.ok) {
+      throw new Error(`DOCX generation failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    // Record download if successful
+    if (result.success && result.file_data) {
+      await recordDownload(documentData, 'docx', result.file_size || 0);
+    }
+    
+    return result;
   },
 
   // Generate PDF document - Use Python backend main endpoint  
