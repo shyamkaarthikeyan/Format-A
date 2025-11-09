@@ -592,7 +592,7 @@ function generateClientSidePDF(document: Document): Blob {
                             const cellX = currentColumnX + (colIndex * colWidth);
                             const textX = cellX + cellPadding;
                             const textY = tableY + headerHeight - cellPadding;
-                            
+
                             // Truncate text if too long
                             const maxWidth = colWidth - (2 * cellPadding);
                             const truncatedText = pdf.splitTextToSize(header, maxWidth)[0] || header;
@@ -626,7 +626,7 @@ function generateClientSidePDF(document: Document): Blob {
                                 const cellX = currentColumnX + (colIndex * colWidth);
                                 const textX = cellX + cellPadding;
                                 const textY = tableY + cellHeight - cellPadding;
-                                
+
                                 // Truncate text if too long
                                 const maxWidth = colWidth - (2 * cellPadding);
                                 const truncatedText = pdf.splitTextToSize(cell, maxWidth)[0] || cell;
@@ -671,7 +671,7 @@ function generateClientSidePDF(document: Document): Blob {
                           // Add LaTeX code as formatted text
                           pdf.setFontSize(8);
                           pdf.setFont('courier', 'normal');
-                          
+
                           const codeLines = pdf.splitTextToSize(latexCode, columnWidth * 0.9);
                           let codeY = currentY;
 
@@ -1178,11 +1178,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         // Create a temporary PDF reader to count pages
         const arrayBuffer = await pdfBlob.arrayBuffer();
         const pdfText = new TextDecoder().decode(arrayBuffer);
-        
+
         // Count pages by looking for page objects in PDF structure
         const pageMatches = pdfText.match(/\/Type\s*\/Page[^s]/g);
         const actualPageCount = pageMatches ? pageMatches.length : 1;
-        
+
         console.log(`PDF generated with ${actualPageCount} pages`);
         setTotalPages(actualPageCount);
         setCurrentPage(1); // Reset to first page
@@ -1340,9 +1340,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               {/* Page Navigation */}
               {pdfUrl && totalPages > 1 && (
                 <>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage <= 1}
                     className="px-2"
@@ -1355,9 +1355,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                     <span className="text-gray-600">of</span>
                     <span className="font-medium text-gray-800">{totalPages}</span>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage >= totalPages}
                     className="px-2"
@@ -1473,7 +1473,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                         <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
                       </div>
                     </div>
-                  </object>
+                  </iframe>
                 </div>
               </div>
             ) : (
