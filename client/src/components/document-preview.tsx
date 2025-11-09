@@ -1439,27 +1439,25 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full relative bg-white pdf-preview-container overflow-auto">
-                {/* Clean PDF Viewer with working zoom controls and scrolling */}
+              <div className="h-full relative bg-white pdf-preview-container">
+                {/* Clean PDF Viewer - let iframe handle its own scrolling */}
                 <div
-                  className="relative"
+                  className="relative flex justify-center"
                   style={{
                     transform: `scale(${zoom / 100})`,
                     transformOrigin: 'top center',
-                    width: zoom > 100 ? `${zoom}%` : '100%',
-                    minHeight: zoom > 100 ? `${zoom}%` : '100%',
-                    padding: zoom > 100 ? '20px' : '10px'
+                    padding: '10px'
                   }}
                 >
                   <iframe
-                    src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitV&page=${currentPage}`}
-                    className="w-full border-0 shadow-lg"
+                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH&page=${currentPage}`}
+                    className="border-0 shadow-lg"
                     style={{
                       outline: 'none',
                       border: 'none',
                       width: '100%',
-                      height: '800px',
-                      minHeight: '800px',
+                      height: '75vh',
+                      maxWidth: '800px',
                       borderRadius: '4px'
                     }}
                     title="PDF Preview"
