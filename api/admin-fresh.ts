@@ -12,10 +12,94 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { path, type } = req.query;
-    const pathArray = Array.isArray(path) ? path : [path].filter(Boolean);
+    
+    // Fix path processing
+    let pathArray: string[] = [];
+    if (Array.isArray(path)) {
+      pathArray = path.filter(Boolean);
+    } else if (typeof path === 'string' && path) {
+      pathArray = [path];
+    }
+    
     const endpoint = pathArray.join('/');
 
-    console.log('Fresh Admin API:', { endpoint, type, method: req.method });
+    console.log('Fresh Admin API:', { 
+      endpoint, 
+      type, 
+      method: req.method, 
+      pathArray, 
+      rawPath: path 
+    });
+
+    // Handle users endpoint for user management
+    if (endpoint === 'users' || pathArray.includes('users') || path === 'users') {
+      console.log('Processing users endpoint request...');
+      
+      try {
+        // Only attempt database connection if DATABASE_URL exists
+        if (process.env.DATABASE_URL) {
+          console.log('DATABASE_URL found, attempting database connection...');
+          
+          // Dynamic import to avoid issues if module fails to load
+          const { NeonDatabase } = await import('./_lib/neon-database');
+          const db = new NeonDatabase();
+          
+          // Test connection first
+          console.log('Testing database connection...');
+          const isHealthy = await db.testConnection();
+          
+          if (isHealthy) {
+            console.log('Database connection successful, initializing tables...');
+            
+            // Initialize tables if needed
+            await db.initializeTables();
+            
+            console.log('Fetching all users from database...');
+            
+            // Get all users from database
+            const users = await db.getAllUsers();
+            
+            console.log(`Successfully retrieved ${users.length} users from database`);
+            
+            return res.json({
+              success: true,
+              data: users,
+              message: `Retrieved ${users.length} users from database`,
+              dataSource: 'database',
+              timestamp: new Date().toISOString()
+            });
+          } else {
+            console.warn('Database connection test failed for users endpoint');
+            
+            return res.json({
+              success: true,
+              data: [],
+              message: 'Database connection test failed',
+              dataSource: 'connection_failed'
+            });
+          }
+        } else {
+          console.warn('DATABASE_URL environment variable not found');
+          
+          return res.json({
+            success: true,
+            data: [],
+            message: 'DATABASE_URL not configured',
+            dataSource: 'no_database_url'
+          });
+        }
+      } catch (dbError) {
+        console.error('Database error fetching users:', dbError);
+        
+        return res.json({
+          success: true,
+          data: [],
+          message: `Database error: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`,
+          dataSource: 'database_error',
+          error: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        });
+      }
+    }
 
     // Handle analytics endpoints with real database data (with graceful fallback)
     if (endpoint === 'analytics' && type) {
