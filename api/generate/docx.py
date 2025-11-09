@@ -92,8 +92,8 @@ class handler(BaseHTTPRequestHandler):
         try:
             # Try multiple Python backend URLs for reliability
             backend_urls = [
+                "https://format-a-python-backend.vercel.app/api/docx-generator",  # Dedicated DOCX endpoint
                 f"https://format-a-python-backend.vercel.app/api/{endpoint_type}",
-                f"https://format-a-python.vercel.app/api/{endpoint_type}",
                 "https://format-a-python-backend.vercel.app/api/document-generator"  # fallback to main endpoint
             ]
             
@@ -150,32 +150,48 @@ class handler(BaseHTTPRequestHandler):
         print(f"Using local IEEE generator fallback for {format_type} generation", file=sys.stderr)
         
         try:
-            # Import the local IEEE generator
+            # Import the local IEEE generator - try multiple paths
             current_dir = os.path.dirname(__file__)
             api_dir = os.path.dirname(current_dir)
-            sys.path.insert(0, api_dir)
             
-            print(f"Looking for IEEE generator in: {api_dir}", file=sys.stderr)
+            # Try to import from the Python backend directory first (most up-to-date)
+            backend_dir = os.path.join(os.path.dirname(os.path.dirname(api_dir)), 'format-a-python-backend')
+            if os.path.exists(backend_dir):
+                sys.path.insert(0, backend_dir)
+                print(f"Looking for IEEE generator in Python backend: {backend_dir}", file=sys.stderr)
+            else:
+                # Fallback to local API directory
+                sys.path.insert(0, api_dir)
+                print(f"Looking for IEEE generator in API directory: {api_dir}", file=sys.stderr)
+            
             from ieee_generator_fixed import generate_ieee_document
             
             print("Successfully imported local IEEE generator", file=sys.stderr)
             
-            # Generate the document using local generator
-            document_bytes = generate_ieee_document(document_data)
+            # Generate the document using the same generator as PDF
+            document_buffer = generate_ieee_document(document_data)
+            
+            # Handle both BytesIO buffer and bytes
+            if hasattr(document_buffer, 'getvalue'):
+                document_bytes = document_buffer.getvalue()
+            else:
+                document_bytes = document_buffer
             
             # Convert to base64 for JSON response
             import base64
             document_base64 = base64.b64encode(document_bytes).decode('utf-8')
             
-            print(f"Successfully generated {format_type} document locally", file=sys.stderr)
+            print(f"Successfully generated {format_type} document locally using same IEEE generator as PDF", file=sys.stderr)
             
             return {
                 'success': True,
-                'message': f'{format_type.upper()} document generated successfully using local generator',
+                'message': f'{format_type.upper()} document generated successfully using same IEEE generator as PDF',
                 'fallback': True,
                 'file_data': document_base64,  # Frontend expects this field
                 'file_size': len(document_bytes),
                 'file_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'generator': 'ieee_generator_fixed.py',
+                'note': 'Generated using same IEEE formatting as PDF',
                 'data': {
                     'title': document_data.get('title', 'Document'),
                     'status': 'generated_locally',
@@ -188,7 +204,7 @@ class handler(BaseHTTPRequestHandler):
             return {
                 'success': False,
                 'error': 'Local generator unavailable',
-                'message': f'Both Python backend and local {format_type} generator are unavailable.',
+                'message': f'Both Python backend and local {format_type} generator are unavailable. Error: {str(e)}',
                 'fallback': True,
                 'data': {
                     'title': document_data.get('title', 'Document'),
