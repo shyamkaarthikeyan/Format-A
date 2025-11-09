@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -33,54 +33,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Handle users endpoint for user management
     if (endpoint === 'users' || pathArray.includes('users') || path === 'users') {
-      console.log('Processing users endpoint request...');
+      console.log('🔍 Processing users endpoint request...', { endpoint, pathArray, path });
       
       try {
-        // Only attempt database connection if DATABASE_URL exists
-        if (process.env.DATABASE_URL) {
-          console.log('DATABASE_URL found, attempting database connection...');
-          
-          // Dynamic import to avoid issues if module fails to load
-          const { NeonDatabase } = await import('./_lib/neon-database');
-          const db = new NeonDatabase();
-          
-          // Test connection first
-          console.log('Testing database connection...');
-          const isHealthy = await db.testConnection();
-          
-          if (isHealthy) {
-            console.log('Database connection successful, initializing tables...');
-            
-            // Initialize tables if needed
-            await db.initializeTables();
-            
-            console.log('Fetching all users from database...');
-            
-            // Get all users from database
-            const users = await db.getAllUsers();
-            
-            console.log(`Successfully retrieved ${users.length} users from database`);
-            
-            return res.json({
-              success: true,
-              data: users,
-              message: `Retrieved ${users.length} users from database`,
-              dataSource: 'database',
-              timestamp: new Date().toISOString()
-            });
-          } else {
-            console.warn('Database connection test failed for users endpoint');
-            
-            return res.json({
-              success: true,
-              data: [],
-              message: 'Database connection test failed',
-              dataSource: 'connection_failed'
-            });
-          }
-        } else {
-          console.warn('DATABASE_URL environment variable not found');
-          
+        // Check if DATABASE_URL exists
+        if (!process.env.DATABASE_URL) {
+          console.warn('❌ DATABASE_URL environment variable not found');
           return res.json({
             success: true,
             data: [],
@@ -88,8 +46,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             dataSource: 'no_database_url'
           });
         }
+
+        console.log('✅ DATABASE_URL found, attempting database connection...');
+        
+        // Dynamic import to avoid issues if module fails to load
+        const { NeonDatabase } = await import('./_lib/neon-database');
+        const db = new NeonDatabase();
+        
+        // Test connection first
+        console.log('🔗 Testing database connection...');
+        const isHealthy = await db.testConnection();
+        
+        if (!isHealthy) {
+          console.warn('❌ Database connection test failed');
+          return res.json({
+            success: true,
+            data: [],
+            message: 'Database connection test failed',
+            dataSource: 'connection_failed'
+          });
+        }
+
+        console.log('✅ Database connection successful, initializing tables...');
+        
+        // Initialize tables if needed
+        await db.initializeTables();
+        
+        console.log('📊 Fetching all users from database...');
+        
+        // Get all users from database
+        const users = await db.getAllUsers();
+        
+        console.log(`✅ Successfully retrieved ${users.length} users from database`);
+        
+        return res.json({
+          success: true,
+          data: users,
+          message: `Retrieved ${users.length} users from database`,
+          dataSource: 'database',
+          timestamp: new Date().toISOString(),
+          summary: {
+            totalUsers: users.length,
+            activeUsers: users.filter(u => u.is_active).length,
+            recentLogins: users.filter(u => {
+              if (!u.last_login_at) return false;
+              const loginDate = new Date(u.last_login_at);
+              const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+              return loginDate > dayAgo;
+            }).length
+          }
+        });
+        
       } catch (dbError) {
-        console.error('Database error fetching users:', dbError);
+        console.error('❌ Database error fetching users:', dbError);
         
         return res.json({
           success: true,
