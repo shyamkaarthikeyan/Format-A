@@ -561,42 +561,6 @@ export default function HomeClient() {
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                       Live Preview
                     </CardTitle>
-                    
-                    {/* Download Action Buttons */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={handleGenerateDocx}
-                        disabled={isGenerating}
-                        size="sm"
-                        variant="outline"
-                        className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                      >
-                        <Download className="w-4 h-4 mr-1" />
-                        Download DOCX
-                      </Button>
-                      
-                      <Button
-                        onClick={handleGeneratePdf}
-                        disabled={isGenerating}
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 border-red-300 hover:bg-red-50"
-                      >
-                        <Download className="w-4 h-4 mr-1" />
-                        Download PDF
-                      </Button>
-                      
-                      <Button
-                        onClick={handleEmailDocument}
-                        disabled={isGenerating}
-                        size="sm"
-                        variant="outline"
-                        className="text-green-600 border-green-300 hover:bg-green-50"
-                      >
-                        <Mail className="w-4 h-4 mr-1" />
-                        Email
-                      </Button>
-                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
