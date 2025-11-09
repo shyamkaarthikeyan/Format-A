@@ -1173,10 +1173,24 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       setPreviewImages([]);
       setPdfUrl(url);
 
-      // For now, set a default page count since we can't easily get page count from blob
-      // The PDF viewer will handle pagination internally
-      setTotalPages(1);
-      setCurrentPage(1); // Reset to first page
+      // Try to get actual page count from the PDF
+      try {
+        // Create a temporary PDF reader to count pages
+        const arrayBuffer = await pdfBlob.arrayBuffer();
+        const pdfText = new TextDecoder().decode(arrayBuffer);
+        
+        // Count pages by looking for page objects in PDF structure
+        const pageMatches = pdfText.match(/\/Type\s*\/Page[^s]/g);
+        const actualPageCount = pageMatches ? pageMatches.length : 1;
+        
+        console.log(`PDF generated with ${actualPageCount} pages`);
+        setTotalPages(actualPageCount);
+        setCurrentPage(1); // Reset to first page
+      } catch (pageCountError) {
+        console.warn('Could not determine page count, defaulting to 1:', pageCountError);
+        setTotalPages(1);
+        setCurrentPage(1);
+      }
 
       console.log('✅ PDF preview generated successfully (client-side)');
 
