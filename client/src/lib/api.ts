@@ -18,7 +18,7 @@ const getPythonBackendUrl = () => {
   
   // In development, try local Python backend first, then production
   if (import.meta.env.DEV) {
-    return 'http://localhost:3002/api'; // Python backend is running on port 3002
+    return 'http://localhost:3001/api'; // Python backend is running on port 3001
   }
   
   // In production, use the deployed Python backend
@@ -305,9 +305,9 @@ export const documentApi = {
     return result;
   },
 
-  // Generate PDF document - Use Python backend main endpoint  
+  // Generate PDF document - Use Python backend PDF endpoint  
   generatePdf: async (documentData: any, preview: boolean = false) => {
-    const pythonUrl = getPythonApiUrl('/document-generator');
+    const pythonUrl = getPythonApiUrl('/pdf-generator');
     
     const response = await fetchWithFallback(pythonUrl, {
       method: 'POST',
@@ -325,8 +325,8 @@ export const documentApi = {
     const result = await response.json();
     
     // Record download if successful and not a preview
-    if (result.success && !preview) {
-      await recordDownload(documentData, 'pdf', result.fileSize || 0);
+    if (result.success && !preview && result.file_data) {
+      await recordDownload(documentData, 'pdf', result.file_size || 0);
     }
     
     return result;
