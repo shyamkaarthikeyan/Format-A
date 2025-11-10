@@ -9,44 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Plus, Upload, Table, Code, Image, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import FileUpload from "./file-upload";
-import type { Section } from "@shared/schema";
-
-interface TableData {
-  id: string;
-  type: 'image' | 'latex' | 'interactive';
-  tableType?: 'image' | 'latex' | 'interactive'; // For backend compatibility
-  tableName: string;
-  caption: string;
-  size: string;
-  position: string;
-  sectionId?: string;
-  order: number;
-  // For image tables
-  data?: string;
-  mimeType?: string;
-  originalName?: string;
-  fileName?: string;
-  // For LaTeX tables
-  latexCode?: string;
-  // For interactive tables
-  rows?: number;
-  columns?: number;
-  headers?: string[];
-  tableData?: string[][];
-}
+import type { Section, Table } from "@shared/schema";
 
 interface TableFormProps {
-  tables: TableData[];
+  tables: Table[];
   documentId: string | null;
   sections: Section[];
-  onUpdate: (tables: TableData[]) => void;
+  onUpdate: (tables: Table[]) => void;
 }
 
 export default function TableForm({ tables, documentId, sections, onUpdate }: TableFormProps) {
   const { toast } = useToast();
 
   const addTable = () => {
-    const newTable: TableData = {
+    const newTable: Table = {
       id: `table_${Date.now()}`,
       type: 'interactive',
       tableName: "",
@@ -69,7 +45,7 @@ export default function TableForm({ tables, documentId, sections, onUpdate }: Ta
     onUpdate(tables.filter(table => table.id !== tableId));
   };
 
-  const updateTable = (tableId: string, field: keyof TableData, value: any) => {
+  const updateTable = (tableId: string, field: keyof Table, value: any) => {
     onUpdate(tables.map(table => {
       if (table.id === tableId) {
         const updatedTable = { ...table, [field]: value };
@@ -138,7 +114,7 @@ export default function TableForm({ tables, documentId, sections, onUpdate }: Ta
     updateTable(tableId, "headers", newHeaders);
   };
 
-  const generateTablePreview = (table: TableData) => {
+  const generateTablePreview = (table: Table) => {
     if (table.type === 'interactive' && table.headers && table.tableData) {
       return (
         <div className="overflow-x-auto">

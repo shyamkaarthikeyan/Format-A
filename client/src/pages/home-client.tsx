@@ -13,6 +13,7 @@ import AuthorForm from "@/components/author-form";
 import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
+import TableForm from "@/components/table-form";
 import { DownloadHistory } from "@/components/download-history";
 import AuthDebug from "@/components/auth-debug";
 
@@ -122,6 +123,7 @@ export default function HomeClient() {
       sections: [],
       references: [],
       figures: [],
+      tables: [],
       settings: {
         fontSize: "10pt",
         columns: "2",
@@ -343,6 +345,7 @@ export default function HomeClient() {
     sections: [],
     references: [],
     figures: [],
+    tables: [],
     settings: {
       fontSize: "10pt",
       columns: "2",
@@ -544,20 +547,30 @@ export default function HomeClient() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3">
-                  <div className="space-y-3">
-                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
-                      <div className="font-medium text-blue-800 mb-1">💡 How to add tables:</div>
-                      <div className="text-blue-700">
-                        1. Go to the <strong>Sections</strong> area above<br/>
-                        2. Click <strong>"+ Add Content"</strong> in any section<br/>
-                        3. Select the <strong>Table</strong> button<br/>
-                        4. Create your interactive table with rows and columns
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Tables will appear in both PDF and Word documents with proper IEEE formatting.
-                    </div>
-                  </div>
+                  <TableForm 
+                    tables={documentToDisplay.tables || []} 
+                    documentId={currentDocument?.id || null}
+                    sections={documentToDisplay.sections}
+                    onUpdate={(tables) => handleUpdateDocument({ tables })} 
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Figures - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <Image className="w-4 h-4 text-green-600" />
+                    Figures
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <FigureForm 
+                    figures={documentToDisplay.figures} 
+                    documentId={currentDocument?.id || null}
+                    sections={documentToDisplay.sections}
+                    onUpdate={(figures) => handleUpdateDocument({ figures })} 
+                  />
                 </CardContent>
               </Card>
 

@@ -156,6 +156,30 @@ export interface Figure {
   data: string; // base64 encoded
 }
 
+export interface Table {
+  id: string;
+  type: 'image' | 'latex' | 'interactive';
+  tableType?: 'image' | 'latex' | 'interactive'; // For backend compatibility
+  tableName: string;
+  caption: string;
+  size: string;
+  position: string;
+  sectionId?: string;
+  order: number;
+  // For image tables
+  data?: string;
+  mimeType?: string;
+  originalName?: string;
+  fileName?: string;
+  // For LaTeX tables
+  latexCode?: string;
+  // For interactive tables
+  rows?: number;
+  columns?: number;
+  headers?: string[];
+  tableData?: string[][];
+}
+
 export interface DocumentSettings {
   fontSize: string;
   columns: string;
@@ -187,6 +211,7 @@ export type Document = {
   sections: Section[];
   references: Reference[];
   figures: Figure[];
+  tables?: Table[];
   settings: DocumentSettings;
   iteration?: DocumentIteration;
 };
@@ -281,6 +306,29 @@ export const insertDocumentSchema = z.object({
     mimeType: z.string(),
     data: z.string()
   })).default([]),
+  tables: z.array(z.object({
+    id: z.string(),
+    type: z.enum(['image', 'latex', 'interactive']),
+    tableType: z.enum(['image', 'latex', 'interactive']).optional(),
+    tableName: z.string(),
+    caption: z.string(),
+    size: z.string(),
+    position: z.string(),
+    sectionId: z.string().optional(),
+    order: z.number(),
+    // For image tables
+    data: z.string().optional(),
+    mimeType: z.string().optional(),
+    originalName: z.string().optional(),
+    fileName: z.string().optional(),
+    // For LaTeX tables
+    latexCode: z.string().optional(),
+    // For interactive tables
+    rows: z.number().optional(),
+    columns: z.number().optional(),
+    headers: z.array(z.string()).optional(),
+    tableData: z.array(z.array(z.string())).optional()
+  })).optional().default([]),
 
   settings: z.object({
     fontSize: z.string(),
