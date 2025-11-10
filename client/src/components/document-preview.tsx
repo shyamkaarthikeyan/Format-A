@@ -1104,37 +1104,30 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      console.log('Generating PDF for download (server-side with enhanced justification)...');
+      console.log('Generating PDF for download (server-side - same as preview)...');
 
-      // Use server-side PDF generation for enhanced justification and formatting
-      const result = await documentApi.generatePdf(document, false);
+      // Use SAME server-side PDF generation as preview for consistency
+      const result = await documentApi.generatePdf(document, false); // false = download mode
       
       if (!result.success || !result.file_data) {
         throw new Error(result.message || 'Failed to generate PDF document');
       }
 
+      // Only accept PDF format - no DOCX fallbacks
+      if (result.file_type !== 'application/pdf') {
+        throw new Error('PDF generation failed - only PDF format is supported');
+      }
+
       // Convert base64 to blob and download
-      const blob = base64ToBlob(result.file_data, result.file_type);
+      const pdfBlob = base64ToBlob(result.file_data, 'application/pdf');
       
-      if (!blob || blob.size === 0) {
-        throw new Error('Generated document is empty');
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Generated PDF is empty');
       }
 
-      // Determine file extension and format message
-      let fileExtension = 'pdf';
-      let formatMessage = 'PDF';
-      
-      if (result.fallback_from_pdf || result.actual_format === 'docx' || result.file_type.includes('word')) {
-        fileExtension = 'docx';
-        formatMessage = 'DOCX (PDF not available in serverless environment)';
-      }
-
-      // Download the generated file
-      const filename = `${document.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'ieee_paper'}.${fileExtension}`;
-      downloadBlob(blob, filename);
-      
-      // Store format info for success message
-      (generatePdfMutation as any).formatMessage = formatMessage;
+      // Download the PDF file
+      const filename = `${document.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'ieee_paper'}.pdf`;
+      downloadBlob(pdfBlob, filename);
 
       // Record the download if user is authenticated
       if (isAuthenticated) {
@@ -1159,7 +1152,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   references: document.references?.length || 0,
                   figures: document.figures?.length || 0,
                   generatedAt: new Date().toISOString(),
-                  source: 'client_side_pdf'
+                  source: 'server_side_pdf_unified'
                 }
               })
             });
@@ -1183,9 +1176,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       return {
         success: true,
-        message: result.fallback_from_pdf || result.actual_format === 'docx' 
-          ? "IEEE-formatted DOCX file has been downloaded (PDF not available in serverless environment)."
-          : "IEEE-formatted PDF file has been downloaded successfully."
+        message: "IEEE-formatted PDF file has been downloaded successfully with perfect justification."
       };
     },
     onSuccess: (data) => {
@@ -1280,7 +1271,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
   };
 
   // Generate PDF preview (client-side - fast and reliable)
-  const generateDocxPreview = async () => {
+  const generatePdfPreview = async () => {
     if (!document.title || !document.authors?.some(author => author.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
       return;
@@ -1290,13 +1281,20 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     setPreviewError(null);
 
     try {
-      console.log('Generating PDF preview (client-side)...');
+      console.log('Generating PDF preview (server-side - same as download)...');
 
-      // Use client-side PDF generation for preview
-      const pdfBlob = generateClientSidePDF(document);
+      // Use SAME server-side PDF generation as download for consistency
+      const result = await documentApi.generatePdf(document, true); // true = preview mode
+      
+      if (!result.success || !result.file_data) {
+        throw new Error(result.message || 'Failed to generate PDF preview');
+      }
+
+      // Convert base64 to blob for preview display
+      const pdfBlob = base64ToBlob(result.file_data, 'application/pdf');
 
       if (!pdfBlob || pdfBlob.size === 0) {
-        throw new Error('Failed to generate PDF preview');
+        throw new Error('Generated PDF preview is empty');
       }
 
       // Clean up previous URL
@@ -1312,11 +1310,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       // Try to get actual page count from the PDF
       try {
-        // Create a temporary PDF reader to count pages
         const arrayBuffer = await pdfBlob.arrayBuffer();
         const pdfText = new TextDecoder().decode(arrayBuffer);
-
-        // Count pages by looking for page objects in PDF structure
         const pageMatches = pdfText.match(/\/Type\s*\/Page[^s]/g);
         const actualPageCount = pageMatches ? pageMatches.length : 1;
 
@@ -1329,11 +1324,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         setCurrentPage(1);
       }
 
-      console.log('✅ PDF preview generated successfully (client-side)');
+      console.log('✅ PDF preview generated successfully (server-side)');
 
       toast({
         title: 'Preview Generated',
-        description: 'PDF preview created successfully',
+        description: 'PDF preview created with perfect justification',
       });
 
     } catch (error) {
@@ -1357,7 +1352,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
     const timer = setTimeout(() => {
       if (document.title && document.authors?.some(author => author.name)) {
         console.log('Triggering PDF preview generation...');
-        generateDocxPreview();
+        generatePdfPreview();
       } else {
         console.log('Skipping PDF generation - missing title or authors');
         setPdfUrl(null);
@@ -1467,7 +1462,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={generateDocxPreview}
+                onClick={generatePdfPreview}
                 disabled={isGeneratingPreview || !document.title}
                 className="text-purple-600 hover:text-purple-700"
               >
@@ -1531,7 +1526,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <p className="text-red-600 mb-2">Preview Error</p>
                   <p className="text-gray-600 text-sm">{previewError}</p>
                   <Button
-                    onClick={generateDocxPreview}
+                    onClick={generatePdfPreview}
                     variant="outline"
                     size="sm"
                     className="mt-4"

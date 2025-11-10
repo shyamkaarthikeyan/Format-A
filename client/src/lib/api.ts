@@ -357,113 +357,68 @@ export const documentApi = {
     throw lastError || new Error('DOCX generation failed: No endpoints available');
   },
 
-  // Generate PDF document - Try Python backend first, fallback to Node.js backend
+  // Generate PDF document - UNIFIED method for both preview and download (NO FALLBACKS)
   generatePdf: async (documentData: any, preview: boolean = false) => {
-    console.log('Generating PDF...');
+    console.log(`Generating PDF (${preview ? 'preview' : 'download'}) with unified server-side generation...`);
     
-    // In development, try local Node.js backend first, then Python backend
-    // In production, use the Python backend
-    const endpoints = import.meta.env.DEV ? [
-      {
-        url: getApiUrl('/api/generate/pdf-images-preview'),
-        name: 'Node.js backend',
-        payload: {
-          ...documentData,
-          preview: preview
-        }
-      },
-      {
-        url: getPythonApiUrl('/pdf-generator'),
-        name: 'Python backend PDF',
-        payload: {
-          ...documentData,
-          format: 'pdf',
-          action: preview ? 'preview' : 'download'
+    // Use ONLY Python backend with WeasyPrint for consistent results
+    const endpoint = {
+      url: getPythonApiUrl('/pdf-generator'),
+      name: 'Python backend PDF (WeasyPrint)',
+      payload: {
+        ...documentData,
+        format: 'pdf',
+        action: preview ? 'preview' : 'download'
+      }
+    };
+    
+    try {
+      console.log(`Generating PDF with ${endpoint.name}...`);
+      const response = await fetch(endpoint.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(endpoint.payload),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`PDF generation failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // REJECT any non-PDF results - no fallbacks allowed
+      if (!result.success) {
+        throw new Error(result.message || 'PDF generation failed on server');
+      }
+      
+      if (!result.file_data) {
+        throw new Error('No PDF data received from server');
+      }
+      
+      // Ensure we only accept PDF format
+      if (result.file_type !== 'application/pdf') {
+        throw new Error('Server returned non-PDF format - only PDF is supported');
+      }
+      
+      console.log(`✓ PDF generated successfully with perfect justification`);
+      
+      // Record download if successful and not a preview
+      if (!preview && result.file_data) {
+        try {
+          await recordDownload(documentData, 'pdf', result.file_size || 0);
+        } catch (e) {
+          console.warn('Failed to record download:', e);
         }
       }
-    ] : [
-      {
-        url: getPythonApiUrl('/pdf-generator'),
-        name: 'Python backend PDF',
-        payload: {
-          ...documentData,
-          format: 'pdf',
-          action: preview ? 'preview' : 'download'
-        }
-      }
-    ];
-    
-    let lastError: any = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Trying PDF generation with ${endpoint.name}...`);
-        const response = await fetch(endpoint.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(endpoint.payload),
-        });
-        
-        if (!response.ok) {
-          lastError = new Error(`${endpoint.name} responded with ${response.status}: ${response.statusText}`);
-          console.warn(`${endpoint.name} failed:`, lastError.message);
-          continue;
-        }
-        
-        const result = await response.json();
-        
-        // Handle serverless PDF generation limitations
-        if (!result.success && result.serverless_limitation) {
-          console.warn(`${endpoint.name} not available in serverless environment, falling back to DOCX...`);
-          // Automatically fall back to DOCX generation
-          try {
-            console.log('Falling back to DOCX generation due to serverless limitations...');
-            const docxResult = await documentApi.generateDocx(documentData, preview);
-            
-            // Return DOCX result but indicate it was a fallback from PDF
-            return {
-              ...docxResult,
-              fallback_from_pdf: true,
-              original_request: 'pdf',
-              actual_format: 'docx',
-              message: 'PDF not available in serverless environment. DOCX provided with identical IEEE formatting.'
-            };
-          } catch (docxError) {
-            lastError = new Error(`PDF not available and DOCX fallback failed: ${docxError}`);
-            console.warn('DOCX fallback also failed:', docxError);
-            continue;
-          }
-        }
-        
-        if (!result.success || !result.file_data) {
-          lastError = new Error(`Invalid response from ${endpoint.name}: ${result.message || 'Unknown error'}`);
-          console.warn(`Invalid response from ${endpoint.name}:`, result);
-          continue;
-        }
-        
-        console.log(`✓ PDF generated successfully using ${endpoint.name}`);
-        
-        // Record download if successful and not a preview
-        if (result.success && !preview && result.file_data) {
-          try {
-            await recordDownload(documentData, 'pdf', result.file_size || 0);
-          } catch (e) {
-            console.warn('Failed to record download:', e);
-          }
-        }
-        
-        return result;
-      } catch (error) {
-        lastError = error;
-        console.warn(`${endpoint.name} error:`, error);
-        continue;
-      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error(`PDF generation failed:`, error);
+      throw error;
     }
-    
-    // If all endpoints failed, throw the last error
-    throw lastError || new Error('PDF generation failed: No endpoints available');
   },
 
   // Generate email - Use Python backend main endpoint

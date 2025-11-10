@@ -139,7 +139,7 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
           onChange={(e) => onUpdate({ tableName: e.target.value })}
         />
         <div className="text-xs text-gray-500 mt-1">
-          Will appear as "Table 1: {block.tableName || 'Table Name'}"
+          Will appear as "Table 1: {block.tableName || 'Table Name'}" in both PDF and Word documents
         </div>
       </div>
 

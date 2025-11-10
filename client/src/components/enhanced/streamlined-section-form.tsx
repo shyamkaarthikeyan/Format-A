@@ -274,7 +274,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                     onClick={() => addContentBlock('table')}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                   >
                     <Table className="w-4 h-4" />
                     Add Table
@@ -318,9 +318,9 @@ const SectionItem: React.FC<SectionItemProps> = ({
                     onClick={() => addContentBlock('table')}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Table className="w-4 h-4" />
                     Add Table
                   </EnhancedButton>
                   <EnhancedButton
