@@ -1069,11 +1069,8 @@ export class NeonDatabase {
     await this.initializeTables();
     console.log('✅ Neon database initialized successfully');
   }
-}
 
-// Export singleton instance
-export const neonDb = new NeonDatabase();  /
-/ User suspension functionality
+  // User suspension functionality
   async suspendUser(userId: string, suspend: boolean, adminEmail?: string, reason?: string): Promise<any> {
     try {
       const sql = getSqlConnection();
@@ -1145,3 +1142,6 @@ export const neonDb = new NeonDatabase();  /
     }
   }
 }
+
+// Export singleton instance
+export const neonDb = new NeonDatabase();

@@ -274,70 +274,173 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Use Python backend API ONLY
+  // Generate DOCX document - Try Python backend first, fallback to Node.js backend
   generateDocx: async (documentData: any) => {
-    console.log('Generating DOCX using Python backend API...');
+    console.log('Generating DOCX...');
     
-    // Use Python backend directly for consistency with PDF
-    const pythonUrl = getPythonApiUrl('/document-generator');
-    
-    const response = await fetch(pythonUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // In development, try local Node.js backend first, then Python backend
+    // In production, use the Python backend
+    const endpoints = import.meta.env.DEV ? [
+      {
+        url: getApiUrl('/api/generate/docx'),
+        name: 'Node.js backend',
+        payload: documentData
       },
-      body: JSON.stringify({
-        ...documentData,
-        format: 'docx',
-        action: 'download'
-      }),
-    });
+      {
+        url: getPythonApiUrl('/document-generator'),
+        name: 'Python backend',
+        payload: {
+          ...documentData,
+          format: 'docx',
+          action: 'download'
+        }
+      }
+    ] : [
+      {
+        url: getPythonApiUrl('/document-generator'),
+        name: 'Python backend',
+        payload: {
+          ...documentData,
+          format: 'docx',
+          action: 'download'
+        }
+      }
+    ];
     
-    if (!response.ok) {
-      throw new Error(`DOCX generation failed: ${response.status} ${response.statusText}`);
+    let lastError: any = null;
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying DOCX generation with ${endpoint.name}...`);
+        const response = await fetch(endpoint.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(endpoint.payload),
+        });
+        
+        if (!response.ok) {
+          lastError = new Error(`${endpoint.name} responded with ${response.status}: ${response.statusText}`);
+          console.warn(`${endpoint.name} failed:`, lastError.message);
+          continue;
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success || !result.file_data) {
+          lastError = new Error(`Invalid response from ${endpoint.name}`);
+          console.warn(`Invalid response from ${endpoint.name}:`, result);
+          continue;
+        }
+        
+        console.log(`✓ DOCX generated successfully using ${endpoint.name}`);
+        
+        // Record download if successful
+        if (result.file_data) {
+          try {
+            await recordDownload(documentData, 'docx', result.file_size || 0);
+          } catch (e) {
+            console.warn('Failed to record download:', e);
+          }
+        }
+        
+        return result;
+      } catch (error) {
+        lastError = error;
+        console.warn(`${endpoint.name} error:`, error);
+        continue;
+      }
     }
     
-    const result = await response.json();
-    
-    // Record download if successful
-    if (result.success && result.file_data) {
-      await recordDownload(documentData, 'docx', result.file_size || 0);
-    }
-    
-    return result;
+    // If all endpoints failed, throw the last error
+    throw lastError || new Error('DOCX generation failed: No endpoints available');
   },
 
-  // Generate PDF document - Use Python backend main endpoint for consistency
+  // Generate PDF document - Try Python backend first, fallback to Node.js backend
   generatePdf: async (documentData: any, preview: boolean = false) => {
-    console.log('Generating PDF using Python backend API...');
+    console.log('Generating PDF...');
     
-    // Use same endpoint as DOCX for consistency
-    const pythonUrl = getPythonApiUrl('/document-generator');
-    
-    const response = await fetch(pythonUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // In development, try local Node.js backend first, then Python backend
+    // In production, use the Python backend
+    const endpoints = import.meta.env.DEV ? [
+      {
+        url: getApiUrl('/api/generate/pdf-images-preview'),
+        name: 'Node.js backend',
+        payload: {
+          ...documentData,
+          preview: preview
+        }
       },
-      body: JSON.stringify({
-        ...documentData,
-        format: 'pdf',
-        action: preview ? 'preview' : 'download'
-      }),
-    });
+      {
+        url: getPythonApiUrl('/document-generator'),
+        name: 'Python backend',
+        payload: {
+          ...documentData,
+          format: 'pdf',
+          action: preview ? 'preview' : 'download'
+        }
+      }
+    ] : [
+      {
+        url: getPythonApiUrl('/document-generator'),
+        name: 'Python backend',
+        payload: {
+          ...documentData,
+          format: 'pdf',
+          action: preview ? 'preview' : 'download'
+        }
+      }
+    ];
     
-    if (!response.ok) {
-      throw new Error(`PDF generation failed: ${response.status} ${response.statusText}`);
+    let lastError: any = null;
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying PDF generation with ${endpoint.name}...`);
+        const response = await fetch(endpoint.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(endpoint.payload),
+        });
+        
+        if (!response.ok) {
+          lastError = new Error(`${endpoint.name} responded with ${response.status}: ${response.statusText}`);
+          console.warn(`${endpoint.name} failed:`, lastError.message);
+          continue;
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success || !result.file_data) {
+          lastError = new Error(`Invalid response from ${endpoint.name}`);
+          console.warn(`Invalid response from ${endpoint.name}:`, result);
+          continue;
+        }
+        
+        console.log(`✓ PDF generated successfully using ${endpoint.name}`);
+        
+        // Record download if successful and not a preview
+        if (result.success && !preview && result.file_data) {
+          try {
+            await recordDownload(documentData, 'pdf', result.file_size || 0);
+          } catch (e) {
+            console.warn('Failed to record download:', e);
+          }
+        }
+        
+        return result;
+      } catch (error) {
+        lastError = error;
+        console.warn(`${endpoint.name} error:`, error);
+        continue;
+      }
     }
     
-    const result = await response.json();
-    
-    // Record download if successful and not a preview
-    if (result.success && !preview && result.file_data) {
-      await recordDownload(documentData, 'pdf', result.file_size || 0);
-    }
-    
-    return result;
+    // If all endpoints failed, throw the last error
+    throw lastError || new Error('PDF generation failed: No endpoints available');
   },
 
   // Generate email - Use Python backend main endpoint

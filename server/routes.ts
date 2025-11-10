@@ -1077,9 +1077,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Continue with download even if tracking fails
           }
 
-          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-          res.setHeader('Content-Disposition', 'attachment; filename="ieee_paper.docx"');
-          res.send(outputBuffer);
+          // Return JSON response with base64-encoded file data
+          // This allows the client to handle file download consistently
+          const base64Data = outputBuffer.toString('base64');
+          res.json({
+            success: true,
+            file_data: base64Data,
+            file_size: outputBuffer.length,
+            file_name: 'ieee_paper.docx',
+            message: 'Document generated successfully'
+          });
         });
         
         python.on('error', (err) => {
@@ -2560,6 +2567,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Document figures endpoint - for local development
+  app.post('/api/documents/:id/figures', async (req: any, res) => {
+    try {
+      const documentId = req.params.id;
+      const { figureData, caption, size } = req.body;
+
+      // In local development, just return success without storing
+      // Figures are stored in localStorage on the client side
+      console.log(`Figure upload for document ${documentId}:`, {
+        caption,
+        size,
+        hasFigureData: !!figureData
+      });
+
+      res.json({
+        success: true,
+        message: 'Figure uploaded successfully',
+        figureId: `fig_${Date.now()}`,
+        document: documentId
+      });
+    } catch (error) {
+      console.error('Figure upload error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to upload figure'
+      });
     }
   });
 

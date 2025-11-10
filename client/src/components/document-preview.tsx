@@ -135,82 +135,17 @@ async function generateClientSideDocx(document: Document): Promise<Blob> {
       }
     }
 
-    // If all server attempts failed, create a simple fallback DOCX
-    console.log('All server attempts failed, creating fallback document...');
-    return createFallbackDocx(document, lastError?.message || 'Unknown error');
+    // If all server attempts failed, throw the error
+    console.error('All server attempts failed:', lastError?.message || 'Unknown error');
+    throw lastError || new Error('DOCX generation failed after all retry attempts');
 
   } catch (error) {
     console.error('Error in DOCX generation:', error);
-    // Create fallback document even if everything fails
-    return createFallbackDocx(document, error.message);
+    throw error;
   }
 }
 
-// Create a simple fallback DOCX when server generation fails
-function createFallbackDocx(document: Document, errorMessage: string): Blob {
-  try {
-    // Create a simple RTF document that can be opened by Word
-    const rtfContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}
-\\f0\\fs24\\b ${document.title || 'Untitled Document'}\\b0\\par
-\\par
-${(document.authors || []).map(author => `${author.name || ''}${author.organization ? ` - ${author.organization}` : ''}`).join('\\par ')}\\par
-\\par
-${document.abstract ? `\\b Abstract:\\b0 ${document.abstract}\\par\\par` : ''}
-${document.keywords ? `\\b Keywords:\\b0 ${document.keywords}\\par\\par` : ''}
-${(document.sections || []).map((section, index) => 
-  `\\b ${index + 1}. ${(section.title || '').toUpperCase()}\\b0\\par
-${(section.contentBlocks || [])
-  .filter(block => block.type === 'text' && block.content)
-  .map(block => block.content)
-  .join('\\par ')}\\par\\par`
-).join('')}
-${document.references && document.references.length > 0 ? 
-  `\\b REFERENCES\\b0\\par
-${document.references.map((ref, index) => `[${index + 1}] ${ref}`).join('\\par ')}` : ''}
-\\par
-\\par
-\\i Note: This document was generated in fallback mode due to server connectivity issues.\\i0
-\\par
-\\i Error: ${errorMessage}\\i0
-}`;
 
-    // Convert RTF to blob (Word can open RTF files)
-    const blob = new Blob([rtfContent], { 
-      type: 'application/rtf' 
-    });
-
-    console.log('Created fallback RTF document');
-    return blob;
-
-  } catch (fallbackError) {
-    console.error('Even fallback generation failed:', fallbackError);
-    
-    // Last resort: create a plain text file
-    const textContent = `${document.title || 'Untitled Document'}
-
-Authors: ${(document.authors || []).map(a => a.name).filter(Boolean).join(', ')}
-
-${document.abstract ? `Abstract: ${document.abstract}\n\n` : ''}
-${document.keywords ? `Keywords: ${document.keywords}\n\n` : ''}
-${(document.sections || []).map((section, index) => 
-  `${index + 1}. ${(section.title || '').toUpperCase()}
-${(section.contentBlocks || [])
-  .filter(block => block.type === 'text' && block.content)
-  .map(block => block.content)
-  .join('\n\n')}
-`).join('\n\n')}
-${document.references && document.references.length > 0 ? 
-  `\nREFERENCES
-${document.references.map((ref, index) => `[${index + 1}] ${ref}`).join('\n')}` : ''}
-
-Note: This document was generated in emergency fallback mode.
-Error: ${errorMessage}
-Fallback Error: ${fallbackError.message}
-`;
-
-    return new Blob([textContent], { type: 'text/plain' });
-  }
-}
 
 // Client-side PDF generation function using jsPDF with proper IEEE format
 function generateClientSidePDF(document: Document): Blob {
@@ -1074,17 +1009,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
           throw new Error('Failed to generate DOCX document');
         }
 
-        // Determine file extension based on blob type
-        let fileExtension = '.docx';
-        let fileName = `${document.title || 'ieee_paper'}`;
-        
-        if (docxBlob.type === 'application/rtf') {
-          fileExtension = '.rtf';
-          fileName += '_fallback';
-        } else if (docxBlob.type === 'text/plain') {
-          fileExtension = '.txt';
-          fileName += '_emergency';
-        }
+        // Set file extension for DOCX
+        const fileExtension = '.docx';
+        const fileName = `${document.title || 'ieee_paper'}`;
 
         // Download the file
         const url = URL.createObjectURL(docxBlob);

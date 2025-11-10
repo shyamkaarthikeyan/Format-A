@@ -19,28 +19,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const path = req.query.path as string;
   console.log(`Frontend API proxy - routing ${path} to Python backend with ieee_generator_fixed.py`);
 
+  // Always route to Python backend using ieee_generator_fixed.py
+  // Auto-detect environment and use appropriate backend URL
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  let backendUrl;
+  if (process.env.PYTHON_BACKEND_URL) {
+    // Explicit override
+    backendUrl = process.env.PYTHON_BACKEND_URL;
+  } else if (process.env.VITE_PYTHON_BACKEND_URL) {
+    // Frontend environment variable
+    backendUrl = process.env.VITE_PYTHON_BACKEND_URL;
+  } else if (isProduction) {
+    // Production: use Vercel deployment
+    backendUrl = 'https://format-a-python-backend.vercel.app';
+  } else {
+    // Development: use local server
+    backendUrl = 'http://localhost:3001';
+  }
+  
+  console.log(`Environment: ${isProduction ? 'production' : 'development'}, Backend URL: ${backendUrl}`);
+  
+  let endpoint = '';
+  switch (path) {
+    case 'preview-images':
+    case 'docx-to-pdf':
+      endpoint = '/api/document-generator'; // Uses ieee_generator_fixed.py for previews
+      break;
+    case 'docx':
+      endpoint = '/api/docx-generator';
+      break;
+    case 'email':
+      endpoint = '/api/email-generator';
+      break;
+    case 'pdf':
+      endpoint = '/api/pdf-generator';
+      break;
+    default:
+      endpoint = '/api/document-generator'; // Default to ieee_generator_fixed.py
+  }
+
   try {
-    // Always route to Python backend using ieee_generator_fixed.py
-    const backendUrl = process.env.PYTHON_BACKEND_URL || 'https://format-a-python-backend.vercel.app';
-    
-    let endpoint = '';
-    switch (path) {
-      case 'preview-images':
-      case 'docx-to-pdf':
-        endpoint = '/api/document-generator'; // Uses ieee_generator_fixed.py for previews
-        break;
-      case 'docx':
-        endpoint = '/api/docx-generator';
-        break;
-      case 'email':
-        endpoint = '/api/email-generator';
-        break;
-      case 'pdf':
-        endpoint = '/api/pdf-generator';
-        break;
-      default:
-        endpoint = '/api/document-generator'; // Default to ieee_generator_fixed.py
-    }
 
     const targetUrl = `${backendUrl}${endpoint}`;
     console.log(`Proxying ${path} request to: ${targetUrl} (using ieee_generator_fixed.py)`);
@@ -68,6 +88,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error) {
     console.error(`Proxy error for ${path}:`, error);
+    
+    // In development, if local backend fails, try production backend as fallback
+    if (!isProduction && backendUrl.includes('localhost')) {
+      console.log('Local backend failed, trying production backend as fallback...');
+      try {
+        const productionBackendUrl = 'https://format-a-python-backend.vercel.app';
+        const productionTargetUrl = `${productionBackendUrl}${endpoint}`;
+        
+        console.log(`Fallback: Proxying ${path} request to: ${productionTargetUrl}`);
+        
+        const fallbackResponse = await fetch(productionTargetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Source': 'frontend-proxy-fallback',
+            'X-Original-Path': path,
+            'X-Generator': 'ieee_generator_fixed.py',
+          },
+          body: JSON.stringify(req.body),
+        });
+
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          console.log(`Fallback successful for ${path}`);
+          res.status(200).json(fallbackData);
+          return;
+        }
+      } catch (fallbackError) {
+        console.error('Production fallback also failed:', fallbackError);
+      }
+    }
     
     // Only provide fallback for preview requests
     if (path === 'preview-images' || path === 'docx-to-pdf') {
