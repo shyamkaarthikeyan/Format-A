@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Plus, Upload, Table, Code, Image, Minus } from "lucide-react";
+import { Trash2, Plus, Upload, Table as TableIcon, Code, Image, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import FileUpload from "./file-upload";
 import type { Section, Table } from "@shared/schema";
@@ -236,15 +236,15 @@ export default function TableForm({ tables, documentId, sections, onUpdate }: Ta
                   <div>
                     <Label>Associated Section</Label>
                     <Select
-                      value={table.sectionId || ""}
-                      onValueChange={(value) => updateTable(table.id, "sectionId", value || undefined)}
+                      value={table.sectionId || "none"}
+                      onValueChange={(value) => updateTable(table.id, "sectionId", value === "none" ? undefined : value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select section" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No section</SelectItem>
-                        {sections.map((section, index) => (
+                        <SelectItem value="none">No section</SelectItem>
+                        {sections.filter(section => section.id && section.id.trim() !== '').map((section, index) => (
                           <SelectItem key={section.id} value={section.id}>
                             {section.title || `Section ${index + 1}`}
                           </SelectItem>
@@ -261,7 +261,7 @@ export default function TableForm({ tables, documentId, sections, onUpdate }: Ta
                 >
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="interactive" className="flex items-center gap-2">
-                      <Table className="w-4 h-4" />
+                      <TableIcon className="w-4 h-4" />
                       Interactive
                     </TabsTrigger>
                     <TabsTrigger value="image" className="flex items-center gap-2">

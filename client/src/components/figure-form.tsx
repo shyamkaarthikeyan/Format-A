@@ -207,15 +207,15 @@ export default function FigureForm({ figures, documentId, sections, onUpdate }: 
                     <div>
                       <Label>Associated Section</Label>
                       <Select
-                        value={figure.sectionId || ""}
-                        onValueChange={(value) => updateFigure(figure.id, "sectionId", value || undefined)}
+                        value={figure.sectionId || "none"}
+                        onValueChange={(value) => updateFigure(figure.id, "sectionId", value === "none" ? undefined : value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select section" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No section</SelectItem>
-                          {sections.map((section, index) => (
+                          <SelectItem value="none">No section</SelectItem>
+                          {sections.filter(section => section.id && section.id.trim() !== '').map((section, index) => (
                             <SelectItem key={section.id} value={section.id}>
                               {section.title || `Section ${index + 1}`}
                             </SelectItem>

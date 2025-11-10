@@ -14,6 +14,7 @@ import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-fo
 import ReferenceForm from "@/components/reference-form";
 import FigureForm from "@/components/figure-form";
 import TableForm from "@/components/table-form";
+
 import { DownloadHistory } from "@/components/download-history";
 import AuthDebug from "@/components/auth-debug";
 
@@ -538,23 +539,7 @@ export default function HomeClient() {
 
 
 
-              {/* Tables - Compact */}
-              <Card className="bg-white/90 border border-purple-200 shadow-sm">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                    <Table className="w-4 h-4 text-blue-600" />
-                    Tables
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <TableForm 
-                    tables={documentToDisplay.tables || []} 
-                    documentId={currentDocument?.id || null}
-                    sections={documentToDisplay.sections}
-                    onUpdate={(tables) => handleUpdateDocument({ tables })} 
-                  />
-                </CardContent>
-              </Card>
+
 
               {/* Figures - Compact */}
               <Card className="bg-white/90 border border-purple-200 shadow-sm">
@@ -570,6 +555,24 @@ export default function HomeClient() {
                     documentId={currentDocument?.id || null}
                     sections={documentToDisplay.sections}
                     onUpdate={(figures) => handleUpdateDocument({ figures })} 
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Tables - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <Table className="w-4 h-4 text-blue-600" />
+                    Tables
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <TableForm 
+                    tables={documentToDisplay.tables} 
+                    documentId={currentDocument?.id || null}
+                    sections={documentToDisplay.sections}
+                    onUpdate={(tables) => handleUpdateDocument({ tables })} 
                   />
                 </CardContent>
               </Card>
