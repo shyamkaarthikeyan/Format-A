@@ -11,6 +11,28 @@ import type { Document } from "@shared/schema";
 import jsPDF from "jspdf";
 import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 
+// Utility functions for file handling
+const base64ToBlob = (base64Data: string, contentType: string): Blob => {
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: contentType });
+};
+
+const downloadBlob = (blob: Blob, filename: string): void => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 // CSS to hide PDF browser controls while keeping interactivity
 const pdfHideControlsCSS = `
   object[type="application/pdf"] {
@@ -1082,22 +1104,25 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error("Please enter at least one author name.");
       }
 
-      console.log('Generating PDF for download (client-side)...');
+      console.log('Generating PDF for download (server-side with enhanced justification)...');
 
-      // Use client-side PDF generation for reliable downloads
-      const pdfBlob = generateClientSidePDF(document);
-
-      if (!pdfBlob || pdfBlob.size === 0) {
-        throw new Error('Failed to generate PDF document');
+      // Use server-side PDF generation for enhanced justification and formatting
+      const result = await documentApi.generatePdf(document, false);
+      
+      if (!result.success || !result.file_data) {
+        throw new Error(result.message || 'Failed to generate PDF document');
       }
 
-      // Download the generated PDF
-      const url = URL.createObjectURL(pdfBlob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = "ieee_paper.pdf";
-      link.click();
-      URL.revokeObjectURL(url);
+      // Convert base64 to blob and download
+      const blob = base64ToBlob(result.file_data, result.file_type);
+      
+      if (!blob || blob.size === 0) {
+        throw new Error('Generated document is empty');
+      }
+
+      // Download the generated file
+      const filename = `${document.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'ieee_paper'}.${result.file_type.includes('pdf') ? 'pdf' : 'docx'}`;
+      downloadBlob(blob, filename);
 
       // Record the download if user is authenticated
       if (isAuthenticated) {
