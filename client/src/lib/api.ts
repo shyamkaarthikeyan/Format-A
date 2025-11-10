@@ -373,8 +373,8 @@ export const documentApi = {
         }
       },
       {
-        url: getPythonApiUrl('/document-generator'),
-        name: 'Python backend',
+        url: getPythonApiUrl('/pdf-generator'),
+        name: 'Python backend PDF',
         payload: {
           ...documentData,
           format: 'pdf',
@@ -383,8 +383,8 @@ export const documentApi = {
       }
     ] : [
       {
-        url: getPythonApiUrl('/document-generator'),
-        name: 'Python backend',
+        url: getPythonApiUrl('/pdf-generator'),
+        name: 'Python backend PDF',
         payload: {
           ...documentData,
           format: 'pdf',
@@ -414,8 +414,31 @@ export const documentApi = {
         
         const result = await response.json();
         
+        // Handle serverless PDF generation limitations
+        if (!result.success && result.serverless_limitation) {
+          console.warn(`${endpoint.name} not available in serverless environment, falling back to DOCX...`);
+          // Automatically fall back to DOCX generation
+          try {
+            console.log('Falling back to DOCX generation due to serverless limitations...');
+            const docxResult = await documentApi.generateDocx(documentData, preview);
+            
+            // Return DOCX result but indicate it was a fallback from PDF
+            return {
+              ...docxResult,
+              fallback_from_pdf: true,
+              original_request: 'pdf',
+              actual_format: 'docx',
+              message: 'PDF not available in serverless environment. DOCX provided with identical IEEE formatting.'
+            };
+          } catch (docxError) {
+            lastError = new Error(`PDF not available and DOCX fallback failed: ${docxError}`);
+            console.warn('DOCX fallback also failed:', docxError);
+            continue;
+          }
+        }
+        
         if (!result.success || !result.file_data) {
-          lastError = new Error(`Invalid response from ${endpoint.name}`);
+          lastError = new Error(`Invalid response from ${endpoint.name}: ${result.message || 'Unknown error'}`);
           console.warn(`Invalid response from ${endpoint.name}:`, result);
           continue;
         }

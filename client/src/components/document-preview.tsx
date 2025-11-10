@@ -1120,9 +1120,21 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error('Generated document is empty');
       }
 
+      // Determine file extension and format message
+      let fileExtension = 'pdf';
+      let formatMessage = 'PDF';
+      
+      if (result.fallback_from_pdf || result.actual_format === 'docx' || result.file_type.includes('word')) {
+        fileExtension = 'docx';
+        formatMessage = 'DOCX (PDF not available in serverless environment)';
+      }
+
       // Download the generated file
-      const filename = `${document.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'ieee_paper'}.${result.file_type.includes('pdf') ? 'pdf' : 'docx'}`;
+      const filename = `${document.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'ieee_paper'}.${fileExtension}`;
       downloadBlob(blob, filename);
+      
+      // Store format info for success message
+      (generatePdfMutation as any).formatMessage = formatMessage;
 
       // Record the download if user is authenticated
       if (isAuthenticated) {
@@ -1171,7 +1183,9 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       return {
         success: true,
-        message: "IEEE-formatted PDF file has been downloaded successfully."
+        message: result.fallback_from_pdf || result.actual_format === 'docx' 
+          ? "IEEE-formatted DOCX file has been downloaded (PDF not available in serverless environment)."
+          : "IEEE-formatted PDF file has been downloaded successfully."
       };
     },
     onSuccess: (data) => {
