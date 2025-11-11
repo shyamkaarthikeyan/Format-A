@@ -270,11 +270,11 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
       // CRITICAL DEBUG: Inspect actual PDF content
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         const arrayBuffer = e.target?.result as ArrayBuffer;
         const uint8Array = new Uint8Array(arrayBuffer);
         const pdfText = new TextDecoder('latin-1').decode(uint8Array);
-        
+
         console.log('🔍 PDF Content Analysis:', {
           size: arrayBuffer.byteLength,
           startsWithPDF: pdfText.startsWith('%PDF'),
@@ -284,7 +284,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
           documentTitle: document.title || 'No title',
           pdfPreview: pdfText.substring(0, 500)
         });
-        
+
         // Check if PDF contains expected content
         if (document.title && !pdfText.includes(document.title)) {
           console.error('❌ PDF does NOT contain the expected title:', document.title);
