@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ZoomIn, ZoomOut, Download, FileText, Mail, RefreshCw, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
@@ -61,109 +60,19 @@ if (typeof document !== 'undefined') {
 
 interface DocumentPreviewProps {
   document: Document;
-  documentId: string | null;
 }
 
-// Helper function to record download with enhanced error handling and retry logic
-async function recordDownload(documentData: any, format: string, fileSize: number = 0) {
-  const maxRetries = 3;
-  let retryCount = 0;
-  
-  while (retryCount < maxRetries) {
-    try {
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-      if (!token) {
-        console.warn('No auth token found - skipping download recording');
-        return false;
-      }
 
-      console.log(`Recording download: ${documentData.title} (${format}) - attempt ${retryCount + 1}`);
 
-      const response = await fetch('/api/record-download', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          documentTitle: documentData.title || 'Untitled Document',
-          fileFormat: format,
-          fileSize: fileSize,
-          documentMetadata: {
-            authors: documentData.authors?.map((a: any) => a.name).filter(Boolean) || [],
-            authorsCount: documentData.authors?.length || 0,
-            sections: documentData.sections?.length || 0,
-            references: documentData.references?.length || 0,
-            figures: documentData.figures?.length || 0,
-            wordCount: estimateWordCount(documentData),
-            generatedAt: new Date().toISOString(),
-            source: 'frontend_api'
-          }
-        })
-      });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          console.log('✅ Download recorded successfully:', result.data?.id);
-          return true;
-        } else {
-          throw new Error(result.error?.message || 'Recording failed');
-        }
-      } else {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-      
-    } catch (error) {
-      retryCount++;
-      console.warn(`Failed to record download (attempt ${retryCount}/${maxRetries}):`, error);
-      
-      if (retryCount >= maxRetries) {
-        console.error('❌ Failed to record download after all retries:', error);
-        return false;
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-    }
-  }
-  
-  return false;
-}
 
-// Helper function to estimate word count
-function estimateWordCount(documentData: any): number {
-  let wordCount = 0;
-  
-  if (documentData.abstract) {
-    wordCount += documentData.abstract.split(' ').length;
-  }
-  
-  if (documentData.sections) {
-    documentData.sections.forEach((section: any) => {
-      if (section.contentBlocks) {
-        section.contentBlocks.forEach((block: any) => {
-          if (block.type === 'text' && block.content) {
-            wordCount += block.content.split(' ').length;
-          }
-        });
-      }
-    });
-  }
-  
-  return wordCount;
-}
-
-export default function DocumentPreview({ document, documentId }: DocumentPreviewProps) {
-  const [zoom, setZoom] = useState(75);
-  const [email, setEmail] = useState("");
+export default function DocumentPreview({ document }: DocumentPreviewProps) {
+  const [zoom, setZoom] = useState(100);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
 
@@ -194,19 +103,19 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       console.log('Generating DOCX using Python backend API...');
       const result = await documentApi.generateDocx(document);
-      
+
       if (!result.success || !result.file_data) {
         throw new Error(result.message || 'Failed to generate DOCX');
       }
 
       const docxBlob = base64ToBlob(result.file_data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      
+
       if (!docxBlob || docxBlob.size === 0) {
         throw new Error('Generated DOCX file is empty');
       }
 
       downloadBlob(docxBlob, "ieee_paper.docx");
-      
+
       return result;
     },
     onSuccess: () => {
@@ -237,7 +146,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
       // Use Word→PDF conversion pipeline
       const result = await documentApi.generatePdf(document, false); // false = download mode
-      
+
       if (!result.success || !result.file_data) {
         throw new Error(result.message || 'Failed to generate PDF');
       }
@@ -248,13 +157,13 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       }
 
       const pdfBlob = base64ToBlob(result.file_data, 'application/pdf');
-      
+
       if (!pdfBlob || pdfBlob.size === 0) {
         throw new Error('Generated PDF file is empty');
       }
 
       downloadBlob(pdfBlob, "ieee_paper.pdf");
-      
+
       return result;
     },
     onSuccess: () => {
@@ -300,7 +209,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
       handleAuthRequired('email');
       return;
     }
-    
+
     toast({
       title: "Email Feature",
       description: "Email functionality will be implemented for authenticated users."
@@ -320,10 +229,22 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
     try {
       console.log('Generating PDF preview (Word→PDF conversion)...');
+      console.log('Document data:', {
+        title: document.title,
+        authors: document.authors?.length,
+        sections: document.sections?.length
+      });
+
+      // Clean up previous URL BEFORE generating new one
+      if (pdfUrl) {
+        console.log('🧹 Cleaning up previous PDF URL...');
+        URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(null);
+      }
 
       // Use Word→PDF conversion pipeline for preview
       const result = await documentApi.generatePdf(document, true); // true = preview mode
-      
+
       if (!result.success || !result.file_data) {
         throw new Error(result.message || 'Failed to generate PDF preview');
       }
@@ -339,30 +260,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
         throw new Error('Generated PDF preview is empty');
       }
 
-      // Clean up previous URL
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
+      console.log(`✅ PDF blob created: ${pdfBlob.size} bytes`);
 
-      // Create new blob URL for preview display
+      // Create new blob URL with cache-busting timestamp
       const url = URL.createObjectURL(pdfBlob);
-      setPdfUrl(url);
+      const urlWithCacheBuster = `${url}#t=${Date.now()}`;
 
-      // Extract page count from PDF if possible
-      try {
-        const arrayBuffer = await pdfBlob.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const text = new TextDecoder().decode(uint8Array);
-        const pageMatches = text.match(/\/Count\s+(\d+)/);
-        if (pageMatches) {
-          setTotalPages(parseInt(pageMatches[1], 10));
-        } else {
-          setTotalPages(1);
-        }
-      } catch (e) {
-        console.warn('Could not extract page count:', e);
-        setTotalPages(1);
-      }
+      console.log('🔗 New PDF URL created:', urlWithCacheBuster);
+      setPdfUrl(urlWithCacheBuster);
 
       console.log('✅ PDF preview generated successfully (Word→PDF conversion)');
 
@@ -383,16 +288,23 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
 
   // Auto-generate preview when document changes
   useEffect(() => {
+    // Clear any existing preview error when document changes
+    setPreviewError(null);
+
     const timer = setTimeout(() => {
       if (document.title && document.authors?.some(author => author.name)) {
         console.log('Triggering PDF preview generation...');
         generatePdfPreview();
       } else {
         console.log('Skipping PDF generation - missing title or authors');
-        setPdfUrl(null);
+        // Clean up previous URL when requirements not met
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
+          setPdfUrl(null);
+        }
         setPreviewError(null);
       }
-    }, 1000); // 1 second debounce
+    }, 1000); // Reduced to 1 second for better responsiveness
 
     return () => clearTimeout(timer);
   }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
@@ -429,7 +341,7 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <FileText className="w-4 h-4 mr-2" />
               {generateDocxMutation.isPending ? "Generating..." : "Download Word"}
             </Button>
-            
+
             <Button
               onClick={handleDownloadPdf}
               disabled={generatePdfMutation.isPending || !document.title}
@@ -472,14 +384,14 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <RefreshCw className={`w-4 h-4 mr-1 ${isGeneratingPreview ? 'animate-spin' : ''}`} />
                 {isGeneratingPreview ? 'Generating...' : 'Refresh'}
               </Button>
-              
+
               {pdfUrl && (
                 <>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setZoom(Math.max(25, zoom - 25))}
-                    disabled={zoom <= 25}
+                    onClick={() => setZoom(Math.max(50, zoom - 25))}
+                    disabled={zoom <= 50}
                   >
                     <ZoomOut className="w-4 h-4" />
                   </Button>
@@ -487,8 +399,8 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setZoom(Math.min(200, zoom + 25))}
-                    disabled={zoom >= 200}
+                    onClick={() => setZoom(Math.min(150, zoom + 25))}
+                    disabled={zoom >= 150}
                   >
                     <ZoomIn className="w-4 h-4" />
                   </Button>
@@ -525,37 +437,33 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full pdf-preview-container">
-                <div 
-                  className="h-full"
-                  style={{ 
-                    transform: `scale(${zoom / 100})`,
-                    transformOrigin: 'top left',
-                    width: `${10000 / zoom}%`,
-                    height: `${10000 / zoom}%`
-                  }}
-                >
-                  <iframe
-                    src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitV&page=${currentPage}`}
-                    className="w-full h-full border-0 shadow-lg"
+              <div className="h-full pdf-preview-container overflow-auto bg-gray-50">
+                <div className="flex justify-center py-6 px-4 min-h-full">
+                  <div
+                    className="shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200 transition-transform duration-200"
                     style={{
-                      outline: 'none',
-                      border: 'none',
-                      borderRadius: '4px',
-                      pointerEvents: 'auto'
+                      transform: `scale(${zoom / 100})`,
+                      transformOrigin: 'top center',
+                      width: '8.5in',
+                      height: '11in',
+                      maxWidth: '100%'
                     }}
-                    title="PDF Preview"
-                    key={`pdf-${currentPage}`}
                   >
-                    {/* Fallback message */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded">
-                      <div className="text-center p-6">
-                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600 mb-2">PDF Preview Not Available</p>
-                        <p className="text-gray-500 text-sm">Please use the download buttons above to get your IEEE paper.</p>
-                      </div>
-                    </div>
-                  </iframe>
+                    <iframe
+                      key={pdfUrl} // Force re-render when URL changes
+                      src={`${pdfUrl.split('#')[0]}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=100`}
+                      className="w-full h-full border-0 rounded-lg"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        outline: 'none',
+                        border: 'none'
+                      }}
+                      title="PDF Preview"
+                      onLoad={() => console.log('📄 PDF iframe loaded successfully')}
+                      onError={() => console.error('❌ PDF iframe failed to load')}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -579,11 +487,11 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
               <Lock className="w-6 h-6 text-purple-600" />
               <h3 className="text-lg font-semibold">Sign In Required</h3>
             </div>
-            
+
             <p className="text-gray-600 mb-4">
               To {pendingAction} your document, please sign in to your account.
             </p>
-            
+
             <div className="space-y-2 mb-6">
               <h4 className="font-medium text-gray-900">Benefits of signing in:</h4>
               <ul className="text-sm text-gray-600 space-y-1">
@@ -593,17 +501,17 @@ export default function DocumentPreview({ document, documentId }: DocumentPrevie
                 <li>• Access advanced features</li>
               </ul>
             </div>
-            
+
             <div className="flex gap-3">
-              <Button 
-                onClick={() => window.location.href = '/signin'} 
+              <Button
+                onClick={() => window.location.href = '/signin'}
                 className="flex-1 bg-purple-600 hover:bg-purple-700"
               >
                 Sign In
               </Button>
-              <Button 
-                onClick={() => setShowAuthPrompt(false)} 
-                variant="outline" 
+              <Button
+                onClick={() => setShowAuthPrompt(false)}
+                variant="outline"
                 className="flex-1"
               >
                 Cancel
