@@ -1,7 +1,7 @@
 // Utility functions for making authenticated API calls
-import { 
-  handleApiResponse, 
-  handleNetworkError, 
+import {
+  handleApiResponse,
+  handleNetworkError,
   retryOperation,
   NetworkError,
   AuthenticationError,
@@ -37,13 +37,13 @@ function getSessionId(): string | null {
 
 // Make authenticated API request with timeout and error handling
 export async function authenticatedFetch(
-  url: string, 
+  url: string,
   options: RequestInit = {},
   config: RequestConfig = {}
 ): Promise<Response> {
   const { timeout = 30000 } = config;
   const sessionId = getSessionId();
-  
+
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -78,11 +78,11 @@ export async function authenticatedFetch(
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
-    
+
     if (error instanceof Error && error.name === 'AbortError') {
       throw new NetworkError('NETWORK_TIMEOUT', 'Request timed out');
     }
-    
+
     throw handleNetworkError(error);
   }
 }
@@ -91,35 +91,35 @@ export async function authenticatedFetch(
 async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
   const adminToken = localStorage.getItem('admin-token');
   const fallbackParams = adminToken ? '' : '?adminEmail=shyamkaarthikeyan@gmail.com';
-  
+
   // Use consolidated admin API with fallback
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
-  
+
   // Handle query parameters properly
   const [pathPart, queryPart] = cleanEndpoint.split('?');
   let url = `/api/admin?path=${pathPart}`;
-  
+
   // Add original query parameters
   if (queryPart) {
     url += `&${queryPart}`;
   }
-  
+
   // Add fallback parameters
   if (fallbackParams) {
     url += fallbackParams.startsWith('&') ? fallbackParams : `&${fallbackParams}`;
   }
-  
+
   console.log('Making admin request:', {
     endpoint,
     url,
     hasToken: !!adminToken,
     tokenPrefix: adminToken ? adminToken.substring(0, 15) + '...' : 'none'
   });
-  
+
   try {
     const response = await authenticatedFetch(url, {}, config);
     const result = await handleApiResponse<ApiResponse<T>>(response);
-    
+
     // If token auth failed but we have admin email, try creating a token
     if (!result.success && result.error?.code === 'ADMIN_AUTH_REQUIRED' && !adminToken) {
       console.log('Attempting to create admin token automatically...');
@@ -131,14 +131,14 @@ async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {})
             userId: 'admin_user_auto'
           })
         });
-        
+
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           if (sessionData.adminToken) {
             localStorage.setItem('admin-token', sessionData.adminToken);
             localStorage.setItem('admin-session', JSON.stringify(sessionData.adminSession));
             console.log('Admin token created, retrying request...');
-            
+
             // Retry the original request with the new token
             const retryResponse = await authenticatedFetch(`/api/admin?path=${endpoint.substring(1)}`, {}, config);
             return await handleApiResponse<ApiResponse<T>>(retryResponse);
@@ -148,14 +148,14 @@ async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {})
         console.warn('Failed to auto-create admin token:', tokenError);
       }
     }
-    
+
     return result;
   } catch (error) {
     console.error('Admin request failed:', error);
     if (error instanceof NetworkError || error instanceof AuthenticationError || error instanceof AdminError) {
       throw error;
     }
-    
+
     return {
       success: false,
       error: {
@@ -175,7 +175,7 @@ export const apiClient = {
 
   async get<T>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const { retries = 3, retryDelay = 1000 } = config;
-    
+
     return retryOperation(async () => {
       try {
         const response = await authenticatedFetch(url, {}, config);
@@ -184,7 +184,7 @@ export const apiClient = {
         if (error instanceof NetworkError || error instanceof AuthenticationError || error instanceof AdminError) {
           throw error;
         }
-        
+
         return {
           success: false,
           error: {
@@ -198,20 +198,20 @@ export const apiClient = {
 
   async post<T>(url: string, body?: any, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const { retries = 3, retryDelay = 1000 } = config;
-    
+
     return retryOperation(async () => {
       try {
         const response = await authenticatedFetch(url, {
           method: 'POST',
           body: body ? JSON.stringify(body) : undefined,
         }, config);
-        
+
         return await handleApiResponse<ApiResponse<T>>(response);
       } catch (error) {
         if (error instanceof NetworkError || error instanceof AuthenticationError || error instanceof AdminError) {
           throw error;
         }
-        
+
         return {
           success: false,
           error: {
@@ -225,20 +225,20 @@ export const apiClient = {
 
   async put<T>(url: string, body?: any, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const { retries = 3, retryDelay = 1000 } = config;
-    
+
     return retryOperation(async () => {
       try {
         const response = await authenticatedFetch(url, {
           method: 'PUT',
           body: body ? JSON.stringify(body) : undefined,
         }, config);
-        
+
         return await handleApiResponse<ApiResponse<T>>(response);
       } catch (error) {
         if (error instanceof NetworkError || error instanceof AuthenticationError || error instanceof AdminError) {
           throw error;
         }
-        
+
         return {
           success: false,
           error: {
@@ -252,19 +252,19 @@ export const apiClient = {
 
   async delete<T>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const { retries = 3, retryDelay = 1000 } = config;
-    
+
     return retryOperation(async () => {
       try {
         const response = await authenticatedFetch(url, {
           method: 'DELETE',
         }, config);
-        
+
         return await handleApiResponse<ApiResponse<T>>(response);
       } catch (error) {
         if (error instanceof NetworkError || error instanceof AuthenticationError || error instanceof AdminError) {
           throw error;
         }
-        
+
         return {
           success: false,
           error: {

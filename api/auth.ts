@@ -24,10 +24,10 @@ let isInitialized = false;
 // Initialize database tables
 async function initializeDatabase() {
   if (isInitialized) return;
-  
+
   try {
     const sql = getSql();
-    
+
     // Create users table
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -47,7 +47,7 @@ async function initializeDatabase() {
     // Create indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
-    
+
     isInitialized = true;
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
@@ -64,17 +64,17 @@ async function createOrUpdateUser(userData: {
   picture?: string;
 }) {
   const sql = getSql();
-  
+
   try {
     // Try to find existing user
     const existingUsersResult = await sql`
       SELECT * FROM users WHERE google_id = ${userData.google_id} OR email = ${userData.email}
     `;
-    
+
     // Handle both Neon result formats (with and without .rows)
     const existingUsers = existingUsersResult.rows || existingUsersResult;
     console.log('Found existing users:', existingUsers.length);
-    
+
     if (existingUsers && existingUsers.length > 0) {
       console.log('Updating existing user:', userData.email);
       // Update existing user
@@ -151,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Ensure database is initialized for all endpoints
     await initializeDatabase();
-    
+
     switch (endpoint) {
       case 'google':
         return await handleGoogleAuth(req, res);
@@ -174,9 +174,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed. Use POST.' 
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed. Use POST.'
     });
   }
 
@@ -237,9 +237,9 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
         };
       } catch (e) {
         console.log('JWT verification failed:', e);
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'Invalid Google credential' 
+          error: 'Invalid Google credential'
         });
       }
     } else if (googleId && email && name) {
@@ -253,7 +253,7 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
       };
     } else {
       console.log('Missing required authentication data:', req.body);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Missing authentication data',
         message: 'Either credential (JWT) or user data (googleId, email, name) is required'
@@ -278,12 +278,12 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
         name: userInfo.name,
         picture: userInfo.picture
       });
-      
+
       if (!user) {
         console.error('❌ createOrUpdateUser returned null/undefined');
         throw new Error('Failed to create or retrieve user from database');
       }
-      
+
       console.log('✅ User successfully created/updated in database:', user.email);
       console.log('User object keys:', Object.keys(user));
     } catch (dbError) {
@@ -337,7 +337,7 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('❌ Google OAuth error:', error);
-    
+
     return res.status(500).json({
       success: false,
       error: 'Authentication failed. Please try again.',
@@ -365,10 +365,10 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
     try {
       const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
       const decoded = jwt.verify(token, jwtSecret) as any;
-      
+
       // Get user from database
       const user = await getUserById(decoded.userId);
-      
+
       if (!user) {
         return res.status(401).json({ error: 'User not found' });
       }
@@ -392,7 +392,7 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
     } catch (jwtError) {
       // FIXED: No dangerous fallback - return error instead of wrong user
       console.log('JWT verification failed:', jwtError.message);
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Invalid or expired token',
         code: 'TOKEN_INVALID'
       });

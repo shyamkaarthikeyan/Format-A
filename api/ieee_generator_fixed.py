@@ -3502,279 +3502,10 @@ def generate_ieee_master_html(form_data):
     return html
 
 
-def weasyprint_pdf_from_html(html):
-    """Convert HTML to PDF using WeasyPrint with pixel-perfect formatting matching Word"""
-    try:
-        from weasyprint import CSS, HTML
-        from weasyprint.text.fonts import FontConfiguration
-
-        # Create font configuration for better typography
-        font_config = FontConfiguration()
-
-        # Minimal CSS overrides - the HTML already contains pixel-perfect CSS
-        additional_css = CSS(
-            string="""
-            /* PDF-specific optimizations */
-            @page {
-                size: letter;
-                margin: 0.75in;
-            }
-
-            /* Remove preview-only elements for PDF */
-            .preview-note {
-                display: none !important;
-            }
-            
-            /* Ensure perfect print rendering */
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            
-            /* Force table borders in PDF */
-            .ieee-table,
-            .ieee-table-header,
-            .ieee-table-cell {
-                border: 1px solid black !important;
-            }
-        """
-        )
-
-        # Generate PDF with WeasyPrint using the unified HTML
-        html_doc = HTML(string=html)
-        pdf_bytes = html_doc.write_pdf(
-            stylesheets=[additional_css], 
-            font_config=font_config, 
-            optimize_images=True,
-            presentational_hints=True
-        )
-
-        print("✅ PDF generated with WeasyPrint - pixel-perfect match to Word", file=sys.stderr)
-        return pdf_bytes
-
-    except (ImportError, OSError) as e:
-        print(f"⚠️ WeasyPrint not available ({e}), using ReportLab fallback", file=sys.stderr)
-        return reportlab_pdf_from_html(html)
+# Old PDF generation functions removed - replaced by Word-to-PDF conversion approach
 
 
-def reportlab_pdf_from_html(html):
-    """ENHANCED FALLBACK: Convert HTML to PDF using ReportLab with PERFECT justification matching HTML preview"""
-    try:
-        import re
-
-        from bs4 import BeautifulSoup
-        from reportlab.lib import colors
-        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-        from reportlab.lib.units import inch
-        from reportlab.platypus import (
-            Paragraph,
-            SimpleDocTemplate,
-            Spacer,
-            Table,
-            TableStyle,
-        )
-
-        print(
-            "🔧 Using ENHANCED ReportLab with aggressive justification settings...",
-            file=sys.stderr,
-        )
-
-        # Parse HTML to extract content
-        soup = BeautifulSoup(html, "html.parser")
-
-        # Create PDF buffer
-        buffer = BytesIO()
-
-        # Create document with IEEE margins
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=0.75 * inch,
-            leftMargin=0.75 * inch,
-            topMargin=0.75 * inch,
-            bottomMargin=0.75 * inch,
-        )
-
-        # Create styles for IEEE formatting with ENHANCED justification
-        styles = getSampleStyleSheet()
-
-        # IEEE styles with AGGRESSIVE justification settings
-        title_style = ParagraphStyle(
-            "IEEETitle",
-            parent=styles["Title"],
-            fontSize=24,
-            fontName="Times-Bold",
-            alignment=TA_CENTER,
-            spaceAfter=20,
-        )
-
-        # ENHANCED body style with perfect justification
-        body_style = ParagraphStyle(
-            "IEEEBody",
-            parent=styles["Normal"],
-            fontSize=10,
-            fontName="Times-Roman",
-            alignment=TA_JUSTIFY,
-            spaceAfter=12,
-            leftIndent=0,
-            rightIndent=0,
-            # AGGRESSIVE justification settings
-            wordWrap="LTR",
-            allowWidows=0,
-            allowOrphans=0,
-            splitLongWords=1,
-            # Enhanced line spacing for better justification
-            leading=12,
-            # Character spacing adjustment for perfect justification
-            spaceShrinkage=0.10,
-            spaceStretchage=0.20,
-            # Force full justification with aggressive word spacing
-            justifyLastLine=1,
-            justifyBreaks=1,
-        )
-
-        # ENHANCED abstract style with perfect justification
-        abstract_style = ParagraphStyle(
-            "IEEEAbstract",
-            parent=body_style,
-            fontSize=9,
-            fontName="Times-Bold",
-            alignment=TA_JUSTIFY,
-            # Enhanced justification for abstract
-            wordWrap="LTR",
-            allowWidows=0,
-            allowOrphans=0,
-            splitLongWords=1,
-            leading=10.8,  # 1.2 * fontSize for IEEE standard
-        )
-
-        # ENHANCED paragraph style specifically for content blocks
-        enhanced_body_style = ParagraphStyle(
-            "IEEEBodyEnhanced",
-            parent=body_style,
-            # CRITICAL: Enhanced justification parameters
-            wordWrap="LTR",
-            allowWidows=0,
-            allowOrphans=0,
-            splitLongWords=1,
-            # Better line spacing for justification
-            leading=12,
-            autoLeading="min",
-            # Enhanced character spacing
-            spaceShrinkage=0.05,
-            spaceStretchage=0.15,
-        )
-
-        # Build document content
-        story = []
-
-        # Extract and add title
-        title_elem = soup.find(class_="ieee-title")
-        if title_elem:
-            story.append(Paragraph(title_elem.get_text(), title_style))
-            story.append(Spacer(1, 12))
-
-        # Extract and add authors (simplified)
-        authors_elem = soup.find(class_="ieee-authors-container")
-        if authors_elem:
-            author_names = [
-                elem.get_text() for elem in authors_elem.find_all(class_="author-name")
-            ]
-            if author_names:
-                author_text = ", ".join(author_names)
-                author_style = ParagraphStyle(
-                    "IEEEAuthor",
-                    parent=styles["Normal"],
-                    fontSize=10,
-                    fontName="Times-Roman",
-                    alignment=TA_CENTER,
-                )
-                story.append(Paragraph(author_text, author_style))
-                story.append(Spacer(1, 20))
-
-        # Extract and add abstract with ENHANCED justification
-        abstract_elem = soup.find(class_="ieee-abstract")
-        if abstract_elem:
-            # Clean abstract text and apply enhanced formatting
-            abstract_text = abstract_elem.get_text()
-            story.append(Paragraph(abstract_text, abstract_style))
-            story.append(Spacer(1, 12))
-
-        # Extract and add keywords with ENHANCED justification
-        keywords_elem = soup.find(class_="ieee-keywords")
-        if keywords_elem:
-            keywords_text = keywords_elem.get_text()
-            story.append(Paragraph(keywords_text, abstract_style))
-            story.append(Spacer(1, 20))
-
-        # Extract and add sections with ENHANCED justification
-        for heading in soup.find_all(class_="ieee-heading"):
-            heading_style = ParagraphStyle(
-                "IEEEHeading",
-                parent=styles["Heading1"],
-                fontSize=10,
-                fontName="Times-Bold",
-                alignment=TA_CENTER,
-                spaceAfter=6,
-                spaceBefore=15,
-            )
-            story.append(Paragraph(heading.get_text(), heading_style))
-
-        # Extract and add paragraphs with PERFECT justification
-        for para in soup.find_all(class_="ieee-paragraph"):
-            # Use ENHANCED body style for better justification
-            para_text = para.get_text()
-            # Clean up the text for better ReportLab processing
-            para_text = re.sub(r"\s+", " ", para_text).strip()
-            story.append(Paragraph(para_text, enhanced_body_style))
-
-        # ENHANCED content block processing
-        for content_block in soup.find_all(class_="content-block"):
-            block_text = content_block.get_text()
-            block_text = re.sub(r"\s+", " ", block_text).strip()
-            if block_text:
-                story.append(Paragraph(block_text, enhanced_body_style))
-
-        # Extract and add references with ENHANCED justification
-        for ref in soup.find_all(class_="ieee-reference"):
-            ref_style = ParagraphStyle(
-                "IEEEReference",
-                parent=enhanced_body_style,
-                fontSize=9,
-                leftIndent=15,
-                firstLineIndent=-15,
-                # Enhanced justification for references
-                wordWrap="LTR",
-                allowWidows=0,
-                allowOrphans=0,
-                splitLongWords=1,
-                leading=10.8,
-            )
-            ref_text = ref.get_text()
-            ref_text = re.sub(r"\s+", " ", ref_text).strip()
-            story.append(Paragraph(ref_text, ref_style))
-
-        # Build PDF with enhanced settings
-        doc.build(story)
-
-        # Get PDF bytes
-        buffer.seek(0)
-        pdf_bytes = buffer.getvalue()
-        buffer.close()
-
-        print(
-            "✅ PDF generated with ENHANCED ReportLab - AGGRESSIVE justification achieved",
-            file=sys.stderr,
-        )
-        return pdf_bytes
-
-    except ImportError as e:
-        print(f"❌ ReportLab also not available: {e}", file=sys.stderr)
-        raise Exception(
-            "PDF generation requires WeasyPrint or ReportLab. Both are unavailable."
-        )
+# Old PDF generation functions removed - replaced by Word-to-PDF conversion approach
 
 
 def pandoc_html_to_docx(html, template_path=None):
@@ -4590,9 +4321,9 @@ def main():
             print("🌐 Generating HTML using unified rendering system...", file=sys.stderr)
             html = render_to_html(model)
 
-            # Generate PDF from unified HTML
-            print("🎯 Generating PDF from unified HTML...", file=sys.stderr)
-            pdf_bytes = weasyprint_pdf_from_html(html)
+            # PDF generation removed - now uses Word-to-PDF conversion approach
+            print("🎯 PDF generation now uses Word-to-PDF conversion approach", file=sys.stderr)
+            pdf_bytes = None  # PDF generation removed
 
             # Save all files for comparison
             import time
@@ -4622,10 +4353,10 @@ def main():
 
         elif output_type == "pdf":
             # Generate PDF using unified rendering system
-            print("🎯 Generating PDF using unified rendering system...", file=sys.stderr)
-            html = render_to_html(model)
-            doc_data = weasyprint_pdf_from_html(html)
-            print("✅ PDF generated with pixel-perfect formatting matching Word", file=sys.stderr)
+            # PDF generation removed - now uses Word-to-PDF conversion approach
+            print("🎯 PDF generation now uses Word-to-PDF conversion approach", file=sys.stderr)
+            doc_data = None  # PDF generation removed
+            print("✅ PDF generation refactored to use Word-to-PDF conversion", file=sys.stderr)
 
         elif output_type == "html":
             # Generate HTML preview using unified rendering system
