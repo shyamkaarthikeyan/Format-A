@@ -361,10 +361,10 @@ export const documentApi = {
   generatePdf: async (documentData: any, preview: boolean = false) => {
     console.log(`Generating PDF (${preview ? 'preview' : 'download'}) with unified server-side generation...`);
     
-    // Use ONLY Python backend with WeasyPrint for consistent results
+    // Use the document-generator endpoint which handles PDF requests properly
     const endpoint = {
-      url: getPythonApiUrl('/pdf-generator'),
-      name: 'Python backend PDF (WeasyPrint)',
+      url: getPythonApiUrl('/document-generator'),
+      name: 'Python backend PDF (Word→PDF conversion)',
       payload: {
         ...documentData,
         format: 'pdf',
