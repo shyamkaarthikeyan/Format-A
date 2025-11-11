@@ -547,6 +547,124 @@ function generateClientSidePDF(document: Document): Blob {
       }
     }
 
+    // Process standalone tables first (from TableForm component) - CRITICAL FIX
+    if (document.tables && Array.isArray(document.tables) && document.tables.length > 0) {
+      console.log('Processing standalone tables in PDF preview:', document.tables.length, 'tables found');
+      try {
+        document.tables.forEach((table, tableIndex) => {
+          console.log(`Processing standalone table ${tableIndex + 1}:`, {
+            tableName: table.tableName,
+            type: table.type,
+            tableType: table.tableType
+          });
+
+          if (table.type === 'interactive' && table.headers && table.tableData) {
+            // Handle interactive standalone tables - render as actual table
+            const headers = table.headers;
+            const tableData = table.tableData;
+            const tableName = table.tableName || 'Table';
+
+            // Calculate table dimensions
+            const cellPadding = 4;
+            const cellHeight = 16;
+            const headerHeight = 18;
+            const tableWidth = columnWidth * 0.95;
+            const colWidth = tableWidth / headers.length;
+
+            const currentColumnX = currentColumn_Main === 'left' ? leftColumnX : rightColumnX;
+            let tableY = currentColumn_Main === 'left' ? leftColumnY_Main : rightColumnY_Main;
+
+            // Add table caption first
+            pdf.setFontSize(9);
+            pdf.setFont('times', 'bold');
+            const captionText = `TABLE ${tableIndex + 1}: ${tableName.toUpperCase()}`;
+            const captionWidth = pdf.getTextWidth(captionText);
+            const captionX = currentColumnX + (columnWidth - captionWidth) / 2;
+            pdf.text(captionText, captionX, tableY);
+            tableY += 15;
+
+            // Draw table border
+            pdf.setDrawColor(0, 0, 0);
+            pdf.setLineWidth(0.5);
+
+            // Draw header row
+            pdf.setFillColor(240, 240, 240); // Light gray background
+            pdf.rect(currentColumnX, tableY, tableWidth, headerHeight, 'FD');
+
+            // Add header text
+            pdf.setFontSize(8);
+            pdf.setFont('times', 'bold');
+            headers.forEach((header: string, colIndex: number) => {
+              const cellX = currentColumnX + (colIndex * colWidth);
+              const textX = cellX + cellPadding;
+              const textY = tableY + headerHeight - cellPadding;
+
+              // Truncate text if too long
+              const maxWidth = colWidth - (2 * cellPadding);
+              const truncatedText = pdf.splitTextToSize(header, maxWidth)[0] || header;
+              pdf.text(truncatedText, textX, textY);
+
+              // Draw vertical lines
+              if (colIndex > 0) {
+                pdf.line(cellX, tableY, cellX, tableY + headerHeight);
+              }
+            });
+
+            tableY += headerHeight;
+
+            // Draw data rows
+            pdf.setFont('times', 'normal');
+            pdf.setFillColor(255, 255, 255); // White background
+
+            tableData.forEach((row: string[], rowIndex: number) => {
+              // Alternate row colors for better readability
+              if (rowIndex % 2 === 1) {
+                pdf.setFillColor(248, 248, 248); // Very light gray
+              } else {
+                pdf.setFillColor(255, 255, 255); // White
+              }
+
+              pdf.rect(currentColumnX, tableY, tableWidth, cellHeight, 'FD');
+
+              // Add cell text
+              row.forEach((cell: string, colIndex: number) => {
+                if (colIndex < headers.length) {
+                  const cellX = currentColumnX + (colIndex * colWidth);
+                  const textX = cellX + cellPadding;
+                  const textY = tableY + cellHeight - cellPadding;
+
+                  // Truncate text if too long
+                  const maxWidth = colWidth - (2 * cellPadding);
+                  const truncatedText = pdf.splitTextToSize(cell, maxWidth)[0] || cell;
+                  pdf.text(truncatedText, textX, textY);
+
+                  // Draw vertical lines
+                  if (colIndex > 0) {
+                    pdf.line(cellX, tableY, cellX, tableY + cellHeight);
+                  }
+                }
+              });
+
+              // Draw horizontal line after row
+              tableY += cellHeight;
+              pdf.line(currentColumnX, tableY, currentColumnX + tableWidth, tableY);
+            });
+
+            // Update column positions
+            if (currentColumn_Main === 'left') {
+              leftColumnY_Main = tableY + 15;
+            } else {
+              rightColumnY_Main = tableY + 15;
+            }
+
+            console.log(`Added standalone table to PDF preview successfully`);
+          }
+        });
+      } catch (error) {
+        console.error('Error processing standalone tables in PDF preview:', error);
+      }
+    }
+
     // Sections - IEEE format (10pt bold, centered, 2-column layout)
     if (document.sections && Array.isArray(document.sections) && document.sections.length > 0) {
       console.log('Processing sections in PDF:', document.sections.length, 'sections found');
