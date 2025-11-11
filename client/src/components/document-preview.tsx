@@ -230,10 +230,15 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
     try {
       console.log('Generating PDF preview (Word→PDF conversion)...');
-      console.log('Document data:', {
+      console.log('📋 Full Document data being sent:', {
         title: document.title,
-        authors: document.authors?.length,
-        sections: document.sections?.length
+        authors: document.authors,
+        abstract: document.abstract,
+        keywords: document.keywords,
+        sections: document.sections,
+        references: document.references,
+        tables: document.tables,
+        figures: document.figures
       });
 
       // Clean up previous URL BEFORE generating new one
@@ -263,12 +268,39 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
       console.log(`✅ PDF blob created: ${pdfBlob.size} bytes`);
 
+      // CRITICAL DEBUG: Inspect actual PDF content
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const pdfText = new TextDecoder('latin-1').decode(uint8Array);
+        
+        console.log('🔍 PDF Content Analysis:', {
+          size: arrayBuffer.byteLength,
+          startsWithPDF: pdfText.startsWith('%PDF'),
+          containsTitle: pdfText.includes(document.title || ''),
+          containsAuthor: document.authors?.[0]?.name ? pdfText.includes(document.authors[0].name) : false,
+          firstAuthorName: document.authors?.[0]?.name || 'No author',
+          documentTitle: document.title || 'No title',
+          pdfPreview: pdfText.substring(0, 500)
+        });
+        
+        // Check if PDF contains expected content
+        if (document.title && !pdfText.includes(document.title)) {
+          console.error('❌ PDF does NOT contain the expected title:', document.title);
+        }
+        if (document.authors?.[0]?.name && !pdfText.includes(document.authors[0].name)) {
+          console.error('❌ PDF does NOT contain the expected author:', document.authors[0].name);
+        }
+      };
+      reader.readAsArrayBuffer(pdfBlob);
+
       // Create new blob URL with aggressive cache-busting
       const url = URL.createObjectURL(pdfBlob);
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(7);
       const urlWithCacheBuster = `${url}#t=${timestamp}&r=${random}&nocache=true`;
-      
+
       console.log('🔗 New PDF URL created:', urlWithCacheBuster);
       console.log('📊 PDF blob details:', {
         size: pdfBlob.size,
@@ -276,7 +308,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         timestamp: timestamp,
         random: random
       });
-      
+
       setPdfUrl(urlWithCacheBuster);
       setPdfKey(`pdf-${timestamp}-${random}`); // Force iframe re-render
 
