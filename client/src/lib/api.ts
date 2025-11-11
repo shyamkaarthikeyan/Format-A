@@ -357,68 +357,58 @@ export const documentApi = {
     throw lastError || new Error('DOCX generation failed: No endpoints available');
   },
 
-  // Generate PDF document - UNIFIED method for both preview and download (NO FALLBACKS)
+  // Generate PDF document - Word→PDF conversion ONLY
   generatePdf: async (documentData: any, preview: boolean = false) => {
-    console.log(`Generating PDF (${preview ? 'preview' : 'download'}) with unified server-side generation...`);
+    console.log(`Generating PDF (${preview ? 'preview' : 'download'}) via Word→PDF conversion...`);
     
-    // Use the document-generator endpoint which handles PDF requests properly
-    const endpoint = {
-      url: getPythonApiUrl('/document-generator'),
-      name: 'Python backend PDF (Word→PDF conversion)',
-      payload: {
-        ...documentData,
-        format: 'pdf',
-        action: preview ? 'preview' : 'download'
-      }
-    };
+    // Step 1: Generate DOCX first
+    console.log('Step 1: Generating DOCX document...');
+    const docxResult = await documentApi.generateDocx(documentData);
     
-    try {
-      console.log(`Generating PDF with ${endpoint.name}...`);
-      const response = await fetch(endpoint.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(endpoint.payload),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`PDF generation failed: ${response.status} ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      
-      // REJECT any non-PDF results - no fallbacks allowed
-      if (!result.success) {
-        throw new Error(result.message || 'PDF generation failed on server');
-      }
-      
-      if (!result.file_data) {
-        throw new Error('No PDF data received from server');
-      }
-      
-      // Ensure we only accept PDF format
-      if (result.file_type !== 'application/pdf') {
-        throw new Error('Server returned non-PDF format - only PDF is supported');
-      }
-      
-      console.log(`✓ PDF generated successfully with perfect justification`);
-      
-      // Record download if successful and not a preview
-      if (!preview && result.file_data) {
-        try {
-          await recordDownload(documentData, 'pdf', result.file_size || 0);
-        } catch (e) {
-          console.warn('Failed to record download:', e);
-        }
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error(`PDF generation failed:`, error);
-      throw error;
+    if (!docxResult.success || !docxResult.file_data) {
+      throw new Error('Failed to generate DOCX for PDF conversion');
     }
+    
+    // Step 2: Convert DOCX to PDF using Word→PDF conversion
+    console.log('Step 2: Converting DOCX to PDF...');
+    const response = await fetch(getPythonApiUrl('/document-generator'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        format: 'docx-to-pdf',
+        action: preview ? 'preview' : 'download',
+        docx_data: docxResult.file_data
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Word→PDF conversion failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success || !result.file_data) {
+      throw new Error(result.message || 'Word→PDF conversion failed');
+    }
+    
+    if (result.file_type !== 'application/pdf') {
+      throw new Error('Word→PDF conversion returned non-PDF format');
+    }
+    
+    console.log(`✓ PDF generated successfully via Word→PDF conversion`);
+    
+    // Record download if successful and not a preview
+    if (!preview && result.file_data) {
+      try {
+        await recordDownload(documentData, 'pdf', result.file_size || 0);
+      } catch (e) {
+        console.warn('Failed to record download:', e);
+      }
+    }
+    
+    return result;
   },
 
   // Generate email - Use Python backend main endpoint
