@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Eye, 
-  FileText, 
-  Printer, 
-  Smartphone, 
-  ZoomIn, 
-  ZoomOut, 
+import {
+  Eye,
+  FileText,
+  Printer,
+  Smartphone,
+  ZoomIn,
+  ZoomOut,
   RotateCcw,
   Download,
   Share2,
@@ -51,10 +51,10 @@ export default function EnhancedPreviewSystem({
       // Read the PDF blob as array buffer
       const arrayBuffer = await pdfBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       // Convert to string to search for page count patterns
       const pdfText = String.fromCharCode.apply(null, Array.from(uint8Array));
-      
+
       // Method 1: Look for /Count in PDF structure (most reliable)
       const countMatch = pdfText.match(/\/Count\s+(\d+)/);
       if (countMatch) {
@@ -65,7 +65,7 @@ export default function EnhancedPreviewSystem({
           return;
         }
       }
-      
+
       // Method 2: Count /Page objects
       const pageMatches = pdfText.match(/\/Type\s*\/Page[^s]/g);
       if (pageMatches && pageMatches.length > 0) {
@@ -73,19 +73,19 @@ export default function EnhancedPreviewSystem({
         setTotalPages(pageMatches.length);
         return;
       }
-      
+
       // Method 3: Estimate based on content length (fallback)
       const estimatedPages = Math.max(1, Math.ceil(pdfBlob.size / 50000)); // Rough estimate: 50KB per page
       console.log(`PDF page count estimated: ${estimatedPages} pages (based on file size: ${pdfBlob.size} bytes)`);
       setTotalPages(estimatedPages);
-      
+
     } catch (error) {
       console.error('Error counting PDF pages:', error);
       // Default to estimated pages based on document content
-      const contentLength = (document.abstract?.length || 0) + 
-                           document.sections.reduce((total, section) => 
-                             total + section.contentBlocks.reduce((blockTotal, block) => 
-                               blockTotal + (block.content?.length || 0), 0), 0);
+      const contentLength = (document.abstract?.length || 0) +
+        document.sections.reduce((total, section) =>
+          total + section.contentBlocks.reduce((blockTotal, block) =>
+            blockTotal + (block.content?.length || 0), 0), 0);
       const estimatedPages = Math.max(1, Math.ceil(contentLength / 3000)); // ~3000 chars per page
       console.log(`Fallback page estimation: ${estimatedPages} pages (based on content length: ${contentLength} chars)`);
       setTotalPages(estimatedPages);
@@ -99,15 +99,15 @@ export default function EnhancedPreviewSystem({
       const titleLength = document.title?.length || 0;
       const abstractLength = document.abstract?.length || 0;
       const keywordsLength = document.keywords?.length || 0;
-      
+
       // Calculate authors content length
       const authorsLength = document.authors.reduce((total, author) => {
-        return total + (author.name?.length || 0) + 
-               (author.department?.length || 0) + 
-               (author.organization?.length || 0) + 
-               (author.email?.length || 0);
+        return total + (author.name?.length || 0) +
+          (author.department?.length || 0) +
+          (author.organization?.length || 0) +
+          (author.email?.length || 0);
       }, 0);
-      
+
       // Calculate sections content length
       const sectionsLength = document.sections.reduce((total, section) => {
         const sectionTitleLength = section.title?.length || 0;
@@ -116,21 +116,21 @@ export default function EnhancedPreviewSystem({
         }, 0);
         return total + sectionTitleLength + contentBlocksLength;
       }, 0);
-      
+
       // Calculate references length
       const referencesLength = document.references.reduce((total, ref) => {
         return total + (ref.text?.length || 0);
       }, 0);
-      
-      const totalContentLength = titleLength + abstractLength + keywordsLength + 
-                                authorsLength + sectionsLength + referencesLength;
-      
+
+      const totalContentLength = titleLength + abstractLength + keywordsLength +
+        authorsLength + sectionsLength + referencesLength;
+
       // Estimate pages (IEEE format: ~2500-3000 characters per page in 2-column layout)
       const estimatedPages = Math.max(1, Math.ceil(totalContentLength / 2800));
-      
+
       console.log(`Content-based page estimation: ${estimatedPages} pages (${totalContentLength} total characters)`);
       setTotalPages(estimatedPages);
-      
+
     } catch (error) {
       console.error('Error estimating pages from content:', error);
       setTotalPages(1); // Default fallback
@@ -155,9 +155,25 @@ export default function EnhancedPreviewSystem({
 
     setIsGenerating(true);
     try {
-      console.log('Generating preview using Python backend API...');
-      const result = await documentApi.generatePdf(document, true); // true = preview mode
+      // Import table validation for preview consistency
+      const { validateDocumentTables, sanitizeDocumentTables } = await import('@/lib/table-validation');
       
+      // Validate and sanitize table data for preview
+      const validation = validateDocumentTables(document);
+      if (validation.warnings.length > 0) {
+        console.warn('Preview table validation warnings:', validation.warnings);
+      }
+      
+      let documentToPreview = document;
+      if (!validation.isValid) {
+        console.warn('Preview table validation errors found, attempting to fix:', validation.errors);
+        documentToPreview = sanitizeDocumentTables(document);
+        console.log('Preview table data sanitized successfully');
+      }
+      
+      console.log('Generating preview using Python backend API...');
+      const result = await documentApi.generatePdf(documentToPreview, true); // true = preview mode
+
       if (result.file_data) {
         // Handle PDF file data (if backend returns actual PDF)
         const byteCharacters = atob(result.file_data);
@@ -167,19 +183,19 @@ export default function EnhancedPreviewSystem({
         }
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: 'application/pdf' });
-        
+
         if (pdfUrl) {
           URL.revokeObjectURL(pdfUrl);
         }
         const url = URL.createObjectURL(blob);
         setPdfUrl(url);
-        
+
         // Count pages in the PDF
         countPdfPages(blob);
       } else if (result.preview_html) {
         // Handle HTML preview (current backend behavior)
         console.log('Backend returned HTML preview, estimating pages...');
-        
+
         // Create a blob URL for the HTML content
         const htmlBlob = new Blob([result.preview_html], { type: 'text/html' });
         if (pdfUrl) {
@@ -187,7 +203,7 @@ export default function EnhancedPreviewSystem({
         }
         const url = URL.createObjectURL(htmlBlob);
         setPdfUrl(url);
-        
+
         // Estimate pages based on content length
         estimatePagesFromContent();
       } else {
@@ -195,7 +211,7 @@ export default function EnhancedPreviewSystem({
       }
     } catch (error) {
       console.error('Python backend preview failed:', error);
-      
+
       // No fallback - Python backend is the only reliable source with our fixes
       // Estimate pages based on content as fallback
       estimatePagesFromContent();
@@ -344,7 +360,7 @@ export default function EnhancedPreviewSystem({
                     <h2 className="text-lg font-semibold text-gray-900 text-center">
                       {index + 1}. {section.title.toUpperCase()}
                     </h2>
-                    
+
                     {section.contentBlocks.map(block => (
                       <div key={block.id} className="text-sm text-gray-700 leading-relaxed">
                         {block.type === 'text' && block.content && (
@@ -419,28 +435,28 @@ export default function EnhancedPreviewSystem({
                       {document.title}
                     </h1>
                   )}
-                  
+
                   {document.authors.length > 0 && (
                     <div className="text-xs text-gray-600">
                       {document.authors.map(author => author.name).join(', ')}
                     </div>
                   )}
 
-                    {document.abstract && (
-                      <div>
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                          <strong className="font-bold">Abstract—{document.abstract}</strong>
-                        </p>
-                      </div>
-                    )}
+                  {document.abstract && (
+                    <div>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        <strong className="font-bold">Abstract—{document.abstract}</strong>
+                      </p>
+                    </div>
+                  )}
 
-                    {document.keywords && (
-                      <div>
-                        <p className="text-xs text-gray-700">
-                          <strong className="font-bold">Keywords—{document.keywords}</strong>
-                        </p>
-                      </div>
-                    )}                  {document.sections.map((section, index) => (
+                  {document.keywords && (
+                    <div>
+                      <p className="text-xs text-gray-700">
+                        <strong className="font-bold">Keywords—{document.keywords}</strong>
+                      </p>
+                    </div>
+                  )}                  {document.sections.map((section, index) => (
                     <div key={section.id} className="space-y-2">
                       <h2 className="text-sm font-semibold text-gray-900 text-center">
                         {index + 1}. {section.title.toUpperCase()}
@@ -515,11 +531,11 @@ export default function EnhancedPreviewSystem({
               >
                 <ZoomOut className="w-3 h-3" />
               </EnhancedButton>
-              
+
               <span className="text-xs text-gray-600 min-w-[40px] text-center">
                 {zoom}%
               </span>
-              
+
               <EnhancedButton
                 variant="ghost"
                 size="sm"
@@ -529,7 +545,7 @@ export default function EnhancedPreviewSystem({
               >
                 <ZoomIn className="w-3 h-3" />
               </EnhancedButton>
-              
+
               <EnhancedButton
                 variant="ghost"
                 size="sm"
@@ -555,11 +571,11 @@ export default function EnhancedPreviewSystem({
               >
                 <ChevronLeft className="w-3 h-3" />
               </EnhancedButton>
-              
+
               <span className="text-xs text-gray-600 px-2">
                 {currentPage} / {totalPages}
               </span>
-              
+
               <EnhancedButton
                 variant="ghost"
                 size="sm"
@@ -574,7 +590,7 @@ export default function EnhancedPreviewSystem({
 
           {/* Action Buttons */}
           <div className="w-px h-4 bg-gray-300 mx-1" />
-          
+
           <EnhancedButton
             variant="ghost"
             size="sm"
@@ -618,7 +634,7 @@ export default function EnhancedPreviewSystem({
             </span>
           )}
         </div>
-        
+
         <div className="flex items-center gap-4">
           {previewMode === 'live' && pdfUrl && (
             <span>{totalPages} {totalPages === 1 ? 'page' : 'pages'}</span>

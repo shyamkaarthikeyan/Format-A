@@ -93,7 +93,10 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
 
   const handleTableTypeChange = (newType: 'interactive' | 'image' | 'latex') => {
     setTableType(newType);
-    onUpdate({ tableType: newType });
+    onUpdate({ 
+      tableType: newType,
+      type: newType  // Ensure both type and tableType are synchronized
+    });
   };
 
   const generateTablePreview = () => {

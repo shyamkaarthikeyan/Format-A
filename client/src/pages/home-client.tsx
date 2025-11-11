@@ -210,9 +210,31 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
+      // Import table validation
+      const { validateDocumentTables, sanitizeDocumentTables } = await import('@/lib/table-validation');
+      
+      // Validate and sanitize table data
+      const validation = validateDocumentTables(latestDocument);
+      if (validation.warnings.length > 0) {
+        console.warn('Table validation warnings:', validation.warnings);
+      }
+      
+      let documentToSend = latestDocument;
+      if (!validation.isValid) {
+        console.warn('Table validation errors found, attempting to fix:', validation.errors);
+        documentToSend = sanitizeDocumentTables(latestDocument);
+        
+        // Re-validate after sanitization
+        const revalidation = validateDocumentTables(documentToSend);
+        if (!revalidation.isValid) {
+          throw new Error(`Table validation failed: ${revalidation.errors.join('; ')}`);
+        }
+        console.log('Table data sanitized successfully');
+      }
+      
       console.log('Generating DOCX using Python backend API...');
-      console.log('Document data being sent:', JSON.stringify(latestDocument, null, 2));
-      const result = await documentApi.generateDocx(latestDocument);
+      console.log('Document data being sent:', JSON.stringify(documentToSend, null, 2));
+      const result = await documentApi.generateDocx(documentToSend);
       
       // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
@@ -278,9 +300,31 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
+      // Import table validation
+      const { validateDocumentTables, sanitizeDocumentTables } = await import('@/lib/table-validation');
+      
+      // Validate and sanitize table data
+      const validation = validateDocumentTables(latestDocument);
+      if (validation.warnings.length > 0) {
+        console.warn('Table validation warnings:', validation.warnings);
+      }
+      
+      let documentToSend = latestDocument;
+      if (!validation.isValid) {
+        console.warn('Table validation errors found, attempting to fix:', validation.errors);
+        documentToSend = sanitizeDocumentTables(latestDocument);
+        
+        // Re-validate after sanitization
+        const revalidation = validateDocumentTables(documentToSend);
+        if (!revalidation.isValid) {
+          throw new Error(`Table validation failed: ${revalidation.errors.join('; ')}`);
+        }
+        console.log('Table data sanitized successfully');
+      }
+      
       console.log('Generating PDF using Python backend API...');
-      console.log('Document data being sent:', JSON.stringify(latestDocument, null, 2));
-      const result = await documentApi.generatePdf(latestDocument, false); // false = download mode
+      console.log('Document data being sent:', JSON.stringify(documentToSend, null, 2));
+      const result = await documentApi.generatePdf(documentToSend, false); // false = download mode
       
       // Handle the response - it should contain download URL or blob data
       if (result.download_url) {

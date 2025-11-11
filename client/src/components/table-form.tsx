@@ -49,9 +49,11 @@ export default function TableForm({ tables, documentId, sections, onUpdate }: Ta
     onUpdate(tables.map(table => {
       if (table.id === tableId) {
         const updatedTable = { ...table, [field]: value };
-        // Sync tableType with type for backend compatibility
+        // Sync tableType with type for backend compatibility (both directions)
         if (field === 'type') {
           updatedTable.tableType = value;
+        } else if (field === 'tableType') {
+          updatedTable.type = value;
         }
         return updatedTable;
       }
