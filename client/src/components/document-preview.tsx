@@ -69,6 +69,7 @@ interface DocumentPreviewProps {
 export default function DocumentPreview({ document }: DocumentPreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfKey, setPdfKey] = useState<string>(''); // Force iframe re-render
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -262,12 +263,22 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
       console.log(`✅ PDF blob created: ${pdfBlob.size} bytes`);
 
-      // Create new blob URL with cache-busting timestamp
+      // Create new blob URL with aggressive cache-busting
       const url = URL.createObjectURL(pdfBlob);
-      const urlWithCacheBuster = `${url}#t=${Date.now()}`;
-
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(7);
+      const urlWithCacheBuster = `${url}#t=${timestamp}&r=${random}&nocache=true`;
+      
       console.log('🔗 New PDF URL created:', urlWithCacheBuster);
+      console.log('📊 PDF blob details:', {
+        size: pdfBlob.size,
+        type: pdfBlob.type,
+        timestamp: timestamp,
+        random: random
+      });
+      
       setPdfUrl(urlWithCacheBuster);
+      setPdfKey(`pdf-${timestamp}-${random}`); // Force iframe re-render
 
       console.log('✅ PDF preview generated successfully (Word→PDF conversion)');
 
@@ -450,7 +461,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
                     }}
                   >
                     <iframe
-                      key={pdfUrl} // Force re-render when URL changes
+                      key={pdfKey || pdfUrl} // Force re-render with unique key
                       src={`${pdfUrl.split('#')[0]}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=100`}
                       className="w-full h-full border-0 rounded-lg"
                       style={{
@@ -460,7 +471,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
                         border: 'none'
                       }}
                       title="PDF Preview"
-                      onLoad={() => console.log('📄 PDF iframe loaded successfully')}
+                      onLoad={() => console.log('📄 PDF iframe loaded successfully with key:', pdfKey)}
                       onError={() => console.error('❌ PDF iframe failed to load')}
                     />
                   </div>
