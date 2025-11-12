@@ -268,29 +268,30 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
       console.log(`✅ PDF blob created: ${pdfBlob.size} bytes`);
 
-      // CRITICAL DEBUG: Inspect actual PDF content
+      // FIXED DEBUG: Inspect PDF content properly as binary data
       const reader = new FileReader();
       reader.onload = function (e) {
         const arrayBuffer = e.target?.result as ArrayBuffer;
         const uint8Array = new Uint8Array(arrayBuffer);
-        const pdfText = new TextDecoder('latin-1').decode(uint8Array);
+        
+        // Check PDF header (first 4 bytes should be '%PDF')
+        const pdfHeader = String.fromCharCode(...uint8Array.slice(0, 4));
+        const isValidPDF = pdfHeader === '%PDF';
 
         console.log('🔍 PDF Content Analysis:', {
           size: arrayBuffer.byteLength,
-          startsWithPDF: pdfText.startsWith('%PDF'),
-          containsTitle: pdfText.includes(document.title || ''),
-          containsAuthor: document.authors?.[0]?.name ? pdfText.includes(document.authors[0].name) : false,
+          isValidPDF: isValidPDF,
+          pdfHeader: pdfHeader,
           firstAuthorName: document.authors?.[0]?.name || 'No author',
           documentTitle: document.title || 'No title',
-          pdfPreview: pdfText.substring(0, 500)
+          binaryPreview: Array.from(uint8Array.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' ')
         });
 
-        // Check if PDF contains expected content
-        if (document.title && !pdfText.includes(document.title)) {
-          console.error('❌ PDF does NOT contain the expected title:', document.title);
-        }
-        if (document.authors?.[0]?.name && !pdfText.includes(document.authors[0].name)) {
-          console.error('❌ PDF does NOT contain the expected author:', document.authors[0].name);
+        // Check if PDF is valid
+        if (!isValidPDF) {
+          console.error('❌ Invalid PDF format - does not start with %PDF header');
+        } else {
+          console.log('✅ Valid PDF format detected');
         }
       };
       reader.readAsArrayBuffer(pdfBlob);
