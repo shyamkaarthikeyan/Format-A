@@ -115,7 +115,7 @@ export interface ContentBlock {
   caption?: string;
   tableName?: string; // for table blocks
   equationNumber?: number; // for equation blocks
-  size?: "very-small" | "small" | "medium" | "large";
+  size?: "extra-small" | "small" | "medium" | "large" | "extra-large";
   position?: "top" | "bottom" | "here";
   order: number;
   // For interactive tables
@@ -148,7 +148,7 @@ export interface Figure {
   fileName: string;
   originalName: string;
   caption: string;
-  size: "very-small" | "small" | "medium" | "large";
+  size: "extra-small" | "small" | "medium" | "large" | "extra-large";
   position: "top" | "bottom" | "here";
   sectionId?: string;
   order: number;
@@ -247,7 +247,7 @@ export const insertDocumentSchema = z.object({
       caption: z.string().optional(),
       tableName: z.string().optional(), // for table blocks
       equationNumber: z.number().optional(), // for equation blocks
-      size: z.enum(["very-small", "small", "medium", "large"]).optional(),
+      size: z.enum(["extra-small", "small", "medium", "large", "extra-large"]).optional(),
       position: z.enum(["top", "bottom", "here"]).optional(),
       order: z.number(),
       // For interactive tables
@@ -272,7 +272,7 @@ export const insertDocumentSchema = z.object({
         caption: z.string().optional(),
         tableName: z.string().optional(), // for table blocks
         equationNumber: z.number().optional(), // for equation blocks
-        size: z.enum(["very-small", "small", "medium", "large"]).optional(),
+        size: z.enum(["extra-small", "small", "medium", "large", "extra-large"]).optional(),
         position: z.enum(["top", "bottom", "here"]).optional(),
         order: z.number(),
         // For interactive tables
@@ -299,7 +299,7 @@ export const insertDocumentSchema = z.object({
     fileName: z.string(),
     originalName: z.string(),
     caption: z.string(),
-    size: z.enum(["very-small", "small", "medium", "large"]),
+    size: z.enum(["extra-small", "small", "medium", "large", "extra-large"]),
     position: z.enum(["top", "bottom", "here"]),
     sectionId: z.string().optional(),
     order: z.number(),
