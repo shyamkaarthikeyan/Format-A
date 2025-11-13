@@ -2,7 +2,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/client/src/$1',
     '^@shared/(.*)$': '<rootDir>/shared/$1'
   },
@@ -18,5 +18,14 @@ module.exports = {
     'server/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**'
-  ]
+  ],
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        jsx: 'react',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      }
+    }
+  }
 };

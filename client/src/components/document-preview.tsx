@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { documentApi } from "@/lib/api";
 import type { Document } from "@shared/schema";
+import { usePDFGeneration } from "@/hooks/use-pdf-generation";
+import { PDFGenerationProgress, PDFGenerationModal } from "@/components/pdf-generation-progress";
 
 // Utility functions for file handling
 const base64ToBlob = (base64Data: string, contentType: string): Blob => {
@@ -76,6 +78,10 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
+  
+  // PDF generation state management
+  const pdfGeneration = usePDFGeneration();
+  const [showProgressModal, setShowProgressModal] = useState(false);
 
   // Debugging to verify document data
   console.log("IEEE Word preview rendering with:", {
@@ -145,27 +151,49 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
       console.log('Generating PDF for download (Word→PDF conversion)...');
 
-      // Use Word→PDF conversion pipeline
-      const result = await documentApi.generatePdf(document, false); // false = download mode
+      // Show progress modal and set initial state
+      setShowProgressModal(true);
+      pdfGeneration.setGeneratingWord();
 
-      if (!result.success || !result.file_data) {
-        throw new Error(result.message || 'Failed to generate PDF');
+      try {
+        // Use Word→PDF conversion pipeline
+        const result = await documentApi.generatePdf(document, false); // false = download mode
+
+        // Update to converting state (this happens quickly in the API)
+        pdfGeneration.setConvertingPdf();
+
+        if (!result.success || !result.file_data) {
+          throw new Error(result.message || 'Failed to generate PDF');
+        }
+
+        // Verify it's actually a PDF
+        if (result.file_type !== 'application/pdf') {
+          throw new Error('Server returned non-PDF format');
+        }
+
+        const pdfBlob = base64ToBlob(result.file_data, 'application/pdf');
+
+        if (!pdfBlob || pdfBlob.size === 0) {
+          throw new Error('Generated PDF file is empty');
+        }
+
+        downloadBlob(pdfBlob, "ieee_paper.pdf");
+
+        // Set complete state
+        pdfGeneration.setComplete();
+        
+        // Close modal after a short delay
+        setTimeout(() => {
+          setShowProgressModal(false);
+          pdfGeneration.reset();
+        }, 2000);
+
+        return result;
+      } catch (error) {
+        // Set error state
+        pdfGeneration.setError(error as Error);
+        throw error;
       }
-
-      // Verify it's actually a PDF
-      if (result.file_type !== 'application/pdf') {
-        throw new Error('Server returned non-PDF format');
-      }
-
-      const pdfBlob = base64ToBlob(result.file_data, 'application/pdf');
-
-      if (!pdfBlob || pdfBlob.size === 0) {
-        throw new Error('Generated PDF file is empty');
-      }
-
-      downloadBlob(pdfBlob, "ieee_paper.pdf");
-
-      return result;
     },
     onSuccess: () => {
       toast({
@@ -227,6 +255,9 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
     setIsGeneratingPreview(true);
     setPreviewError(null);
+    
+    // Set generating state for preview
+    pdfGeneration.setGeneratingWord();
 
     try {
       console.log('Generating PDF preview (Word→PDF conversion)...');
@@ -250,6 +281,9 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
       // Use Word→PDF conversion pipeline for preview
       const result = await documentApi.generatePdf(document, true); // true = preview mode
+
+      // Update to converting state
+      pdfGeneration.setConvertingPdf();
 
       if (!result.success || !result.file_data) {
         throw new Error(result.message || 'Failed to generate PDF preview');
@@ -283,14 +317,10 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
           isValidPDF: isValidPDF,
           pdfHeader: pdfHeader,
           firstAuthorName: document.authors?.[0]?.name || 'No author',
-          documentTitle: document.title || 'No title',
-          binaryPreview: Array.from(uint8Array.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' ')
+          documentTitle: document.title || 'No title'
         });
-
-        // Check if PDF is valid
-        if (!isValidPDF) {
-          console.error('❌ Invalid PDF format - does not start with %PDF header');
-        } else {
+        
+        if (isValidPDF) {
           console.log('✅ Valid PDF format detected');
         }
       };
