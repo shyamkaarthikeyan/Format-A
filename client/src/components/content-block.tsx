@@ -100,7 +100,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                       fileName: file.name,
                       content: block.content || "",
                       caption: block.caption || "",
-                      size: "small" // Set default size to small
+                      size: "medium" // Set default size to medium
                     });
                   }}
                   onClear={() => {
@@ -152,11 +152,14 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                     />
                     <select
                       className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                      value={block.size || "small"}
+                      value={block.size || "medium"}
                       onChange={(e) => onUpdate({ size: e.target.value as any })}
                     >
-                      <option value="small">Small (1.8")</option>
-                      <option value="medium">Medium (2.5")</option>
+                      <option value="extra-small">Extra Small (1.0")</option>
+                      <option value="small">Small (1.5")</option>
+                      <option value="medium">Medium (2.0")</option>
+                      <option value="large">Large (2.5")</option>
+                      <option value="extra-large">Extra Large (3.0")</option>
                     </select>
                   </div>
                 )}
@@ -217,11 +220,14 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 />
                 <select
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                  value={block.size || "small"}
+                  value={block.size || "medium"}
                   onChange={(e) => onUpdate({ size: e.target.value as any })}
                 >
-                  <option value="small">Small (1.8")</option>
-                  <option value="medium">Medium (2.5")</option>
+                  <option value="extra-small">Extra Small (1.0")</option>
+                  <option value="small">Small (1.5")</option>
+                  <option value="medium">Medium (2.0")</option>
+                  <option value="large">Large (2.5")</option>
+                  <option value="extra-large">Extra Large (3.0")</option>
                 </select>
               </>
             )}

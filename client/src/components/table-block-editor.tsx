@@ -146,6 +146,39 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
         </div>
       </div>
 
+      {/* Table Caption */}
+      <div>
+        <Label>Table Caption</Label>
+        <Textarea
+          rows={2}
+          placeholder="Enter table caption/description"
+          value={block.caption || ""}
+          onChange={(e) => onUpdate({ caption: e.target.value })}
+        />
+        <div className="text-xs text-gray-500 mt-1">
+          Brief description of the table content
+        </div>
+      </div>
+
+      {/* Table Size */}
+      <div>
+        <Label>Table Size</Label>
+        <select
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          value={block.size || "medium"}
+          onChange={(e) => onUpdate({ size: e.target.value as any })}
+        >
+          <option value="extra-small">Extra Small (1.5")</option>
+          <option value="small">Small (2.0")</option>
+          <option value="medium">Medium (2.5")</option>
+          <option value="large">Large (2.8")</option>
+          <option value="extra-large">Extra Large (3.0")</option>
+        </select>
+        <div className="text-xs text-gray-500 mt-1">
+          Choose table width (all sizes fit within 2-column layout)
+        </div>
+      </div>
+
       {/* Table Creation Options */}
       <Tabs value={tableType} onValueChange={handleTableTypeChange}>
         <TabsList className="grid w-full grid-cols-3">
