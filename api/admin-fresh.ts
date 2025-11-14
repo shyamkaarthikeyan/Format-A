@@ -255,8 +255,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         console.log('✅ Downloads retrieved successfully:', {
-          downloadsCount: downloads?.downloads?.length || downloads?.length || 0,
-          totalItems: downloads?.pagination?.totalItems || downloads?.length || 0,
+          downloadsCount: downloads?.downloads?.length || 0,
+          totalItems: downloads?.pagination?.totalItems || 0,
           downloadsData: downloads
         });
 
@@ -390,6 +390,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           message: `Database error: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`,
           dataSource: 'database_error',
           error: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        });
+      }
+    }
+
+    // Handle user documents endpoint - fetch all documents for a specific user
+    if (pathArray.length >= 2 && pathArray[0] === 'users' && pathArray[2] === 'documents') {
+      const userId = pathArray[1];
+      console.log('🔍 Fetching documents for user:', userId);
+
+      try {
+        if (!process.env.DATABASE_URL) {
+          return res.status(500).json({
+            success: false,
+            error: 'Database not configured'
+          });
+        }
+
+        const { neon } = await import('@neondatabase/serverless');
+        const sql = neon(process.env.DATABASE_URL);
+
+        // Get all documents for this user
+        const documents = await sql`
+          SELECT 
+            id,
+            title,
+            author,
+            created_at,
+            updated_at,
+            page_count,
+            word_count,
+            format,
+            metadata
+          FROM documents
+          WHERE user_id = ${userId}
+          ORDER BY created_at DESC
+        `;
+
+        console.log(`✅ Retrieved ${documents.length} documents for user ${userId}`);
+
+        return res.json({
+          success: true,
+          data: documents,
+          message: `Retrieved ${documents.length} documents`,
+          userId
+        });
+
+      } catch (error) {
+        console.error('❌ Error fetching user documents:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to fetch user documents',
+          message: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -787,7 +839,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   topDownloadedDocuments: []
                 };
                 useRealData = true;
-
+              }
               break;
             }
 

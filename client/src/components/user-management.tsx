@@ -16,6 +16,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import UserDetailView from './user-detail-view';
 
 interface User {
   id: string;
@@ -57,6 +58,7 @@ const UserManagement: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{ id: string; name: string; email: string } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -222,6 +224,18 @@ const UserManagement: React.FC = () => {
   }
 
   if (!data) return null;
+
+  // Show user detail view if a user is selected
+  if (selectedUser) {
+    return (
+      <UserDetailView
+        userId={selectedUser.id}
+        userName={selectedUser.name}
+        userEmail={selectedUser.email}
+        onBack={() => setSelectedUser(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -432,7 +446,11 @@ const UserManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900">
+                      <button 
+                        onClick={() => setSelectedUser({ id: user.id, name: user.name, email: user.email })}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View user details"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button className="text-gray-600 hover:text-gray-900">
