@@ -82,7 +82,26 @@ export default function HomeClient() {
   const { toast } = useToast();
   const { isAuthenticated, user, isAdmin } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  const [currentDocument, setCurrentDocumentState] = useState<Document | null>(null);
+
+  // Safe setter that ensures arrays are never undefined
+  const setCurrentDocument = (doc: Document | null) => {
+    if (!doc) {
+      setCurrentDocumentState(null);
+      return;
+    }
+    
+    const safeDoc: Document = {
+      ...doc,
+      authors: Array.isArray(doc.authors) ? doc.authors : [],
+      sections: Array.isArray(doc.sections) ? doc.sections : [],
+      references: Array.isArray(doc.references) ? doc.references : [],
+      figures: Array.isArray(doc.figures) ? doc.figures : [],
+      tables: Array.isArray(doc.tables) ? doc.tables : [],
+    };
+    
+    setCurrentDocumentState(safeDoc);
+  };
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [showDownloadHistory, setShowDownloadHistory] = useState(false);
@@ -146,7 +165,17 @@ export default function HomeClient() {
   const handleUpdateDocument = (updates: UpdateDocument) => {
     if (!currentDocument) return;
 
-    const updatedDocument = clientStorage.updateDocument(currentDocument.id, updates);
+    // Ensure arrays are never undefined
+    const safeUpdates = {
+      ...updates,
+      authors: Array.isArray(updates.authors) ? updates.authors : currentDocument.authors || [],
+      sections: Array.isArray(updates.sections) ? updates.sections : currentDocument.sections || [],
+      references: Array.isArray(updates.references) ? updates.references : currentDocument.references || [],
+      figures: Array.isArray(updates.figures) ? updates.figures : currentDocument.figures || [],
+      tables: Array.isArray(updates.tables) ? updates.tables : currentDocument.tables || [],
+    };
+
+    const updatedDocument = clientStorage.updateDocument(currentDocument.id, safeUpdates);
     if (updatedDocument) {
       setDocuments(prev => prev.map(doc => 
         doc.id === currentDocument.id ? updatedDocument : doc
@@ -635,7 +664,7 @@ export default function HomeClient() {
                   </div>
                 </CardHeader>
                 <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
-                  <DocumentPreview document={documentToDisplay} documentId={currentDocument?.id || null} />
+                  <DocumentPreview document={documentToDisplay} />
                 </CardContent>
               </Card>
             </div>
