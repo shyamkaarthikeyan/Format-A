@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bold, Italic, Underline } from 'lucide-react';
+import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered } from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -18,7 +18,17 @@ export default function RichTextEditor({
   className = ""
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isActive, setIsActive] = useState({ bold: false, italic: false, underline: false });
+  const [isActive, setIsActive] = useState({ 
+    bold: false, 
+    italic: false, 
+    underline: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
+    alignJustify: false,
+    bulletList: false,
+    numberedList: false
+  });
 
   // Initialize editor content
   useEffect(() => {
@@ -37,7 +47,13 @@ export default function RichTextEditor({
     setIsActive({
       bold: document.queryCommandState('bold'),
       italic: document.queryCommandState('italic'),
-      underline: document.queryCommandState('underline')
+      underline: document.queryCommandState('underline'),
+      alignLeft: document.queryCommandState('justifyLeft'),
+      alignCenter: document.queryCommandState('justifyCenter'),
+      alignRight: document.queryCommandState('justifyRight'),
+      alignJustify: document.queryCommandState('justifyFull'),
+      bulletList: document.queryCommandState('insertUnorderedList'),
+      numberedList: document.queryCommandState('insertOrderedList')
     });
   }, []);
 
@@ -60,11 +76,11 @@ export default function RichTextEditor({
   }, [updateButtonStates]);
 
   // Execute formatting commands
-  const executeCommand = useCallback((command: string) => {
+  const executeCommand = useCallback((command: string, value?: string) => {
     if (!editorRef.current) return;
     
     editorRef.current.focus();
-    document.execCommand(command, false, '');
+    document.execCommand(command, false, value || '');
     updateButtonStates();
     handleInput(); // Trigger onChange after formatting
   }, [handleInput, updateButtonStates]);
@@ -79,39 +95,114 @@ export default function RichTextEditor({
   return (
     <div className={`border border-gray-300 rounded-md ${className}`}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 p-2 border-b border-gray-200 bg-gray-50">
-        <Button
-          type="button"
-          variant={isActive.bold ? "default" : "outline"}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => executeCommand('bold')}
-          title="Bold (Ctrl+B)"
-        >
-          <Bold className="h-4 w-4" />
-        </Button>
-        
-        <Button
-          type="button"
-          variant={isActive.italic ? "default" : "outline"}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => executeCommand('italic')}
-          title="Italic (Ctrl+I)"
-        >
-          <Italic className="h-4 w-4" />
-        </Button>
-        
-        <Button
-          type="button"
-          variant={isActive.underline ? "default" : "outline"}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => executeCommand('underline')}
-          title="Underline (Ctrl+U)"
-        >
-          <Underline className="h-4 w-4" />
-        </Button>
+      <div className="flex items-center gap-1 p-2 border-b border-gray-200 bg-gray-50 flex-wrap">
+        {/* Text Formatting */}
+        <div className="flex items-center gap-1 pr-2 border-r border-gray-300">
+          <Button
+            type="button"
+            variant={isActive.bold ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('bold')}
+            title="Bold (Ctrl+B)"
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            type="button"
+            variant={isActive.italic ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('italic')}
+            title="Italic (Ctrl+I)"
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            type="button"
+            variant={isActive.underline ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('underline')}
+            title="Underline (Ctrl+U)"
+          >
+            <Underline className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Alignment */}
+        <div className="flex items-center gap-1 px-2 border-r border-gray-300">
+          <Button
+            type="button"
+            variant={isActive.alignLeft ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('justifyLeft')}
+            title="Align Left"
+          >
+            <AlignLeft className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            type="button"
+            variant={isActive.alignCenter ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('justifyCenter')}
+            title="Align Center"
+          >
+            <AlignCenter className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            type="button"
+            variant={isActive.alignRight ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('justifyRight')}
+            title="Align Right"
+          >
+            <AlignRight className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            type="button"
+            variant={isActive.alignJustify ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('justifyFull')}
+            title="Justify"
+          >
+            <AlignJustify className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Lists */}
+        <div className="flex items-center gap-1 pl-2">
+          <Button
+            type="button"
+            variant={isActive.bulletList ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('insertUnorderedList')}
+            title="Bullet List"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            type="button"
+            variant={isActive.numberedList ? "default" : "outline"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => executeCommand('insertOrderedList')}
+            title="Numbered List"
+          >
+            <ListOrdered className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Editor */}
