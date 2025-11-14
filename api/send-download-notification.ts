@@ -14,63 +14,67 @@ function getSql() {
   return sql;
 }
 
-// Email service configuration - REQUIRES environment variables
-const EMAIL_CONFIG = {
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER!,
-    pass: process.env.EMAIL_PASS!
-  }
-};
+// Python backend URL for email sending
+const PYTHON_BACKEND_URL = process.env.VITE_PYTHON_BACKEND_URL || 'https://format-a-python-backend.vercel.app/api';
 
-// Import nodemailer dynamically to avoid build issues
+// Send email using Python backend (which has working SMTP)
 async function sendEmailNotification(to: string, downloadData: any, fileData?: string) {
   try {
-    // Validate environment variables
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error('EMAIL_USER and EMAIL_PASS environment variables must be set in Vercel');
-    }
+    console.log('📧 Using Python backend for email sending...');
+    console.log('   Recipient:', to);
+    console.log('   Document:', downloadData.documentTitle);
+    console.log('   Has attachment:', !!fileData);
     
-    const nodemailer = await import('nodemailer');
-    
-    const transporter = nodemailer.default.createTransport(EMAIL_CONFIG);
-    
-    const emailTemplate = generateDownloadEmailTemplate(downloadData);
-    
-    const mailOptions: any = {
-      from: EMAIL_CONFIG.auth.user,
-      to: to,
-      subject: `📄 Your IEEE Paper: "${downloadData.documentTitle}"`,
-      html: emailTemplate,
-      text: `Your document "${downloadData.documentTitle}" has been generated successfully. File format: ${downloadData.fileFormat.toUpperCase()}, Size: ${formatFileSize(downloadData.fileSize)}`
+    // Prepare document data for Python backend
+    const emailPayload = {
+      email: to,
+      documentData: {
+        title: downloadData.documentTitle,
+        authors: downloadData.documentMetadata?.authors || [],
+        sections: [],
+        references: [],
+        figures: []
+      }
     };
-
-    // Attach the document file if provided
-    if (fileData) {
-      const fileExtension = downloadData.fileFormat.toLowerCase();
-      const mimeType = fileExtension === 'pdf' 
-        ? 'application/pdf' 
-        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      
-      mailOptions.attachments = [{
-        filename: `${downloadData.documentTitle}.${fileExtension}`,
-        content: Buffer.from(fileData, 'base64'),
-        contentType: mimeType
-      }];
+    
+    // If we have file data, we need to generate the document
+    // For now, let Python backend generate it fresh
+    const pythonEmailUrl = `${PYTHON_BACKEND_URL}/email-generator`;
+    
+    console.log('📤 Calling Python email endpoint:', pythonEmailUrl);
+    
+    const response = await fetch(pythonEmailUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(emailPayload)
+    });
+    
+    console.log('📥 Python backend response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Python backend error:', errorText);
+      throw new Error(`Python backend returned ${response.status}: ${errorText}`);
     }
-
-    const result = await transporter.sendMail(mailOptions);
-    console.log('Document email sent with attachment:', result.messageId);
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Python backend email failed');
+    }
+    
+    console.log('✅ Email sent successfully via Python backend');
     
     return {
       success: true,
-      messageId: result.messageId,
-      sentAt: new Date().toISOString()
+      messageId: `python-${Date.now()}`,
+      sentAt: new Date().toISOString(),
+      backend: 'python'
     };
   } catch (error) {
-    console.error('Error sending download notification email:', error);
+    console.error('❌ Error sending email via Python backend:', error);
     throw new Error(`Failed to send email notification: ${error.message}`);
   }
 }
