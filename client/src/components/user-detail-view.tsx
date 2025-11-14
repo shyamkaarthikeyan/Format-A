@@ -242,9 +242,12 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         ) : filteredAndSortedDocuments.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No documents found</p>
+            <p className="text-gray-500 font-medium">No documents found</p>
             <p className="text-gray-400 text-sm mt-2">
-              {searchTerm ? 'Try adjusting your search' : 'This user hasn\'t created any documents yet'}
+              {searchTerm ? 'Try adjusting your search' : 'Documents are currently stored locally in the browser'}
+            </p>
+            <p className="text-gray-400 text-xs mt-2">
+              Note: Document tracking in database will be available once the documents table is created
             </p>
           </div>
         ) : (

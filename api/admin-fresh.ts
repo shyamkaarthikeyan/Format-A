@@ -411,6 +411,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { neon } = await import('@neondatabase/serverless');
         const sql = neon(process.env.DATABASE_URL);
 
+        // Check if documents table exists
+        const tableCheck = await sql`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'documents'
+          )
+        `;
+
+        if (!tableCheck[0].exists) {
+          console.log('⚠️ Documents table does not exist yet');
+          return res.json({
+            success: true,
+            data: [],
+            message: 'Documents table not yet created. Documents are currently stored locally in browser.',
+            userId,
+            note: 'To track documents in database, run the create_documents_table.sql script'
+          });
+        }
+
         // Get all documents for this user
         const documents = await sql`
           SELECT 
@@ -439,6 +459,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       } catch (error) {
         console.error('❌ Error fetching user documents:', error);
+        
+        // If it's a table doesn't exist error, return empty array
+        if (error instanceof Error && error.message.includes('does not exist')) {
+          return res.json({
+            success: true,
+            data: [],
+            message: 'Documents table not yet created',
+            userId
+          });
+        }
+        
         return res.status(500).json({
           success: false,
           error: 'Failed to fetch user documents',
