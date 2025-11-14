@@ -21,9 +21,14 @@ interface Download {
   file_format: string;
   file_size: number;
   document_metadata: {
-    authors?: Array<{ name: string }>;
+    authors?: Array<string | { name: string }>;  // Can be string array or object array
     page_count?: number;
     word_count?: number;
+    wordCount?: number;  // camelCase version
+    authorsCount?: number;
+    sections?: number;
+    figures?: number;
+    references?: number;
   } | null;
 }
 
@@ -95,7 +100,8 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
     .filter(download => {
       const title = download?.document_title || '';
       const authors = download?.document_metadata?.authors || [];
-      const authorNames = authors.map(a => a?.name || '').join(' ');
+      // Handle both string array and object array
+      const authorNames = authors.map(a => typeof a === 'string' ? a : a?.name || '').join(' ');
       const search = searchTerm.toLowerCase();
       
       return title.toLowerCase().includes(search) || authorNames.toLowerCase().includes(search);
@@ -111,7 +117,9 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           comparison = (a?.document_title || '').localeCompare(b?.document_title || '');
           break;
         case 'pages':
-          comparison = (a?.document_metadata?.page_count || 0) - (b?.document_metadata?.page_count || 0);
+          const aSections = a?.document_metadata?.sections || 0;
+          const bSections = b?.document_metadata?.sections || 0;
+          comparison = aSections - bSections;
           break;
       }
       
@@ -174,9 +182,9 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
               <FileType className="w-6 h-6 text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Pages</p>
+              <p className="text-sm font-medium text-gray-600">Total Sections</p>
               <p className="text-2xl font-bold text-gray-900">
-                {downloads.reduce((sum, dl) => sum + (dl?.document_metadata?.page_count || 0), 0)}
+                {downloads.reduce((sum, dl) => sum + (dl?.document_metadata?.sections || 0), 0)}
               </p>
             </div>
           </div>
@@ -221,7 +229,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             >
               <option value="date">Sort by Date</option>
               <option value="title">Sort by Title</option>
-              <option value="pages">Sort by Pages</option>
+              <option value="pages">Sort by Sections</option>
             </select>
             
             <button
@@ -266,7 +274,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
                     Author
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pages
+                    Sections
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Words
@@ -282,27 +290,34 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredAndSortedDownloads.map((download, index) => {
                   const authors = download?.document_metadata?.authors || [];
-                  const authorName = authors.length > 0 ? authors[0]?.name : 'Unknown';
-                  const pageCount = download?.document_metadata?.page_count;
-                  const wordCount = download?.document_metadata?.word_count;
+                  // Handle both string array and object array
+                  const firstAuthor = authors.length > 0 
+                    ? (typeof authors[0] === 'string' ? authors[0] : authors[0]?.name)
+                    : 'Unknown';
+                  const authorName = firstAuthor || 'Unknown';
+                  
+                  const sections = download?.document_metadata?.sections;
+                  const wordCount = download?.document_metadata?.wordCount || download?.document_metadata?.word_count;
                   
                   return (
                     <tr key={download?.id || `download-${index}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <Download className="w-5 h-5 text-purple-600 mr-3" />
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
+                        <div className="flex items-start">
+                          <Download className="w-5 h-5 text-purple-600 mr-3 flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-gray-900 break-words">
                               {download?.document_title || 'Untitled Document'}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {authorName}
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="break-words max-w-xs">
+                          {authorName}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {pageCount || 'N/A'}
+                        {sections || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {wordCount ? wordCount.toLocaleString() : 'N/A'}
