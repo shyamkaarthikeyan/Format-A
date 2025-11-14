@@ -14,20 +14,25 @@ function getSql() {
   return sql;
 }
 
-// Email service configuration
+// Email service configuration - REQUIRES environment variables
 const EMAIL_CONFIG = {
   host: 'smtp.gmail.com',
   port: 465,
   secure: true,
   auth: {
-    user: process.env.EMAIL_USER || 'formatateam@gmail.com',
-    pass: process.env.EMAIL_PASS || 'qrcrrrlodnywmsyw'
+    user: process.env.EMAIL_USER!,
+    pass: process.env.EMAIL_PASS!
   }
 };
 
 // Import nodemailer dynamically to avoid build issues
 async function sendEmailNotification(to: string, downloadData: any, fileData?: string) {
   try {
+    // Validate environment variables
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('EMAIL_USER and EMAIL_PASS environment variables must be set in Vercel');
+    }
+    
     const nodemailer = await import('nodemailer');
     
     const transporter = nodemailer.default.createTransport(EMAIL_CONFIG);
