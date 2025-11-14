@@ -218,7 +218,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Downloads</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.totalDownloads.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">{(analytics?.totalDownloads ?? 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -288,7 +288,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                       ></div>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${bgColors[index % bgColors.length]} ${textColors[index % textColors.length]} mr-2`}>
-                      {format.count.toLocaleString()}
+                      {(format?.count ?? 0).toLocaleString()}
                     </span>
                     <span className="text-sm text-gray-500 w-12 text-right">
                       {format.percentage}%

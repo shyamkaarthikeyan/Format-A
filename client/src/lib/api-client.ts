@@ -43,15 +43,17 @@ export async function authenticatedFetch(
 ): Promise<Response> {
   const { timeout = 30000 } = config;
   const sessionId = getSessionId();
+  const authToken = localStorage.getItem('auth-token');
 
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
 
-  // Add Authorization header if we have a session ID
-  if (sessionId) {
-    (headers as any)['Authorization'] = `Bearer ${sessionId}`;
+  // Add Authorization header if we have a session ID or auth token
+  const token = authToken || sessionId;
+  if (token) {
+    (headers as any)['Authorization'] = `Bearer ${token}`;
   }
 
   // Add admin token for admin requests

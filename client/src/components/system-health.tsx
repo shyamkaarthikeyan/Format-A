@@ -258,7 +258,7 @@ const SystemHealth: React.FC = () => {
                 <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
                 <span className="text-sm text-gray-600">Total Users</span>
               </div>
-              <span className="text-sm font-medium text-gray-900">{health.totalUsers.toLocaleString()}</span>
+              <span className="text-sm font-medium text-gray-900">{(health.totalUsers ?? 0).toLocaleString()}</span>
             </div>
             
             <div className="flex items-center justify-between">
@@ -266,7 +266,7 @@ const SystemHealth: React.FC = () => {
                 <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
                 <span className="text-sm text-gray-600">Total Documents</span>
               </div>
-              <span className="text-sm font-medium text-gray-900">{health.totalDocuments.toLocaleString()}</span>
+              <span className="text-sm font-medium text-gray-900">{(health.totalDocuments ?? 0).toLocaleString()}</span>
             </div>
           </div>
         </div>
