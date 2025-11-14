@@ -14,52 +14,53 @@ function getSql() {
   return sql;
 }
 
-// Email notification function - ALWAYS send emails for every download
+// Email notification function - Uses Python backend with port 587
 async function sendDownloadNotification(downloadId: string, downloadData: any, user: any) {
   try {
-    console.log('📧 Sending email notification for download:', {
+    console.log('📧 Sending email via Python backend:', {
       downloadId,
-      hasFileData: !!downloadData.fileData,
-      fileDataLength: downloadData.fileData?.length || 0,
       userEmail: user.email,
       documentTitle: downloadData.documentTitle
     });
 
-    // Call the email notification endpoint
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'https://format-a.vercel.app';
+    const pythonBackendUrl = process.env.VITE_PYTHON_BACKEND_URL || 'https://format-a-python-backend.vercel.app/api';
+    const emailEndpoint = `${pythonBackendUrl}/email-generator`;
     
-    console.log('📧 Email notification URL:', `${baseUrl}/api/send-download-notification`);
+    console.log('📧 Python email endpoint:', emailEndpoint);
     
-    const notificationResponse = await fetch(`${baseUrl}/api/send-download-notification`, {
+    // Prepare payload for Python backend
+    const emailPayload = {
+      email: user.email,
+      documentData: {
+        title: downloadData.documentTitle,
+        authors: downloadData.documentMetadata?.authors?.map((name: string) => ({ name })) || [],
+        sections: [],
+        references: [],
+        figures: []
+      }
+    };
+    
+    const notificationResponse = await fetch(emailEndpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${generateInternalToken(user)}`
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        downloadId,
-        downloadData: {
-          ...downloadData,
-          fileData: downloadData.fileData // Pass file data for email attachment
-        }
-      })
+      body: JSON.stringify(emailPayload)
     });
 
-    console.log('📧 Email notification response status:', notificationResponse.status);
+    console.log('📧 Python backend response status:', notificationResponse.status);
 
     if (!notificationResponse.ok) {
       const errorText = await notificationResponse.text();
-      console.error('📧 Email notification error response:', errorText);
-      throw new Error(`Email notification failed: ${notificationResponse.status} - ${errorText}`);
+      console.error('📧 Python backend error:', errorText);
+      throw new Error(`Python email failed: ${notificationResponse.status} - ${errorText}`);
     }
 
     const result = await notificationResponse.json();
-    console.log('📧 Email notification result:', result);
+    console.log('📧 Email sent via Python backend:', result);
     return result;
   } catch (error) {
-    console.error('Error sending download notification:', error);
+    console.error('Error sending email via Python backend:', error);
     
     // Update download record with error status
     try {
@@ -71,27 +72,14 @@ async function sendDownloadNotification(downloadId: string, downloadData: any, u
         WHERE id = ${downloadId}
       `;
     } catch (updateError) {
-      console.error('Error updating download record with email error:', updateError);
+      console.error('Error updating download record:', updateError);
     }
     
     throw error;
   }
 }
 
-// Generate internal token for email service
-function generateInternalToken(user: any): string {
-  const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
-  return jwt.sign(
-    {
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      internal: true
-    },
-    jwtSecret,
-    { expiresIn: '5m' } // Short-lived token for internal use
-  );
-}
+
 
 // Extract user from JWT token
 async function extractUserFromToken(req: VercelRequest) {
