@@ -14,14 +14,17 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
-interface Document {
+interface Download {
   id: string;
-  title: string;
-  created_at: string;
-  page_count: number | null;
-  word_count: number | null;
-  author: string | null;
-  format: string;
+  document_title: string;
+  downloaded_at: string;
+  file_format: string;
+  file_size: number;
+  document_metadata: {
+    authors?: Array<{ name: string }>;
+    page_count?: number;
+    word_count?: number;
+  } | null;
 }
 
 interface UserDetailViewProps {
@@ -37,7 +40,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   userEmail, 
   onBack 
 }) => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [downloads, setDownloads] = useState<Download[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,21 +48,24 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchUserDocuments = async () => {
+  const fetchUserDownloads = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.adminGet(`users/${userId}/documents`);
+      // Use the existing downloads endpoint
+      const response = await apiClient.adminGet(`users?action=downloads&userId=${userId}&page=1&limit=100`);
       
       if (response.success && response.data) {
-        setDocuments(Array.isArray(response.data) ? response.data : []);
+        const data = response.data as any;
+        const downloadsData = data.downloads || response.data;
+        setDownloads(Array.isArray(downloadsData) ? downloadsData : []);
       } else {
-        throw new Error('Failed to fetch user documents');
+        throw new Error('Failed to fetch user downloads');
       }
     } catch (err) {
-      console.error('Error fetching user documents:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch documents');
+      console.error('Error fetching user downloads:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch downloads');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,12 +73,12 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   };
 
   useEffect(() => {
-    fetchUserDocuments();
+    fetchUserDownloads();
   }, [userId]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchUserDocuments();
+    fetchUserDownloads();
   };
 
   const formatDate = (dateString: string) => {
@@ -85,26 +91,27 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
     });
   };
 
-  const filteredAndSortedDocuments = documents
-    .filter(doc => {
-      const title = doc?.title || '';
-      const author = doc?.author || '';
+  const filteredAndSortedDownloads = downloads
+    .filter(download => {
+      const title = download?.document_title || '';
+      const authors = download?.document_metadata?.authors || [];
+      const authorNames = authors.map(a => a?.name || '').join(' ');
       const search = searchTerm.toLowerCase();
       
-      return title.toLowerCase().includes(search) || author.toLowerCase().includes(search);
+      return title.toLowerCase().includes(search) || authorNames.toLowerCase().includes(search);
     })
     .sort((a, b) => {
       let comparison = 0;
       
       switch (sortBy) {
         case 'date':
-          comparison = new Date(a?.created_at || 0).getTime() - new Date(b?.created_at || 0).getTime();
+          comparison = new Date(a?.downloaded_at || 0).getTime() - new Date(b?.downloaded_at || 0).getTime();
           break;
         case 'title':
-          comparison = (a?.title || '').localeCompare(b?.title || '');
+          comparison = (a?.document_title || '').localeCompare(b?.document_title || '');
           break;
         case 'pages':
-          comparison = (a?.page_count || 0) - (b?.page_count || 0);
+          comparison = (a?.document_metadata?.page_count || 0) - (b?.document_metadata?.page_count || 0);
           break;
       }
       
@@ -152,11 +159,11 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="w-6 h-6 text-blue-600" />
+              <Download className="w-6 h-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Documents</p>
-              <p className="text-2xl font-bold text-gray-900">{documents.length}</p>
+              <p className="text-sm font-medium text-gray-600">Total Downloads</p>
+              <p className="text-2xl font-bold text-gray-900">{downloads.length}</p>
             </div>
           </div>
         </div>
@@ -169,7 +176,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Pages</p>
               <p className="text-2xl font-bold text-gray-900">
-                {documents.reduce((sum, doc) => sum + (doc.page_count || 0), 0)}
+                {downloads.reduce((sum, dl) => sum + (dl?.document_metadata?.page_count || 0), 0)}
               </p>
             </div>
           </div>
@@ -181,10 +188,10 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
               <Calendar className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Latest Document</p>
+              <p className="text-sm font-medium text-gray-600">Latest Download</p>
               <p className="text-sm font-bold text-gray-900">
-                {documents.length > 0 
-                  ? formatDate(documents[0].created_at).split(',')[0]
+                {downloads.length > 0 
+                  ? formatDate(downloads[0].downloaded_at).split(',')[0]
                   : 'N/A'}
               </p>
             </div>
@@ -227,27 +234,24 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Documents List */}
+      {/* Downloads List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {error ? (
           <div className="p-6 text-center">
             <p className="text-red-600">{error}</p>
             <button
-              onClick={fetchUserDocuments}
+              onClick={fetchUserDownloads}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
               Try Again
             </button>
           </div>
-        ) : filteredAndSortedDocuments.length === 0 ? (
+        ) : filteredAndSortedDownloads.length === 0 ? (
           <div className="p-12 text-center">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium">No documents found</p>
+            <Download className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 font-medium">No downloads found</p>
             <p className="text-gray-400 text-sm mt-2">
-              {searchTerm ? 'Try adjusting your search' : 'Documents are currently stored locally in the browser'}
-            </p>
-            <p className="text-gray-400 text-xs mt-2">
-              Note: Document tracking in database will be available once the documents table is created
+              {searchTerm ? 'Try adjusting your search' : 'This user hasn\'t downloaded any documents yet'}
             </p>
           </div>
         ) : (
@@ -271,45 +275,52 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
                     Format
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created Date
+                    Downloaded Date
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAndSortedDocuments.map((doc, index) => (
-                  <tr key={doc?.id || `doc-${index}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <FileText className="w-5 h-5 text-purple-600 mr-3" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {doc.title || 'Untitled Document'}
+                {filteredAndSortedDownloads.map((download, index) => {
+                  const authors = download?.document_metadata?.authors || [];
+                  const authorName = authors.length > 0 ? authors[0]?.name : 'Unknown';
+                  const pageCount = download?.document_metadata?.page_count;
+                  const wordCount = download?.document_metadata?.word_count;
+                  
+                  return (
+                    <tr key={download?.id || `download-${index}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <Download className="w-5 h-5 text-purple-600 mr-3" />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {download?.document_title || 'Untitled Document'}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {doc.author || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {doc.page_count || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {doc.word_count ? doc.word_count.toLocaleString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {doc.format || 'PDF'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-gray-400" />
-                        {formatDate(doc.created_at)}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {authorName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {pageCount || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {wordCount ? wordCount.toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {download?.file_format?.toUpperCase() || 'PDF'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 mr-2 text-gray-400" />
+                          {formatDate(download?.downloaded_at || new Date().toISOString())}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
