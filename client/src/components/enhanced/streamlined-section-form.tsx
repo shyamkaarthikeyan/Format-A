@@ -109,14 +109,14 @@ const SectionItem: React.FC<SectionItemProps> = ({
         className="overflow-hidden transition-all duration-200 hover:shadow-lg"
       >
         {/* Section Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 p-4">
+        <div className="bg-gradient-to-r from-purple-50 to-white border-b border-gray-200 p-4 border-l-4 border-l-purple-600">
           <div className="flex items-center justify-between">
             <div 
-              className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-gray-50/50 -m-2 p-2 rounded transition-colors"
+              className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-purple-50/50 -m-2 p-2 rounded transition-colors"
               onClick={() => !isEditing && setIsExpanded(!isExpanded)}
             >
               <div className="h-8 w-8 flex items-center justify-center">
-                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
               </div>
               
               <div className="flex items-center gap-3">

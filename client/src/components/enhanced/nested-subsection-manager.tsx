@@ -92,46 +92,73 @@ const SubsectionItem: React.FC<SubsectionItemProps> = ({
   const maxLevel = 5; // Maximum nesting depth
   const canAddChild = level < maxLevel;
   
-  const indentClass = level === 1 ? '' : 
-                     level === 2 ? 'ml-6' : 
-                     level === 3 ? 'ml-12' : 
-                     level === 4 ? 'ml-18' : 'ml-24';
+  // Indentation increases with each level
+  const indentClass = level === 1 ? 'ml-6' : 
+                     level === 2 ? 'ml-12' : 
+                     level === 3 ? 'ml-18' : 
+                     level === 4 ? 'ml-24' : 'ml-30';
+
+  // Background colors for each level
+  const bgGradient = level === 1 ? 'bg-gradient-to-r from-blue-50 to-white' :
+                    level === 2 ? 'bg-gradient-to-r from-indigo-50 to-white' :
+                    level === 3 ? 'bg-gradient-to-r from-purple-50 to-white' :
+                    level === 4 ? 'bg-gradient-to-r from-pink-50 to-white' : 'bg-gradient-to-r from-rose-50 to-white';
+
+  // Left border colors and thickness for each level
+  const borderLeft = level === 1 ? 'border-l-4 border-l-blue-500' :
+                    level === 2 ? 'border-l-3 border-l-indigo-500' :
+                    level === 3 ? 'border-l-2 border-l-purple-500' :
+                    level === 4 ? 'border-l-2 border-l-pink-500' : 'border-l border-l-rose-500';
+
+  // Badge colors for each level
+  const badgeColor = level === 1 ? 'bg-blue-100 text-blue-700' :
+                    level === 2 ? 'bg-indigo-100 text-indigo-700' :
+                    level === 3 ? 'bg-purple-100 text-purple-700' :
+                    level === 4 ? 'bg-pink-100 text-pink-700' : 'bg-rose-100 text-rose-700';
+
+  // Font sizes for each level
+  const titleSize = level === 1 ? 'text-base font-semibold' :
+                   level === 2 ? 'text-sm font-semibold' :
+                   level === 3 ? 'text-sm font-medium' : 'text-xs font-medium';
+
+  // Chevron sizes for each level
+  const chevronSize = level === 1 ? 'w-4 h-4' :
+                     level === 2 ? 'w-3.5 h-3.5' : 'w-3 h-3';
 
   const hasContent = subsection.content || contentBlocks.length > 0;
 
   return (
     <div className={cn('relative', indentClass, className)}>
-      {/* Connection lines for visual hierarchy */}
-      {level > 1 && (
-        <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300" />
+      {/* Tree connector lines */}
+      {level > 0 && (
+        <>
+          {/* Vertical line connecting to parent */}
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300" style={{ left: '-12px' }} />
+          {/* Horizontal line to this item */}
+          <div className="absolute top-6 w-3 h-px bg-gray-300" style={{ left: '-12px' }} />
+        </>
       )}
       
       <EnhancedCard 
         variant="glass" 
         className={cn(
-          'border transition-all duration-200',
-          level === 1 ? 'border-gray-200' : 
-          level === 2 ? 'border-blue-200' : 
-          level === 3 ? 'border-green-200' : 
-          level === 4 ? 'border-yellow-200' : 'border-purple-200'
+          'border border-gray-200 transition-all duration-200 overflow-hidden',
+          borderLeft
         )}
       >
-        <div className="p-4 space-y-4">
+        <div className={cn('p-3 space-y-3', bgGradient)}>
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span className={cn(
-                'flex-shrink-0 px-3 py-1 text-sm font-medium rounded-full',
-                level === 1 ? 'bg-gray-100 text-gray-700' :
-                level === 2 ? 'bg-blue-100 text-blue-700' :
-                level === 3 ? 'bg-green-100 text-green-700' :
-                level === 4 ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700'
+                'flex-shrink-0 px-2.5 py-0.5 text-xs font-medium rounded-full',
+                badgeColor
               )}>
                 {numbering}
               </span>
               
               {!isEditing && subsection.title && (
-                <h4 className="font-semibold text-gray-900 text-lg">
+                <h4 className={cn('text-gray-900', titleSize)}>
                   {subsection.title}
                 </h4>
               )}
