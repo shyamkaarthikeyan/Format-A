@@ -58,7 +58,7 @@ const StatCard: React.FC<StatCardProps> = ({
             <div className="mt-2 h-8 bg-gray-200 rounded animate-pulse"></div>
           ) : (
             <p className="text-2xl font-bold text-gray-900 mt-2">
-              {typeof value === 'number' ? value.toLocaleString() : value}
+              {typeof value === 'number' ? value.toLocaleString() : (value ?? '0')}
             </p>
           )}
           {change && !loading && (
