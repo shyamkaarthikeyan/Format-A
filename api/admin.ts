@@ -1,6 +1,6 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Temporary redirect to admin-fresh endpoint
   // This fixes the 404 errors while frontend deployment updates
   
@@ -13,17 +13,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).end();
   }
   
-  // Get query parameters
-  const { path, type, adminEmail } = req.query;
-  
   // Build the redirect URL to admin-fresh
   const baseUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
   let redirectUrl = `${baseUrl}/api/admin-fresh`;
   
+  // Forward ALL query parameters to admin-fresh
   const params = new URLSearchParams();
-  if (path) params.set('path', path as string);
-  if (type) params.set('type', type as string);
-  if (adminEmail) params.set('adminEmail', adminEmail as string);
+  Object.entries(req.query).forEach(([key, value]) => {
+    if (value) {
+      // Handle both string and array values
+      const stringValue = Array.isArray(value) ? value.join(',') : String(value);
+      params.set(key, stringValue);
+    }
+  });
   
   if (params.toString()) {
     redirectUrl += `?${params.toString()}`;

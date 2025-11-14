@@ -74,7 +74,8 @@ const UserManagement: React.FC = () => {
         limit: '20'
       });
       
-      const response = await apiClient.adminGet(`users?${params}`);
+      const paramsString = params.toString();
+      const response = await apiClient.adminGet(`users${paramsString ? '?' + paramsString : ''}`);
       
       if (response.success) {
         // Handle both raw array and formatted object structures
@@ -91,7 +92,7 @@ const UserManagement: React.FC = () => {
             documentCount: Number(user.total_documents) || 0,
             downloadCount: Number(user.total_downloads) || 0,
             isActive: user.is_active !== undefined ? user.is_active : true,
-            status: (user.is_active !== undefined ? user.is_active : true) ? 'active' : 'inactive'
+            status: (user.suspended ? 'suspended' : (user.is_active !== undefined ? user.is_active : true) ? 'active' : 'inactive') as 'active' | 'inactive' | 'suspended'
           }));
           
           const now = new Date();

@@ -63,7 +63,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.adminGet(`analytics&type=documents&timeRange=${selectedTimeRange}`);
+      const response = await apiClient.adminGet(`analytics?type=documents&timeRange=${selectedTimeRange}`);
       
       if (response.success) {
         setAnalytics(response.data as DocumentAnalytics);
@@ -345,8 +345,9 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
         </div>
         
         <div className="h-64 flex items-end justify-between space-x-1">
-          {analytics.documentsCreated?.daily?.slice(-30).map((day, index) => {
-            const maxCount = Math.max(...(analytics.documentsCreated?.daily?.map(d => d.count) || [1]));
+          {(analytics.documentsCreated?.daily || []).length > 0 ? (
+            (analytics.documentsCreated?.daily || []).slice(-30).map((day, index) => {
+            const maxCount = Math.max(...((analytics.documentsCreated?.daily || []).map(d => d.count)), 1);
             const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
             
             return (
@@ -370,7 +371,15 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
                 )}
               </div>
             );
-          })}
+          })
+          ) : (
+            <div className="flex items-center justify-center w-full h-full">
+              <div className="text-center text-gray-500">
+                <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p>No daily document creation data available</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -393,7 +402,7 @@ const DocumentAnalytics: React.FC<DocumentAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {(analytics.documentTrends?.daily || []).slice(-10).map((trend, index) => {
+              {(analytics.documentTrends || []).slice(-10).map((trend, index) => {
                 const completionRate = trend.created > 0 ? (trend.completed / trend.created) * 100 : 0;
                 
                 return (

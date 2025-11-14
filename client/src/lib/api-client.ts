@@ -99,7 +99,7 @@ async function makeAdminRequest<T>(endpoint: string, config: RequestConfig = {})
 
   // Handle query parameters properly
   const [pathPart, queryPart] = cleanEndpoint.split('?');
-  let url = `/api/admin?path=${pathPart}`;
+  let url = `/api/admin?path=${encodeURIComponent(pathPart)}`;
 
   // Add original query parameters
   if (queryPart) {

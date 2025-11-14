@@ -59,7 +59,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.adminGet(`analytics&type=users&timeRange=${selectedTimeRange}`);
+      const response = await apiClient.adminGet(`analytics?type=users&timeRange=${selectedTimeRange}`);
       
       if (response.success) {
         setAnalytics(response.data as UserAnalytics);
@@ -232,7 +232,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
           </div>
           
           <div className="space-y-4">
-            {analytics.userDistribution?.byRegistrationDate?.slice(-6).map((item, index) => (
+            {(analytics.userDistribution?.byRegistrationDate || []).slice(-6).map((item, index) => (
               <div key={item.period} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{item.period}</span>
                 <div className="flex items-center">
@@ -240,7 +240,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
                     <div 
                       className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                       style={{ 
-                        width: `${Math.max((item.count / Math.max(...(analytics.userDistribution?.byRegistrationDate?.map(d => d.count) || [1]))) * 100, 5)}%` 
+                        width: `${Math.max((item.count / Math.max(...((analytics.userDistribution?.byRegistrationDate || []).map(d => d.count)), 1)) * 100, 5)}%` 
                       }}
                     ></div>
                   </div>
@@ -263,7 +263,7 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
           </div>
           
           <div className="space-y-3">
-            {analytics.userDistribution?.byActivity?.map((item, index) => {
+            {(analytics.userDistribution?.byActivity || []).map((item, index) => {
               const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-red-500'];
               const bgColors = ['bg-green-100', 'bg-blue-100', 'bg-yellow-100', 'bg-red-100'];
               const textColors = ['text-green-700', 'text-blue-700', 'text-yellow-700', 'text-red-700'];
@@ -284,7 +284,8 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
                   </div>
                 </div>
               );
-            }) || (
+            })}
+            {(!analytics.userDistribution?.byActivity || analytics.userDistribution.byActivity.length === 0) && (
               <div className="text-center py-4 text-gray-500">
                 <p>No activity data available</p>
               </div>
@@ -301,9 +302,9 @@ const UserAnalytics: React.FC<UserAnalyticsProps> = ({ timeRange = '30d' }) => {
         </div>
         
         <div className="h-64 flex items-end justify-between space-x-1">
-          {analytics.newUsers?.daily?.length > 0 ? (
-            analytics.newUsers.daily.slice(-30).map((day, index) => {
-              const maxCount = Math.max(...(analytics.newUsers?.daily?.map(d => d.count) || [1]));
+          {(analytics.newUsers?.daily || []).length > 0 ? (
+            (analytics.newUsers?.daily || []).slice(-30).map((day, index) => {
+              const maxCount = Math.max(...((analytics.newUsers?.daily || []).map(d => d.count)), 1);
               const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
               
               return (

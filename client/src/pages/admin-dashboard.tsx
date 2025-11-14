@@ -95,44 +95,52 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      console.log('Loading admin dashboard with local fallback data...');
+      console.log('Loading admin dashboard stats from API...');
 
-      // Skip API calls entirely and use local fallback data to prevent loading loops
-      // This ensures the admin console loads immediately without hanging
+      // Fetch real data from API
+      const { apiClient } = await import('@/lib/api-client');
       
-      // Simulate a brief loading delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const [usersResponse, documentsResponse, downloadsResponse, systemResponse] = await Promise.allSettled([
+        apiClient.adminGet('analytics?type=users'),
+        apiClient.adminGet('analytics?type=documents'),
+        apiClient.adminGet('analytics?type=documents'),
+        apiClient.adminGet('analytics?type=system')
+      ]);
 
-      // Use fallback stats that work immediately
-      const fallbackStats: DashboardStats = {
-        totalUsers: 1, // At least the admin user
-        totalDocuments: 0,
-        totalDownloads: 0,
-        activeUsers: 1,
-        newUsersToday: 0,
-        documentsToday: 0,
-        downloadsToday: 0,
-        systemHealth: 'healthy'
+      // Extract data with fallbacks
+      const usersData = usersResponse.status === 'fulfilled' && usersResponse.value.success 
+        ? usersResponse.value.data as any : null;
+      const documentsData = documentsResponse.status === 'fulfilled' && documentsResponse.value.success 
+        ? documentsResponse.value.data as any : null;
+      const downloadsData = downloadsResponse.status === 'fulfilled' && downloadsResponse.value.success 
+        ? downloadsResponse.value.data as any : null;
+      const systemData = systemResponse.status === 'fulfilled' && systemResponse.value.success 
+        ? systemResponse.value.data as any : null;
+
+      const dashboardStats: DashboardStats = {
+        totalUsers: usersData?.totalUsers || 0,
+        totalDocuments: documentsData?.totalDocuments || 0,
+        totalDownloads: downloadsData?.totalDownloads || 0,
+        activeUsers: usersData?.activeUsers?.last24h || 0,
+        newUsersToday: usersData?.newUsers?.today || 0,
+        documentsToday: documentsData?.documentsCreated?.daily?.[0]?.count || 0,
+        downloadsToday: downloadsData?.downloadsToday || 0,
+        systemHealth: (systemData?.systemStatus as 'healthy' | 'warning' | 'error') || 'healthy'
       };
 
-      console.log('Setting fallback stats to prevent loading loop:', fallbackStats);
-      setStats(fallbackStats);
-      
-      // Optionally try to fetch real data in the background without blocking the UI
-      setTimeout(() => {
-        fetchRealDataInBackground();
-      }, 1000);
+      console.log('Dashboard stats loaded:', dashboardStats);
+      setStats(dashboardStats);
 
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
       setError(`Failed to load analytics data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       
-      // Even on error, set basic stats so the UI isn't broken
+      // Set fallback stats on error
       setStats({
-        totalUsers: 1,
+        totalUsers: 0,
         totalDocuments: 0,
         totalDownloads: 0,
-        activeUsers: 1,
+        activeUsers: 0,
         newUsersToday: 0,
         documentsToday: 0,
         downloadsToday: 0,
@@ -140,22 +148,6 @@ const AdminDashboard: React.FC = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Background function to fetch real data without blocking the UI
-  const fetchRealDataInBackground = async () => {
-    try {
-      console.log('Skipping background API calls to prevent loading issues');
-      
-      // For now, just use the fallback data to ensure the admin console works
-      // This prevents any API-related loading loops or hangs
-      
-      // You can enable real API calls later once the backend is stable
-      console.log('Admin console is using local fallback data for stability');
-      
-    } catch (err) {
-      console.error('Background fetch error (ignored):', err);
     }
   };
 
@@ -227,8 +219,22 @@ const AdminDashboard: React.FC = () => {
                   <p className="text-gray-600 mt-1">Current system status and performance</p>
                 </div>
                 <div className="flex items-center">
-                  <div className={`w-3 h-3 bg-${healthStatus.color}-400 rounded-full mr-2`}></div>
-                  <span className={`text-sm font-medium text-${healthStatus.color}-700`}>
+                  <div 
+                    className="w-3 h-3 rounded-full mr-2"
+                    style={{
+                      backgroundColor: healthStatus.color === 'green' ? '#4ade80' : 
+                                     healthStatus.color === 'yellow' ? '#fbbf24' : 
+                                     healthStatus.color === 'red' ? '#f87171' : '#9ca3af'
+                    }}
+                  ></div>
+                  <span 
+                    className="text-sm font-medium"
+                    style={{
+                      color: healthStatus.color === 'green' ? '#15803d' : 
+                            healthStatus.color === 'yellow' ? '#a16207' : 
+                            healthStatus.color === 'red' ? '#b91c1c' : '#4b5563'
+                    }}
+                  >
                     {healthStatus.text}
                   </span>
                 </div>

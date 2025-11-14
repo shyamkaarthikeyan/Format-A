@@ -84,7 +84,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ children }) => {
   const hasPermission = (permissions: string[]) => {
     if (!adminSession) return false;
     return permissions.some(permission => 
-      adminSession.adminPermissions.includes(permission as any)
+      adminSession.adminPermissions.includes(permission as typeof adminSession.adminPermissions[number])
     );
   };
 
