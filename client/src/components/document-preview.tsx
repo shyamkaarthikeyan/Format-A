@@ -233,16 +233,58 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
     generatePdfMutation.mutate();
   };
 
+  // Email Document Mutation - Generate and send via email
+  const emailDocumentMutation = useMutation({
+    mutationKey: ['emailDocument'],
+    mutationFn: async (format: 'pdf' | 'docx') => {
+      if (!document.title) throw new Error("Please enter a title.");
+      if (!Array.isArray(document.authors) || !document.authors.some(author => author?.name)) {
+        throw new Error("Please add at least one author.");
+      }
+
+      console.log(`Generating ${format.toUpperCase()} for email...`);
+
+      // Generate the document
+      let result;
+      if (format === 'docx') {
+        result = await documentApi.generateDocx(document);
+      } else {
+        result = await documentApi.generatePdf(document, false);
+      }
+
+      if (!result.success || !result.file_data) {
+        throw new Error(result.message || `Failed to generate ${format.toUpperCase()}`);
+      }
+
+      // The recordDownload function in api.ts will automatically send the email
+      // with the document attached, so we don't need to do anything else here
+      
+      return result;
+    },
+    onSuccess: (data, format) => {
+      toast({
+        title: "Email Sent!",
+        description: `${format.toUpperCase()} document has been sent to your email address.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Email Error",
+        description: error instanceof Error ? error.message : "Failed to send email.",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleEmailDocument = () => {
     if (!isAuthenticated) {
       handleAuthRequired('email');
       return;
     }
 
-    toast({
-      title: "Email Feature",
-      description: "Email functionality will be implemented for authenticated users."
-    });
+    // Show a dialog to choose format
+    const format = window.confirm("Send as PDF? (Click OK for PDF, Cancel for Word)") ? 'pdf' : 'docx';
+    emailDocumentMutation.mutate(format);
   };
 
   // Generate PDF preview - Word→PDF conversion only
@@ -428,12 +470,12 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
             <Button
               onClick={handleEmailDocument}
-              disabled={!document.title}
+              disabled={emailDocumentMutation.isPending || !document.title}
               variant="outline"
               className="border-2 border-green-500 text-green-600 hover:bg-green-50 hover:border-green-600 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <Mail className="w-4 h-4 mr-2" />
-              Email Document
+              {emailDocumentMutation.isPending ? "Sending..." : "Email Document"}
             </Button>
           </div>
         </CardContent>

@@ -188,7 +188,9 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                   type: "image", // Ensure type is explicitly set
                   imageId: `img_${Date.now()}`,
                   data: base64.split(',')[1], // Remove data:image/png;base64, prefix
-                  fileName: file.name
+                  fileName: file.name,
+                  caption: block.caption || "", // REQUIRED: Backend needs caption to render image
+                  size: block.size || "medium" // Set default size
                 });
               }}
               onClear={() => {
