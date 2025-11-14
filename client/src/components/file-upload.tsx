@@ -11,6 +11,7 @@ interface FileUploadProps {
     name: string;
     preview?: string;
   };
+  compact?: boolean; // Add compact mode
 }
 
 export default function FileUpload({ 
@@ -18,7 +19,8 @@ export default function FileUpload({
   onClear, // Destructure onClear prop
   accept = "*/*", 
   maxSize = 5 * 1024 * 1024,
-  currentFile
+  currentFile,
+  compact = false
 }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -86,30 +88,30 @@ export default function FileUpload({
 
   if (currentFile) {
     return (
-      <div className="border-2 border-gray-300 border-dashed rounded-lg p-4">
+      <div className={`border-2 border-gray-300 border-dashed rounded-lg ${compact ? 'p-2' : 'p-4'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {currentFile.preview ? (
               <img 
                 src={currentFile.preview} 
                 alt="Preview" 
-                className="w-12 h-12 object-cover rounded"
+                className={`object-cover rounded ${compact ? 'w-8 h-8' : 'w-12 h-12'}`}
               />
             ) : (
-              <FileText className="w-8 h-8 text-gray-400" />
+              <FileText className={`text-gray-400 ${compact ? 'w-6 h-6' : 'w-8 h-8'}`} />
             )}
             <div>
-              <p className="text-sm font-medium text-gray-900">{currentFile.name}</p>
-              <p className="text-xs text-gray-500">Click to change file</p>
+              <p className={`font-medium text-gray-900 ${compact ? 'text-xs' : 'text-sm'}`}>{currentFile.name}</p>
+              {!compact && <p className="text-xs text-gray-500">Click to change file</p>}
             </div>
           </div>
           <Button
             onClick={clearFile}
             variant="ghost"
             size="sm"
-            className="text-red-600 hover:text-red-800"
+            className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
           >
-            <X className="w-4 h-4" />
+            <X className={compact ? 'w-3 h-3' : 'w-4 h-4'} />
           </Button>
         </div>
         <input
@@ -119,19 +121,23 @@ export default function FileUpload({
           accept={accept}
           onChange={handleFileInputChange}
         />
-        <div 
-          className="mt-2 cursor-pointer"
-          onClick={handleClick}
-        >
-          <p className="text-xs text-blue-600 hover:text-blue-800">Click to change</p>
-        </div>
+        {!compact && (
+          <div 
+            className="mt-2 cursor-pointer"
+            onClick={handleClick}
+          >
+            <p className="text-xs text-blue-600 hover:text-blue-800">Click to change</p>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div
-      className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+      className={`border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${
+        compact ? 'p-3' : 'p-6'
+      } ${
         isDragOver
           ? "border-blue-400 bg-blue-50"
           : "border-gray-300 hover:border-blue-400"
@@ -150,17 +156,19 @@ export default function FileUpload({
       />
       
       {isUploading ? (
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+        <div className={`animate-spin rounded-full border-b-2 border-blue-600 mx-auto ${compact ? 'h-5 w-5 mb-1' : 'h-8 w-8 mb-2'}`}></div>
       ) : (
-        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+        <Upload className={`text-gray-400 mx-auto ${compact ? 'w-5 h-5 mb-1' : 'w-8 h-8 mb-2'}`} />
       )}
       
-      <div className="text-sm text-gray-600">
-        <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+      <div className={compact ? 'text-xs text-gray-600' : 'text-sm text-gray-600'}>
+        <span className="font-medium text-blue-600">Click to upload</span>{!compact && ' or drag and drop'}
       </div>
-      <div className="text-xs text-gray-500 mt-1">
-        {accept.includes("image") ? "PNG, JPG, PDF" : "All files"} up to {Math.round(maxSize / 1024 / 1024)}MB
-      </div>
+      {!compact && (
+        <div className="text-xs text-gray-500 mt-1">
+          {accept.includes("image") ? "PNG, JPG, PDF" : "All files"} up to {Math.round(maxSize / 1024 / 1024)}MB
+        </div>
+      )}
     </div>
   );
 }

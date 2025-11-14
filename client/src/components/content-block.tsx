@@ -179,7 +179,8 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
             )}
           </div>
         ) : block.type === "image" ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
+            <div className="text-xs text-gray-600 mb-1">Upload Image</div>
             <FileUpload
               onFileSelect={(file, base64) => {
                 // Store both imageId and data for backend compatibility
@@ -206,20 +207,21 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                 name: block.fileName || 'Uploaded Image',
                 preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
               } : undefined}
+              compact={true}
             />
             {block.imageId && (
               <>
-                <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                  ✅ Image uploaded: {block.fileName || 'Uploaded Image'}
+                <div className="p-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                  ✅ {block.fileName || 'Image uploaded'}
                 </div>
-                <Textarea
-                  rows={2}
-                  placeholder="Figure caption"
+                <Input
+                  placeholder="Caption"
                   value={block.caption || ""}
                   onChange={(e) => onUpdate({ caption: e.target.value })}
+                  className="text-sm h-8"
                 />
                 <select
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs h-8"
                   value={block.size || "medium"}
                   onChange={(e) => onUpdate({ size: e.target.value as any })}
                 >
