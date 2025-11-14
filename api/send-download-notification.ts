@@ -26,7 +26,7 @@ const EMAIL_CONFIG = {
 };
 
 // Import nodemailer dynamically to avoid build issues
-async function sendEmailNotification(to: string, downloadData: any) {
+async function sendEmailNotification(to: string, downloadData: any, fileData?: string) {
   try {
     const nodemailer = await import('nodemailer');
     
@@ -34,16 +34,30 @@ async function sendEmailNotification(to: string, downloadData: any) {
     
     const emailTemplate = generateDownloadEmailTemplate(downloadData);
     
-    const mailOptions = {
+    const mailOptions: any = {
       from: EMAIL_CONFIG.auth.user,
       to: to,
-      subject: `✅ Your document "${downloadData.documentTitle}" is ready!`,
+      subject: `📄 Your IEEE Paper: "${downloadData.documentTitle}"`,
       html: emailTemplate,
       text: `Your document "${downloadData.documentTitle}" has been generated successfully. File format: ${downloadData.fileFormat.toUpperCase()}, Size: ${formatFileSize(downloadData.fileSize)}`
     };
 
+    // Attach the document file if provided
+    if (fileData) {
+      const fileExtension = downloadData.fileFormat.toLowerCase();
+      const mimeType = fileExtension === 'pdf' 
+        ? 'application/pdf' 
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      
+      mailOptions.attachments = [{
+        filename: `${downloadData.documentTitle}.${fileExtension}`,
+        content: Buffer.from(fileData, 'base64'),
+        contentType: mimeType
+      }];
+    }
+
     const result = await transporter.sendMail(mailOptions);
-    console.log('Download notification email sent:', result.messageId);
+    console.log('Document email sent with attachment:', result.messageId);
     
     return {
       success: true,
@@ -115,10 +129,10 @@ function generateDownloadEmailTemplate(downloadData: any): string {
           <!-- Success Message -->
           <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
             <h2 style="color: #0c4a6e; margin: 0 0 10px 0; font-size: 20px;">
-              ✅ Generation Complete
+              ✅ Your Document is Attached
             </h2>
             <p style="color: #075985; margin: 0; font-size: 16px;">
-              Your document "<strong>${downloadData.documentTitle}</strong>" is ready for download!
+              Your IEEE-formatted document "<strong>${downloadData.documentTitle}</strong>" is attached to this email!
             </p>
           </div>
 
@@ -200,12 +214,12 @@ function generateDownloadEmailTemplate(downloadData: any): string {
 
           <!-- Tips Section -->
           <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #0ea5e9;">
-            <h4 style="color: #0c4a6e; margin: 0 0 10px 0; font-size: 16px;">💡 Quick Tips:</h4>
+            <h4 style="color: #0c4a6e; margin: 0 0 10px 0; font-size: 16px;">📎 Document Attached:</h4>
             <ul style="color: #075985; margin: 0; padding-left: 20px; font-size: 14px;">
-              <li>Your document is formatted according to IEEE standards</li>
-              <li>You can view all your downloads in your profile</li>
-              <li>Download history is automatically saved for your convenience</li>
-              <li>You can generate more documents anytime at Format-A</li>
+              <li>Your IEEE-formatted document is attached to this email</li>
+              <li>The document follows IEEE formatting standards</li>
+              <li>You can download it directly from this email</li>
+              <li>View all your documents in your Format-A profile</li>
             </ul>
           </div>
         </div>
@@ -304,7 +318,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Always send email notifications for every download
     console.log('📧 Preparing to send email notification to:', user.email);
 
-    const { downloadId, downloadData } = req.body;
+    const { downloadId, downloadData, fileData } = req.body;
 
     if (!downloadId || !downloadData) {
       return res.status(400).json({
@@ -316,8 +330,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Send email notification
-    const emailResult = await sendEmailNotification(user.email, downloadData);
+    // Send email with document attachment if fileData is provided
+    const emailResult = await sendEmailNotification(user.email, downloadData, fileData);
 
     // Update download record with email status
     const sql = getSql();

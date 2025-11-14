@@ -28,7 +28,10 @@ async function sendDownloadNotification(downloadId: string, downloadData: any, u
       },
       body: JSON.stringify({
         downloadId,
-        downloadData
+        downloadData: {
+          ...downloadData,
+          fileData: downloadData.fileData // Pass file data for email attachment
+        }
       })
     });
 
@@ -142,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const { documentTitle, fileFormat, fileSize, documentMetadata } = req.body;
+    const { documentTitle, fileFormat, fileSize, documentMetadata, fileData } = req.body;
 
     if (!documentTitle || !fileFormat) {
       return res.status(400).json({
@@ -195,13 +198,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       documentMetadata: downloadRecord.document_metadata
     };
 
-    // Send email notification asynchronously (don't wait for it)
-    sendDownloadNotification(downloadRecord.id, downloadData, user)
+    // Send email with document attachment asynchronously (don't wait for it)
+    sendDownloadNotification(downloadRecord.id, { ...downloadData, fileData }, user)
       .then(() => {
-        console.log('📧 Email notification sent for download:', downloadRecord.id);
+        console.log('📧 Email sent with document attached:', downloadRecord.id);
       })
       .catch((error) => {
-        console.error('📧 Failed to send email notification:', error);
+        console.error('📧 Failed to send email with document:', error);
       });
 
     res.json({

@@ -214,6 +214,41 @@ export default function HomeClient() {
     setPendingAction(null);
   };
 
+  // Record download and trigger email notification with file attachment
+  const recordDownload = async (documentTitle: string, fileFormat: string, fileSize: number, documentMetadata: any, fileData?: string) => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        console.warn('No auth token found, skipping download recording');
+        return;
+      }
+
+      const response = await fetch('/api/record-download', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          documentTitle,
+          fileFormat,
+          fileSize,
+          documentMetadata,
+          fileData // Include the base64 file data for email attachment
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Download recorded and email sent with document attached:', result);
+      } else {
+        console.error('Failed to record download:', response.status);
+      }
+    } catch (error) {
+      console.error('Error recording download:', error);
+    }
+  };
+
 
 
   const handleGenerateDocx = async () => {
@@ -291,9 +326,24 @@ export default function HomeClient() {
         throw new Error('Invalid response format from document generation service');
       }
 
+      // Record download and send email with document attached
+      await recordDownload(
+        documentToSend.title || 'Untitled Document',
+        'docx',
+        result.file_data ? atob(result.file_data).length : 0,
+        {
+          authors: documentToSend.authors?.length || 0,
+          sections: documentToSend.sections?.length || 0,
+          references: documentToSend.references?.length || 0,
+          figures: documentToSend.figures?.length || 0,
+          tables: documentToSend.tables?.length || 0
+        },
+        result.file_data // Pass the base64 file data for email attachment
+      );
+
       toast({
         title: "Word Document Generated",
-        description: "IEEE-formatted Word document has been downloaded successfully."
+        description: "IEEE-formatted Word document has been downloaded successfully. Check your email for a copy!"
       });
     } catch (error) {
       toast({
@@ -381,9 +431,24 @@ export default function HomeClient() {
         throw new Error('Invalid response format from PDF generation service');
       }
 
+      // Record download and send email with document attached
+      await recordDownload(
+        documentToSend.title || 'Untitled Document',
+        'pdf',
+        result.file_data ? atob(result.file_data).length : 0,
+        {
+          authors: documentToSend.authors?.length || 0,
+          sections: documentToSend.sections?.length || 0,
+          references: documentToSend.references?.length || 0,
+          figures: documentToSend.figures?.length || 0,
+          tables: documentToSend.tables?.length || 0
+        },
+        result.file_data // Pass the base64 file data for email attachment
+      );
+
       toast({
         title: "PDF Generated",
-        description: "IEEE-formatted PDF document has been downloaded successfully."
+        description: "IEEE-formatted PDF document has been downloaded successfully. Check your email for a copy!"
       });
     } catch (error) {
       toast({
