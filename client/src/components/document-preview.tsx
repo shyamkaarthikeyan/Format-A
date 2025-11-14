@@ -511,25 +511,26 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
                 </div>
               </div>
             ) : pdfUrl ? (
-              <div className="h-full pdf-preview-container overflow-auto bg-gray-50">
-                <div className="flex justify-center py-6 px-4 min-h-full">
+              <div className="h-full pdf-preview-container overflow-y-auto overflow-x-hidden bg-gray-50" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+                <div className="flex justify-center py-6 px-4">
                   <div
                     className="shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200 transition-transform duration-200"
                     style={{
                       transform: `scale(${zoom / 100})`,
                       transformOrigin: 'top center',
                       width: '8.5in',
-                      height: '11in',
+                      minHeight: '11in',
                       maxWidth: '100%'
                     }}
                   >
                     <iframe
-                      key={pdfKey || pdfUrl} // Force re-render with unique key
-                      src={`${pdfUrl.split('#')[0]}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH&zoom=100`}
-                      className="w-full h-full border-0 rounded-lg"
+                      key={pdfKey || pdfUrl}
+                      src={`${pdfUrl.split('#')[0]}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitH`}
+                      className="w-full border-0 rounded-lg"
                       style={{
                         width: '100%',
-                        height: '100%',
+                        height: '11in',
+                        minHeight: '11in',
                         outline: 'none',
                         border: 'none'
                       }}

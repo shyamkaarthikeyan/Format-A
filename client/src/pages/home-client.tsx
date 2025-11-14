@@ -87,7 +87,6 @@ export default function HomeClient() {
   const [isVisible, setIsVisible] = useState(false);
   const [showDownloadHistory, setShowDownloadHistory] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [showAuthDebug, setShowAuthDebug] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const [, setLocation] = useLocation();
 
@@ -106,11 +105,11 @@ export default function HomeClient() {
   }, []);
 
   const handleCreateDocument = () => {
-    // Check if we already have 2 documents (maximum allowed)
-    if (documents.length >= 2) {
+    // Check if we already have 1 document (maximum allowed)
+    if (documents.length >= 1) {
       toast({
         title: "Document Limit Reached",
-        description: "Maximum of 2 documents allowed. Please delete a document before creating a new one.",
+        description: "Only 1 document allowed at a time. Please delete the current document before creating a new one.",
         variant: "destructive"
       });
       return;
@@ -460,15 +459,6 @@ export default function HomeClient() {
                   {showDownloadHistory ? 'Hide History' : 'Download History'}
                 </Button>
                 
-                <Button
-                  onClick={() => setShowAuthDebug(!showAuthDebug)}
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 border-red-300 hover:bg-red-50"
-                >
-                  🔍 Debug Auth
-                </Button>
-                
                 <Button 
                   onClick={handleCreateDocument} 
                   size="sm"
@@ -509,12 +499,7 @@ export default function HomeClient() {
             </div>
           </div>
 
-          {showAuthDebug ? (
-            /* Auth Debug View */
-            <div className="h-[calc(100vh-120px)]">
-              <AuthDebug />
-            </div>
-          ) : showDownloadHistory ? (
+          {showDownloadHistory ? (
             /* Download History View */
             <div className="h-[calc(100vh-120px)]">
               <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
