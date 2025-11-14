@@ -17,10 +17,22 @@ function getSql() {
 // Email notification function - ALWAYS send emails for every download
 async function sendDownloadNotification(downloadId: string, downloadData: any, user: any) {
   try {
-    console.log('📧 Sending email notification for download:', downloadId);
+    console.log('📧 Sending email notification for download:', {
+      downloadId,
+      hasFileData: !!downloadData.fileData,
+      fileDataLength: downloadData.fileData?.length || 0,
+      userEmail: user.email,
+      documentTitle: downloadData.documentTitle
+    });
 
     // Call the email notification endpoint
-    const notificationResponse = await fetch(`${process.env.VERCEL_URL || 'https://format-a.vercel.app'}/api/send-download-notification`, {
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'https://format-a.vercel.app';
+    
+    console.log('📧 Email notification URL:', `${baseUrl}/api/send-download-notification`);
+    
+    const notificationResponse = await fetch(`${baseUrl}/api/send-download-notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -35,11 +47,16 @@ async function sendDownloadNotification(downloadId: string, downloadData: any, u
       })
     });
 
+    console.log('📧 Email notification response status:', notificationResponse.status);
+
     if (!notificationResponse.ok) {
-      throw new Error(`Email notification failed: ${notificationResponse.status}`);
+      const errorText = await notificationResponse.text();
+      console.error('📧 Email notification error response:', errorText);
+      throw new Error(`Email notification failed: ${notificationResponse.status} - ${errorText}`);
     }
 
     const result = await notificationResponse.json();
+    console.log('📧 Email notification result:', result);
     return result;
   } catch (error) {
     console.error('Error sending download notification:', error);
@@ -199,12 +216,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     // Send email with document attachment asynchronously (don't wait for it)
+    console.log('📧 Initiating email notification...', {
+      downloadId: downloadRecord.id,
+      hasFileData: !!fileData,
+      fileDataLength: fileData?.length || 0,
+      userEmail: user.email
+    });
+    
     sendDownloadNotification(downloadRecord.id, { ...downloadData, fileData }, user)
-      .then(() => {
-        console.log('📧 Email sent with document attached:', downloadRecord.id);
+      .then((result) => {
+        console.log('📧 Email sent successfully with document attached:', {
+          downloadId: downloadRecord.id,
+          messageId: result?.data?.messageId,
+          recipient: user.email
+        });
       })
       .catch((error) => {
-        console.error('📧 Failed to send email with document:', error);
+        console.error('📧 Failed to send email with document:', {
+          downloadId: downloadRecord.id,
+          error: error.message,
+          stack: error.stack,
+          userEmail: user.email
+        });
       });
 
     res.json({
