@@ -86,22 +86,25 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   };
 
   const filteredAndSortedDocuments = documents
-    .filter(doc => 
-      doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.author && doc.author.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    .filter(doc => {
+      const title = doc?.title || '';
+      const author = doc?.author || '';
+      const search = searchTerm.toLowerCase();
+      
+      return title.toLowerCase().includes(search) || author.toLowerCase().includes(search);
+    })
     .sort((a, b) => {
       let comparison = 0;
       
       switch (sortBy) {
         case 'date':
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          comparison = new Date(a?.created_at || 0).getTime() - new Date(b?.created_at || 0).getTime();
           break;
         case 'title':
-          comparison = a.title.localeCompare(b.title);
+          comparison = (a?.title || '').localeCompare(b?.title || '');
           break;
         case 'pages':
-          comparison = (a.page_count || 0) - (b.page_count || 0);
+          comparison = (a?.page_count || 0) - (b?.page_count || 0);
           break;
       }
       
@@ -270,8 +273,8 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAndSortedDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50">
+                {filteredAndSortedDocuments.map((doc, index) => (
+                  <tr key={doc?.id || `doc-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <FileText className="w-5 h-5 text-purple-600 mr-3" />

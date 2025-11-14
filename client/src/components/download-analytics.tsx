@@ -269,7 +269,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-4">
-            {analytics.downloadsByFormat?.length > 0 ? analytics.downloadsByFormat.map((format, index) => {
+            {Array.isArray(analytics.downloadsByFormat) && analytics.downloadsByFormat.length > 0 ? analytics.downloadsByFormat.map((format, index) => {
               const colors = ['bg-red-500', 'bg-blue-500'];
               const bgColors = ['bg-red-100', 'bg-blue-100'];
               const textColors = ['text-red-700', 'text-blue-700'];
@@ -383,8 +383,8 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
         </div>
         
         <div className="h-64 flex items-end justify-between space-x-1">
-          {analytics.downloadTrends?.daily?.length > 0 ? analytics.downloadTrends.daily.slice(-30).map((day, index) => {
-            const maxCount = Math.max(...(analytics.downloadTrends?.daily?.map(d => d.count) || [1]));
+          {Array.isArray(analytics.downloadTrends?.daily) && analytics.downloadTrends.daily.length > 0 ? analytics.downloadTrends.daily.slice(-30).map((day, index) => {
+            const maxCount = Math.max(...(Array.isArray(analytics.downloadTrends?.daily) ? analytics.downloadTrends.daily.map(d => d?.count || 0) : [1]));
             const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
             
             return (
@@ -429,8 +429,8 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-2">
-            {analytics.downloadPatterns?.peakHours?.slice(0, 8).map((hour, index) => {
-              const maxCount = Math.max(...(analytics.downloadPatterns?.peakHours?.map(h => h.count) || [1]));
+            {Array.isArray(analytics.downloadPatterns?.peakHours) && analytics.downloadPatterns.peakHours.length > 0 ? analytics.downloadPatterns.peakHours.slice(0, 8).map((hour, index) => {
+              const maxCount = Math.max(...(Array.isArray(analytics.downloadPatterns?.peakHours) ? analytics.downloadPatterns.peakHours.map(h => h?.count || 0) : [1]));
               const percentage = maxCount > 0 ? (hour.count / maxCount) * 100 : 0;
               
               return (
@@ -447,7 +447,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                   <span className="text-sm font-medium text-gray-900 w-8 text-right">{hour.count}</span>
                 </div>
               );
-            })}
+            }) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No peak hours data available</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -459,8 +463,8 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
           </div>
           
           <div className="space-y-2">
-            {analytics.downloadPatterns?.peakDays?.map((day, index) => {
-              const maxCount = Math.max(...(analytics.downloadPatterns?.peakDays?.map(d => d.count) || [1]));
+            {Array.isArray(analytics.downloadPatterns?.peakDays) && analytics.downloadPatterns.peakDays.length > 0 ? analytics.downloadPatterns.peakDays.map((day, index) => {
+              const maxCount = Math.max(...(Array.isArray(analytics.downloadPatterns?.peakDays) ? analytics.downloadPatterns.peakDays.map(d => d?.count || 0) : [1]));
               const percentage = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
               
               return (
@@ -477,7 +481,11 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                   <span className="text-sm font-medium text-gray-900 w-8 text-right">{day.count}</span>
                 </div>
               );
-            })}
+            }) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No peak days data available</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -511,7 +519,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analytics.topDownloadedDocuments?.map((doc, index) => (
+              {Array.isArray(analytics.topDownloadedDocuments) && analytics.topDownloadedDocuments.map((doc, index) => (
                 <tr key={doc.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
@@ -536,7 +544,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-1">
-                      {doc.formats.map((format) => (
+                      {Array.isArray(doc?.formats) && doc.formats.map((format) => (
                         <span
                           key={format}
                           className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
@@ -599,7 +607,7 @@ const DownloadAnalytics: React.FC<DownloadAnalyticsProps> = ({ timeRange = '30d'
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analytics.downloadDistribution?.byUser?.slice(0, 10).map((user, index) => (
+              {Array.isArray(analytics.downloadDistribution?.byUser) && analytics.downloadDistribution.byUser.slice(0, 10).map((user, index) => (
                 <tr key={user.userId} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
