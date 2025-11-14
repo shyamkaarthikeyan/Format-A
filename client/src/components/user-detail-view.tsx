@@ -64,6 +64,8 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
       if (response.success && response.data) {
         const data = response.data as any;
         const downloadsData = data.downloads || response.data;
+        console.log('📥 Downloads data received:', downloadsData);
+        console.log('📊 First download metadata:', downloadsData[0]?.document_metadata);
         setDownloads(Array.isArray(downloadsData) ? downloadsData : []);
       } else {
         throw new Error('Failed to fetch user downloads');
