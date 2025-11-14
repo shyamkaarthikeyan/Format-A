@@ -86,17 +86,17 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
   // Debugging to verify document data
   console.log("IEEE Word preview rendering with:", {
     title: document.title,
-    hasAuthors: document.authors && document.authors.length > 0,
+    hasAuthors: document.authors && Array.isArray(document.authors) && document.authors.length > 0,
     hasAbstract: !!document.abstract,
     hasKeywords: !!document.keywords,
-    sectionsCount: document.sections?.length || 0,
-    sectionsData: document.sections?.map(s => ({
-      title: s.title,
-      contentBlocksCount: s.contentBlocks?.length || 0,
-    })) || [],
-    referencesCount: document.references?.length || 0,
-    figuresCount: document.figures?.length || 0,
-    tablesCount: document.tables?.length || 0
+    sectionsCount: Array.isArray(document.sections) ? document.sections.length : 0,
+    sectionsData: Array.isArray(document.sections) ? document.sections.map(s => ({
+      title: s?.title || 'Untitled',
+      contentBlocksCount: Array.isArray(s?.contentBlocks) ? s.contentBlocks.length : 0,
+    })) : [],
+    referencesCount: Array.isArray(document.references) ? document.references.length : 0,
+    figuresCount: Array.isArray(document.figures) ? document.figures.length : 0,
+    tablesCount: Array.isArray(document.tables) ? document.tables.length : 0
   });
 
   // DOCX Generation Mutation - Only for DOCX downloads
@@ -104,7 +104,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
     mutationKey: ['generateDocx'],
     mutationFn: async () => {
       if (!document.title) throw new Error("Please enter a title.");
-      if (!document.authors?.some(author => author.name)) {
+      if (!Array.isArray(document.authors) || !document.authors.some(author => author?.name)) {
         throw new Error("Please add at least one author.");
       }
 
@@ -145,7 +145,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
     mutationKey: ['generatePdf'],
     mutationFn: async () => {
       if (!document.title) throw new Error("Please enter a title.");
-      if (!document.authors?.some(author => author.name)) {
+      if (!Array.isArray(document.authors) || !document.authors.some(author => author?.name)) {
         throw new Error("Please add at least one author.");
       }
 
@@ -247,7 +247,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
   // Generate PDF preview - Word→PDF conversion only
   const generatePdfPreview = async () => {
-    if (!document.title || !document.authors?.some(author => author.name)) {
+    if (!document.title || !Array.isArray(document.authors) || !document.authors.some(author => author?.name)) {
       setPreviewError("Please add a title and at least one author to generate preview");
       setPdfUrl(null);
       return;
@@ -366,7 +366,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
     setPreviewError(null);
 
     const timer = setTimeout(() => {
-      if (document.title && document.authors?.some(author => author.name)) {
+      if (document.title && Array.isArray(document.authors) && document.authors.some(author => author?.name)) {
         console.log('Triggering PDF preview generation...');
         generatePdfPreview();
       } else {
