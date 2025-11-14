@@ -28,15 +28,13 @@ async function sendDownloadNotification(downloadId: string, downloadData: any, u
     
     console.log('📧 Python email endpoint:', emailEndpoint);
     
-    // Prepare payload for Python backend
+    // Prepare payload for Python backend with the actual file data
     const emailPayload = {
       email: user.email,
+      fileData: downloadData.fileData, // Send the already-generated file (base64)
       documentData: {
         title: downloadData.documentTitle,
-        authors: downloadData.documentMetadata?.authors?.map((name: string) => ({ name })) || [],
-        sections: [],
-        references: [],
-        figures: []
+        authors: downloadData.documentMetadata?.authors || []
       }
     };
     
