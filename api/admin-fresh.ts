@@ -73,7 +73,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (Array.isArray(path)) {
       pathArray = path.filter(Boolean);
     } else if (typeof path === 'string' && path) {
-      pathArray = [path];
+      // Split the path by '/' to handle nested routes like 'users/123/documents'
+      pathArray = path.split('/').filter(Boolean);
     }
 
     // Handle both path-based and endpoint parameter-based routing
