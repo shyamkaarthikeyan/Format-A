@@ -20,8 +20,8 @@ const EMAIL_CONFIG = {
   port: 465,
   secure: true,
   auth: {
-    user: 'formatateam@gmail.com',
-    pass: 'qrcrrrlodnywmsyw' // App password from existing config
+    user: process.env.EMAIL_USER || 'formatateam@gmail.com',
+    pass: process.env.EMAIL_PASS || 'qrcrrrlodnywmsyw'
   }
 };
 

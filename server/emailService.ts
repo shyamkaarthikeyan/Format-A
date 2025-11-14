@@ -8,8 +8,8 @@ const EMAIL_CONFIG = {
   port: 465,
   secure: true, // true for 465, false for other ports
   auth: {
-    user: 'formatateam@gmail.com',
-    pass: 'qrcrrrlodnywmsyw' // App password: qrcr rrlo dnyw msyw (spaces removed)
+    user: process.env.EMAIL_USER || 'formatateam@gmail.com',
+    pass: process.env.EMAIL_PASS || 'qrcrrrlodnywmsyw'
   },
   tls: {
     rejectUnauthorized: false
