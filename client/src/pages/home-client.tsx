@@ -589,48 +589,13 @@ export default function HomeClient() {
                 </CardHeader>
                 <CardContent className="px-4 pb-3">
                   <StreamlinedSectionForm 
-                    sections={documentToDisplay.sections} 
-                    onUpdate={(sections) => handleUpdateDocument({ sections })} 
-                  />
-                </CardContent>
-              </Card>
-
-
-
-
-
-              {/* Figures - Compact */}
-              <Card className="bg-white/90 border border-purple-200 shadow-sm">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                    <Image className="w-4 h-4 text-green-600" />
-                    Figures
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <FigureForm 
-                    figures={documentToDisplay.figures} 
-                    documentId={currentDocument?.id || null}
                     sections={documentToDisplay.sections}
-                    onUpdate={(figures) => handleUpdateDocument({ figures })} 
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Tables - Compact */}
-              <Card className="bg-white/90 border border-purple-200 shadow-sm">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                    <Table className="w-4 h-4 text-blue-600" />
-                    Tables
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <TableForm 
-                    tables={documentToDisplay.tables} 
+                    figures={documentToDisplay.figures}
+                    tables={documentToDisplay.tables}
                     documentId={currentDocument?.id || null}
-                    sections={documentToDisplay.sections}
-                    onUpdate={(tables) => handleUpdateDocument({ tables })} 
+                    onUpdate={(sections) => handleUpdateDocument({ sections })}
+                    onUpdateFigures={(figures) => handleUpdateDocument({ figures })}
+                    onUpdateTables={(tables) => handleUpdateDocument({ tables })}
                   />
                 </CardContent>
               </Card>
