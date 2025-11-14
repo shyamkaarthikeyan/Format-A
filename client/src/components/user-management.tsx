@@ -88,8 +88,8 @@ const UserManagement: React.FC = () => {
             email: user.email,
             createdAt: user.created_at || user.createdAt || new Date().toISOString(),
             lastLoginAt: user.last_login_at || user.lastLoginAt || null,
-            documentCount: parseInt(user.total_documents) || 0,
-            downloadCount: parseInt(user.total_downloads) || 0,
+            documentCount: Number(user.total_documents) || 0,
+            downloadCount: Number(user.total_downloads) || 0,
             isActive: user.is_active !== undefined ? user.is_active : true,
             status: (user.is_active !== undefined ? user.is_active : true) ? 'active' : 'inactive'
           }));
