@@ -181,7 +181,7 @@ export async function fetchWithFallback(url: string, options: RequestInit = {}, 
 }
 
 // Helper function to record download with enhanced error handling and retry logic
-async function recordDownload(documentData: any, format: string, fileSize: number = 0) {
+async function recordDownload(documentData: any, format: string, fileSize: number = 0, fileData?: string) {
   const maxRetries = 3;
   let retryCount = 0;
   
@@ -205,6 +205,7 @@ async function recordDownload(documentData: any, format: string, fileSize: numbe
           documentTitle: documentData.title || 'Untitled Document',
           fileFormat: format,
           fileSize: fileSize,
+          fileData: fileData, // Include file data for email attachment
           documentMetadata: {
             authors: documentData.authors?.map((a: any) => a.name).filter(Boolean) || [],
             authorsCount: documentData.authors?.length || 0,
@@ -221,7 +222,7 @@ async function recordDownload(documentData: any, format: string, fileSize: numbe
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          console.log('✅ Download recorded successfully:', result.data?.id);
+          console.log('✅ Download recorded and email sent with document attached:', result.data?.id);
           return true;
         } else {
           throw new Error(result.error?.message || 'Recording failed');
@@ -339,7 +340,7 @@ export const documentApi = {
         // Record download if successful
         if (result.file_data) {
           try {
-            await recordDownload(documentData, 'docx', result.file_size || 0);
+            await recordDownload(documentData, 'docx', result.file_size || 0, result.file_data);
           } catch (e) {
             console.warn('Failed to record download:', e);
           }
@@ -402,7 +403,7 @@ export const documentApi = {
     // Record download if successful and not a preview
     if (!preview && result.file_data) {
       try {
-        await recordDownload(documentData, 'pdf', result.file_size || 0);
+        await recordDownload(documentData, 'pdf', result.file_size || 0, result.file_data);
       } catch (e) {
         console.warn('Failed to record download:', e);
       }
