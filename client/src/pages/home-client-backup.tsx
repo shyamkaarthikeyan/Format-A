@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Link, History, Download, Mail, Lock, GripVertical, X, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History, Download, Mail, Lock, Table, ChevronLeft, ChevronRight, GripVertical, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
@@ -12,8 +12,11 @@ import DocumentPreview from "@/components/document-preview";
 import AuthorForm from "@/components/author-form";
 import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
 import ReferenceForm from "@/components/reference-form";
+import FigureForm from "@/components/figure-form";
+import TableForm from "@/components/table-form";
 
 import { DownloadHistory } from "@/components/download-history";
+import AuthDebug from "@/components/auth-debug";
 
 import { clientStorage } from "@/lib/localStorage";
 import type { Document, InsertDocument, UpdateDocument } from "@shared/schema";
@@ -50,8 +53,7 @@ const AuthPrompt = ({ isOpen, onClose, onSignIn, action }: {
         <p className="text-gray-600 mb-4">
           To {action} your document, please sign in to your account.
         </p>
-  
-      
+        
         <div className="space-y-2 mb-6">
           <h4 className="font-medium text-gray-900">Benefits of signing in:</h4>
           <ul className="text-sm text-gray-600 space-y-1">
@@ -81,9 +83,6 @@ export default function HomeClient() {
   const { isAuthenticated, user, isAdmin } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [currentDocument, setCurrentDocumentState] = useState<Document | null>(null);
-  
-  // Active tab state
-  const [activeTab, setActiveTab] = useState<'basic' | 'authors' | 'sections' | 'references'>('basic');
 
   // Safe setter that ensures arrays are never undefined
   const setCurrentDocument = (doc: Document | null) => {
@@ -103,7 +102,6 @@ export default function HomeClient() {
     
     setCurrentDocumentState(safeDoc);
   };
-  
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [showDownloadHistory, setShowDownloadHistory] = useState(false);
@@ -114,7 +112,7 @@ export default function HomeClient() {
   // Layout state for resizable panels
   const [formWidth, setFormWidth] = useState(() => {
     const saved = localStorage.getItem('layout-form-width');
-    return saved ? parseFloat(saved) : 65;
+    return saved ? parseFloat(saved) : 50;
   });
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(() => {
     const saved = localStorage.getItem('layout-preview-collapsed');
@@ -149,8 +147,8 @@ export default function HomeClient() {
       const containerRect = containerRef.current.getBoundingClientRect();
       const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
       
-      // Constrain between 40% and 80%
-      const constrainedWidth = Math.min(Math.max(newWidth, 40), 80);
+      // Constrain between 30% and 80%
+      const constrainedWidth = Math.min(Math.max(newWidth, 30), 80);
       setFormWidth(constrainedWidth);
     };
 
@@ -298,8 +296,8 @@ export default function HomeClient() {
           fileFormat,
           fileSize,
           documentMetadata,
-          fileData,
-          sendEmail
+          fileData, // Include the base64 file data for email attachment
+          sendEmail // Control whether to send email
         })
       });
 
@@ -318,19 +316,24 @@ export default function HomeClient() {
     }
   };
 
+
+
   const handleGenerateDocx = async () => {
     if (!currentDocument) return;
     
+    // Check authentication for download
     if (!isAuthenticated) {
       handleAuthRequired('download');
       return;
     }
     
+    // Prevent multiple simultaneous downloads
     if (isGenerating) {
       console.log('⚠️ Download already in progress, ignoring duplicate request');
       return;
     }
     
+    // Get the latest document data from storage to ensure we have all form updates
     const latestDocument = clientStorage.getDocument(currentDocument.id);
     if (!latestDocument) {
       toast({
@@ -343,8 +346,10 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
+      // Import table validation
       const { validateDocumentTables, sanitizeDocumentTables } = await import('@/lib/table-validation');
       
+      // Validate and sanitize table data
       const validation = validateDocumentTables(latestDocument);
       if (validation.warnings.length > 0) {
         console.warn('Table validation warnings:', validation.warnings);
@@ -355,6 +360,7 @@ export default function HomeClient() {
         console.warn('Table validation errors found, attempting to fix:', validation.errors);
         documentToSend = sanitizeDocumentTables(latestDocument);
         
+        // Re-validate after sanitization
         const revalidation = validateDocumentTables(documentToSend);
         if (!revalidation.isValid) {
           throw new Error(`Table validation failed: ${revalidation.errors.join('; ')}`);
@@ -363,14 +369,18 @@ export default function HomeClient() {
       }
       
       console.log('Generating DOCX using Python backend API...');
+      console.log('Document data being sent:', JSON.stringify(documentToSend, null, 2));
       const result = await documentApi.generateDocx(documentToSend);
       
+      // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
+        // If we get a download URL, trigger download
         const link = window.document.createElement('a');
         link.href = result.download_url;
         link.download = "ieee_paper.docx";
         link.click();
       } else if (result.file_data) {
+        // If we get base64 data, convert to blob and download
         const byteCharacters = atob(result.file_data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -389,6 +399,7 @@ export default function HomeClient() {
         throw new Error('Invalid response format from document generation service');
       }
 
+      // Record download and send email with document attached
       await recordDownload(
         documentToSend.title || 'Untitled Document',
         'docx',
@@ -400,7 +411,7 @@ export default function HomeClient() {
           figures: documentToSend.figures?.length || 0,
           tables: documentToSend.tables?.length || 0
         },
-        result.file_data
+        result.file_data // Pass the base64 file data for email attachment
       );
 
       toast({
@@ -421,16 +432,19 @@ export default function HomeClient() {
   const handleGeneratePdf = async () => {
     if (!currentDocument) return;
     
+    // Check authentication for download
     if (!isAuthenticated) {
       handleAuthRequired('download');
       return;
     }
     
+    // Prevent multiple simultaneous downloads
     if (isGenerating) {
       console.log('⚠️ Download already in progress, ignoring duplicate request');
       return;
     }
     
+    // Get the latest document data from storage to ensure we have all form updates
     const latestDocument = clientStorage.getDocument(currentDocument.id);
     if (!latestDocument) {
       toast({
@@ -443,8 +457,10 @@ export default function HomeClient() {
     
     setIsGenerating(true);
     try {
+      // Import table validation
       const { validateDocumentTables, sanitizeDocumentTables } = await import('@/lib/table-validation');
       
+      // Validate and sanitize table data
       const validation = validateDocumentTables(latestDocument);
       if (validation.warnings.length > 0) {
         console.warn('Table validation warnings:', validation.warnings);
@@ -455,6 +471,7 @@ export default function HomeClient() {
         console.warn('Table validation errors found, attempting to fix:', validation.errors);
         documentToSend = sanitizeDocumentTables(latestDocument);
         
+        // Re-validate after sanitization
         const revalidation = validateDocumentTables(documentToSend);
         if (!revalidation.isValid) {
           throw new Error(`Table validation failed: ${revalidation.errors.join('; ')}`);
@@ -463,14 +480,18 @@ export default function HomeClient() {
       }
       
       console.log('Generating PDF using Python backend API...');
-      const result = await documentApi.generatePdf(documentToSend, false);
+      console.log('Document data being sent:', JSON.stringify(documentToSend, null, 2));
+      const result = await documentApi.generatePdf(documentToSend, false); // false = download mode
       
+      // Handle the response - it should contain download URL or blob data
       if (result.download_url) {
+        // If we get a download URL, trigger download
         const link = window.document.createElement('a');
         link.href = result.download_url;
         link.download = "ieee_paper.pdf";
         link.click();
       } else if (result.file_data) {
+        // If we get base64 data, convert to blob and download
         const byteCharacters = atob(result.file_data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -489,6 +510,7 @@ export default function HomeClient() {
         throw new Error('Invalid response format from PDF generation service');
       }
 
+      // Record download and send email with document attached
       await recordDownload(
         documentToSend.title || 'Untitled Document',
         'pdf',
@@ -500,7 +522,7 @@ export default function HomeClient() {
           figures: documentToSend.figures?.length || 0,
           tables: documentToSend.tables?.length || 0
         },
-        result.file_data
+        result.file_data // Pass the base64 file data for email attachment
       );
 
       toast({
@@ -524,6 +546,7 @@ export default function HomeClient() {
       return;
     }
     
+    // TODO: Implement email functionality for authenticated users
     toast({
       title: "Email Feature",
       description: "Email functionality will be implemented for authenticated users."
@@ -549,7 +572,6 @@ export default function HomeClient() {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-violet-100 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -566,110 +588,93 @@ export default function HomeClient() {
 
       <div className="relative z-10 p-6">
         <div className="max-w-8xl mx-auto">
-          {/* Enhanced Header with Download Options */}
+          {/* Compact Header */}
           <div className={`mb-4 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-5 shadow-xl border border-purple-300">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Button
-                    onClick={() => setLocation("/")}
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:text-white hover:bg-white/20"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    Back
-                  </Button>
-                  
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-white" />
-                    <span className="text-lg font-bold text-white">IEEE Document Generator</span>
-                  </div>
-                </div>
-
+            <div className="flex items-center justify-between bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg border border-purple-200">
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={() => setLocation("/")}
+                  variant="ghost"
+                  size="sm"
+                  className="text-purple-600 hover:text-purple-700"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  Back
+                </Button>
+                
                 <div className="flex items-center gap-2">
-                  {/* Download Options */}
-                  <Button
-                    onClick={handleGenerateDocx}
-                    disabled={isGenerating}
-                    size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    {isGenerating ? 'Generating...' : 'Word'}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleGeneratePdf}
-                    disabled={isGenerating}
-                    size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    {isGenerating ? 'Generating...' : 'PDF'}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleEmailDocument}
-                    size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
-                  >
-                    <Mail className="w-4 h-4 mr-1" />
-                    Email
-                  </Button>
+                  <span className="text-sm font-semibold text-purple-600">Format A</span>
+                  <span className="text-sm text-gray-600">IEEE Document Engine</span>
+                </div>
+              </div>
 
-                  <div className="w-px h-6 bg-white/30 mx-1"></div>
-
-                  {/* Admin Panel Button */}
-                  {isAdmin && (
-                    <Button
-                      onClick={() => setLocation('/admin')}
-                      variant="outline"
-                      size="sm"
-                      className="bg-orange-500/20 text-white border-white/30 hover:bg-orange-500/30"
-                    >
-                      <Users className="w-4 h-4 mr-1" />
-                      Admin
-                    </Button>
-                  )}
-
+              <div className="flex items-center gap-3">
+                {/* Admin Panel Button - Only visible for admin users */}
+                {isAdmin && (
                   <Button
-                    onClick={() => setShowDownloadHistory(!showDownloadHistory)}
+                    onClick={() => setLocation('/admin')}
                     variant="outline"
                     size="sm"
-                    className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
                   >
-                    <History className="w-4 h-4 mr-1" />
-                    History
+                    <Users className="w-4 h-4 mr-1" />
+                    Admin Panel
                   </Button>
-                  
+                )}
+
+                <Button
+                  onClick={() => setShowDownloadHistory(!showDownloadHistory)}
+                  variant="outline"
+                  size="sm"
+                  className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                >
+                  <History className="w-4 h-4 mr-1" />
+                  {showDownloadHistory ? 'Hide History' : 'Download History'}
+                </Button>
+                
+                <Button 
+                  onClick={handleCreateDocument} 
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  New
+                </Button>
+                
+                {documents.length > 1 && (
+                  <select 
+                    value={currentDocument?.id || ""} 
+                    onChange={(e) => {
+                      const doc = documents.find(d => d.id === e.target.value);
+                      if (doc) setCurrentDocument(doc);
+                    }}
+                    className="px-3 py-1 text-sm border border-purple-200 rounded bg-white text-gray-700 focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
+                  >
+                    {documents.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.title || "Untitled Document"}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                
+                {currentDocument && (
                   <Button 
-                    onClick={handleCreateDocument} 
+                    variant="ghost"
                     size="sm"
-                    className="bg-white text-purple-600 hover:bg-white/90 font-semibold"
+                    onClick={() => handleDeleteDocument(currentDocument.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
-                    <Plus className="w-4 h-4 mr-1" />
-                    New
+                    Delete
                   </Button>
-                  
-                  {currentDocument && (
-                    <Button 
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteDocument(currentDocument.id)}
-                      className="text-white hover:text-white hover:bg-red-500/30"
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           </div>
 
           {showDownloadHistory ? (
             /* Download History View */
-            <div className="h-[calc(100vh-140px)]">
+            <div className="h-[calc(100vh-120px)]">
               <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
                 <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-white/80">
                   <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
@@ -683,200 +688,163 @@ export default function HomeClient() {
               </Card>
             </div>
           ) : (
-            <div ref={containerRef} className="flex gap-0 h-[calc(100vh-140px)] relative">
-              {/* Left Column - Tabbed Editor */}
+            <div ref={containerRef} className="flex gap-0 h-[calc(100vh-120px)] relative">
+              {/* Left Column - Forms (resizable width, scrollable) */}
               <div 
-                className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border-2 border-purple-300 overflow-hidden flex flex-col transition-all duration-300"
+                className="space-y-4 overflow-y-auto pr-4 bg-white/70 backdrop-blur-sm rounded-lg p-5 shadow-lg border border-purple-200 transition-all duration-300"
                 style={{ 
                   width: isPreviewCollapsed ? 'calc(100% - 80px)' : `${formWidth}%` 
                 }}
               >
-                {/* Tab Navigation */}
-                <div className="flex bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-purple-200">
-                  <button
-                    onClick={() => setActiveTab('basic')}
-                    className={`flex items-center gap-2 px-8 py-4 font-semibold text-base transition-all border-b-4 ${
-                      activeTab === 'basic'
-                        ? 'border-purple-600 text-purple-600 bg-white'
-                        : 'border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50/50'
-                    }`}
-                  >
-                    <Info className="w-5 h-5" />
-                    Basic
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('authors')}
-                    className={`flex items-center gap-2 px-8 py-4 font-semibold text-base transition-all border-b-4 ${
-                      activeTab === 'authors'
-                        ? 'border-purple-600 text-purple-600 bg-white'
-                        : 'border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50/50'
-                    }`}
-                  >
-                    <Users className="w-5 h-5" />
+              {/* Document Info - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <FileText className="w-4 h-4 text-purple-600" />
+                    Document
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <DocumentForm 
+                    document={documentToDisplay} 
+                    onUpdate={handleUpdateDocument} 
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Authors - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <Users className="w-4 h-4 text-fuchsia-600" />
                     Authors
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('sections')}
-                    className={`flex items-center gap-2 px-8 py-4 font-semibold text-base transition-all border-b-4 ${
-                      activeTab === 'sections'
-                        ? 'border-purple-600 text-purple-600 bg-white'
-                        : 'border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50/50'
-                    }`}
-                  >
-                    <BookOpen className="w-5 h-5" />
-                    Document Sections
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('references')}
-                    className={`flex items-center gap-2 px-8 py-4 font-semibold text-base transition-all border-b-4 ${
-                      activeTab === 'references'
-                        ? 'border-purple-600 text-purple-600 bg-white'
-                        : 'border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50/50'
-                    }`}
-                  >
-                    <Link className="w-5 h-5" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <AuthorForm 
+                    authors={documentToDisplay.authors} 
+                    onUpdate={(authors) => handleUpdateDocument({ authors })} 
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Sections - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <BookOpen className="w-4 h-4 text-violet-600" />
+                    Sections
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <StreamlinedSectionForm 
+                    sections={documentToDisplay.sections}
+                    figures={documentToDisplay.figures}
+                    tables={documentToDisplay.tables}
+                    documentId={currentDocument?.id || null}
+                    onUpdate={(sections) => handleUpdateDocument({ sections })}
+                    onUpdateFigures={(figures) => handleUpdateDocument({ figures })}
+                    onUpdateTables={(tables) => handleUpdateDocument({ tables })}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* References - Compact */}
+              <Card className="bg-white/90 border border-purple-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                    <Link className="w-4 h-4 text-pink-600" />
                     References
-                  </button>
-                </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <ReferenceForm 
+                    references={documentToDisplay.references} 
+                    onUpdate={(references) => handleUpdateDocument({ references })} 
+                  />
+                </CardContent>
+              </Card>
+            </div>
 
-                {/* Tab Content */}
-                <div className="flex-1 overflow-y-auto p-8 bg-gradient-to-br from-gray-50 to-purple-50/30">
-                  {/* Basic Tab */}
-                  {activeTab === 'basic' && (
-                    <div className="animate-fadeIn">
-                      <Card className="bg-white border-2 border-purple-200 shadow-sm">
-                        <CardContent className="p-6">
-                          <DocumentForm 
-                            document={documentToDisplay} 
-                            onUpdate={handleUpdateDocument} 
-                          />
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* Authors Tab */}
-                  {activeTab === 'authors' && (
-                    <div className="animate-fadeIn">
-                      <Card className="bg-white border-2 border-purple-200 shadow-sm">
-                        <CardContent className="p-6">
-                          <AuthorForm 
-                            authors={documentToDisplay.authors} 
-                            onUpdate={(authors) => handleUpdateDocument({ authors })} 
-                          />
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* Document Sections Tab - EXTRA LARGE TEXT AREAS */}
-                  {activeTab === 'sections' && (
-                    <div className="animate-fadeIn">
-                      <Card className="bg-white border-2 border-purple-200 shadow-sm">
-                        <CardContent className="p-6">
-                          <StreamlinedSectionForm 
-                            sections={documentToDisplay.sections}
-                            onUpdate={(sections) => handleUpdateDocument({ sections })}
-                          />
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* References Tab */}
-                  {activeTab === 'references' && (
-                    <div className="animate-fadeIn">
-                      <Card className="bg-white border-2 border-purple-200 shadow-sm">
-                        <CardContent className="p-6">
-                          <ReferenceForm 
-                            references={documentToDisplay.references} 
-                            onUpdate={(references) => handleUpdateDocument({ references })} 
-                          />
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
+            {/* Resizable Divider */}
+            {!isPreviewCollapsed && (
+              <div
+                className="w-1 bg-purple-200 hover:bg-purple-400 cursor-col-resize flex items-center justify-center group relative transition-colors"
+                onMouseDown={() => setIsDragging(true)}
+                title="Drag to resize"
+              >
+                <div className="absolute inset-y-0 -left-1 -right-1" />
+                <GripVertical className="w-4 h-4 text-purple-400 group-hover:text-purple-600 absolute" />
               </div>
+            )}
 
-              {/* Resizable Divider */}
-              {!isPreviewCollapsed && (
-                <div
-                  className="w-1 bg-purple-200 hover:bg-purple-400 cursor-col-resize flex items-center justify-center group relative transition-colors"
-                  onMouseDown={() => setIsDragging(true)}
-                  title="Drag to resize"
-                >
-                  <div className="absolute inset-y-0 -left-1 -right-1" />
-                  <GripVertical className="w-4 h-4 text-purple-400 group-hover:text-purple-600 absolute" />
+            {/* Right Column - Preview (resizable width) */}
+            <div 
+              className="h-full transition-all duration-300 relative"
+              style={{ 
+                width: isPreviewCollapsed ? '80px' : `${100 - formWidth}%` 
+              }}
+            >
+              {/* Layout Hint - First time users */}
+              {showLayoutHint && !isPreviewCollapsed && (
+                <div className="absolute top-16 right-4 z-50 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-xl max-w-xs animate-bounce">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium mb-1">💡 Tip: Need more typing space?</p>
+                      <p className="text-xs opacity-90">Click "Collapse" to maximize the form area, or drag the divider to resize!</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowLayoutHint(false);
+                        localStorage.setItem('layout-hint-seen', 'true');
+                      }}
+                      className="text-white hover:text-purple-200 ml-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
-
-              {/* Right Column - Preview */}
-              <div 
-                className="h-full transition-all duration-300 relative"
-                style={{ 
-                  width: isPreviewCollapsed ? '80px' : `${100 - formWidth}%` 
-                }}
-              >
-                {showLayoutHint && !isPreviewCollapsed && (
-                  <div className="absolute top-16 right-4 z-50 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-xl max-w-xs animate-bounce">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium mb-1">💡 Tip: Need more typing space?</p>
-                        <p className="text-xs opacity-90">Click "Collapse" to maximize the form area, or drag the divider to resize!</p>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setShowLayoutHint(false);
-                          localStorage.setItem('layout-hint-seen', 'true');
-                        }}
-                        className="text-white hover:text-purple-200 ml-2"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
-                  <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
-                    <div className="flex items-center justify-between w-full">
-                      {!isPreviewCollapsed && (
-                        <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                          Live Preview
-                        </CardTitle>
+              
+              <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-white/80">
+                  <div className="flex items-center justify-between w-full">
+                    {!isPreviewCollapsed && (
+                      <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        Live Preview
+                      </CardTitle>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={togglePreviewCollapse}
+                      className={`${isPreviewCollapsed ? 'w-full' : ''} flex items-center gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-300 shadow-sm`}
+                      title={isPreviewCollapsed ? "Expand preview" : "Collapse preview for more typing space"}
+                    >
+                      {isPreviewCollapsed ? (
+                        <>
+                          <ChevronLeft className="w-4 h-4" />
+                          <span className="text-xs font-medium">Expand</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4" />
+                          <span className="text-xs font-medium">Collapse</span>
+                        </>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={togglePreviewCollapse}
-                        className={`${isPreviewCollapsed ? 'w-full' : ''} flex items-center gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-300 shadow-sm`}
-                        title={isPreviewCollapsed ? "Expand preview" : "Collapse preview for more typing space"}
-                      >
-                        {isPreviewCollapsed ? (
-                          <>
-                            <ChevronLeft className="w-4 h-4" />
-                            <span className="text-xs font-medium">Expand</span>
-                          </>
-                        ) : (
-                          <>
-                            <ChevronRight className="w-4 h-4" />
-                            <span className="text-xs font-medium">Collapse</span>
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  {!isPreviewCollapsed && (
-                    <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
-                      <DocumentPreview document={documentToDisplay} />
-                    </CardContent>
-                  )}
-                </Card>
-              </div>
+                    </Button>
+                  </div>
+                </CardHeader>
+                {!isPreviewCollapsed && (
+                  <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
+                    <DocumentPreview document={documentToDisplay} />
+                  </CardContent>
+                )}
+              </Card>
             </div>
+          </div>
           )}
         </div>
       </div>
@@ -902,15 +870,9 @@ export default function HomeClient() {
           66% { transform: translate(-20px, 20px) scale(0.9); }
         }
         
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
         .animate-blob { animation: blob 7s infinite; }
         .animation-delay-2000 { animation-delay: 2000ms; }
         .animation-delay-4000 { animation-delay: 4000ms; }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
       `}</style>
     </div>
   );

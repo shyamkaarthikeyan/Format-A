@@ -385,3 +385,37 @@
 :root[data-line-height="relaxed"] {
   line-height: 1.8;
 }
+
+/* 
+Custom styles for tabbed document editor */
+@layer components {
+  /* Extra large text areas for Document Sections tab */
+  .section-content-textarea {
+    min-height: 300px !important;
+    font-size: 17px !important;
+    line-height: 1.9 !important;
+    padding: 20px !important;
+  }
+  
+  .section-title-input {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    padding: 18px 20px !important;
+  }
+  
+  /* Tab animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+}
