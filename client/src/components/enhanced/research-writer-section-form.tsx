@@ -30,23 +30,40 @@ const CrossRefModal: React.FC<CrossRefModalProps> = ({ isOpen, onClose, onSelect
   if (!isOpen) return null;
 
   const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+  const emoji = type === 'figure' ? '📷' : type === 'table' ? '📊' : '🔢';
+  const colorClass = type === 'figure' ? 'blue' : type === 'table' ? 'purple' : 'orange';
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
+      <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl transform animate-slideUp" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Insert {typeLabel} Reference</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <span className="text-2xl">{emoji}</span>
+            Insert {typeLabel} Reference
+          </h3>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+            title="Close"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
         
+        <p className="text-sm text-gray-600 mb-4">
+          Click on a {type} below to insert its reference at your cursor position
+        </p>
+        
         {items.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            No {type}s found. Add a {type} first.
-          </p>
+          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div className="text-4xl mb-3">{emoji}</div>
+            <p className="text-gray-700 font-medium mb-2">No {type}s found</p>
+            <p className="text-sm text-gray-500">
+              Add a {type} to your document first, then you can reference it here.
+            </p>
+          </div>
         ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
             {items.map((item) => (
               <button
                 key={item.id}
@@ -54,14 +71,25 @@ const CrossRefModal: React.FC<CrossRefModalProps> = ({ isOpen, onClose, onSelect
                   onSelect(`${typeLabel} ${item.number}`);
                   onClose();
                 }}
-                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
+                className={`w-full text-left p-4 border-2 border-${colorClass}-200 rounded-lg hover:bg-${colorClass}-50 hover:border-${colorClass}-400 hover:shadow-md transition-all group`}
               >
-                <div className="font-medium text-blue-600">{typeLabel} {item.number}</div>
-                {item.caption && <div className="text-sm text-gray-600 mt-1">{item.caption}</div>}
+                <div className={`font-bold text-${colorClass}-600 text-lg mb-1 group-hover:text-${colorClass}-700`}>
+                  {emoji} {typeLabel} {item.number}
+                </div>
+                {item.caption && (
+                  <div className="text-sm text-gray-600 line-clamp-2">{item.caption}</div>
+                )}
+                <div className="text-xs text-gray-400 mt-2">Click to insert reference</div>
               </button>
             ))}
           </div>
         )}
+        
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500 text-center">
+            💡 Tip: The reference will be inserted where your cursor is in the text editor
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -99,14 +127,29 @@ export default function ResearchWriterSectionForm({
   return (
     <div className={cn('space-y-6', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b-2 border-gray-200">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">✍️ Write Your Research Paper</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Focus on writing. Add images, tables, and equations as you go. Use helper buttons to insert references and citations.
+      <div className="flex items-center justify-between pb-4 border-b-2 border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 rounded-lg mb-2">
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            ✍️ Write Your Research Paper
+            {sections.length > 0 && (
+              <span className="text-sm font-normal bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                {sections.length} {sections.length === 1 ? 'section' : 'sections'}
+              </span>
+            )}
+          </h2>
+          <p className="text-sm text-gray-600 mt-2 flex items-start gap-2">
+            <span className="text-lg">💡</span>
+            <span>
+              <strong>Quick Guide:</strong> Write naturally, use the helper buttons to insert references, and add visual content as needed. Everything auto-saves!
+            </span>
           </p>
         </div>
-        <Button onClick={addSection} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white px-6">
+        <Button 
+          onClick={addSection} 
+          size="lg" 
+          className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 shadow-lg hover:shadow-xl transition-all"
+          title="Add a new section to your paper"
+        >
           <Plus className="w-5 h-5 mr-2" />
           Add Section
         </Button>
@@ -128,19 +171,54 @@ export default function ResearchWriterSectionForm({
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 bg-gradient-to-br from-purple-50 to-white rounded-xl border-2 border-dashed border-gray-300">
-          <div className="max-w-md mx-auto">
-            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-10 h-10 text-purple-600" />
+        <div className="text-center py-16 bg-gradient-to-br from-purple-50 via-white to-blue-50 rounded-xl border-2 border-dashed border-purple-300 shadow-inner">
+          <div className="max-w-2xl mx-auto px-6">
+            <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <span className="text-5xl">📝</span>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Start Writing Your Paper</h3>
-            <p className="text-gray-600 mb-6">
-              Create sections like Introduction, Methodology, Results, and Conclusion. Each section gives you a large writing space with easy access to insert images, tables, equations, and citations.
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Start Writing?</h3>
+            <p className="text-gray-600 mb-6 text-base leading-relaxed">
+              Create sections like <strong>Introduction</strong>, <strong>Methodology</strong>, <strong>Results</strong>, and <strong>Conclusion</strong>. 
+              Each section gives you a large writing space with powerful tools to insert images, tables, equations, and citations.
             </p>
-            <Button onClick={addSection} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white px-8">
-              <Plus className="w-5 h-5 mr-2" />
-              Create First Section
+            
+            <div className="bg-white rounded-lg p-6 mb-6 border border-purple-200 text-left">
+              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <span className="text-xl">✨</span>
+                What makes this special:
+              </h4>
+              <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-500">📷</span>
+                  <span><strong>Smart References:</strong> Insert figure/table references with one click</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-500">📚</span>
+                  <span><strong>Easy Citations:</strong> Add citations from your references instantly</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-purple-500">📊</span>
+                  <span><strong>Visual Content:</strong> Add images, tables, and equations inline</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-orange-500">📑</span>
+                  <span><strong>Subsections:</strong> Organize complex topics easily</span>
+                </div>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={addSection} 
+              size="lg" 
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-10 py-6 text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
+            >
+              <Plus className="w-6 h-6 mr-2" />
+              Create Your First Section
             </Button>
+            
+            <p className="text-xs text-gray-500 mt-4">
+              💾 Everything auto-saves as you type - never lose your work!
+            </p>
           </div>
         </div>
       )}
@@ -201,45 +279,111 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-xl max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
+      <div className="bg-white rounded-xl p-6 max-w-3xl w-full mx-4 shadow-2xl max-h-[85vh] overflow-hidden flex flex-col transform animate-slideUp" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Insert Citation</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <span className="text-2xl">📚</span>
+            Insert Citation
+          </h3>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+            title="Close"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <Input
-          placeholder="Search references..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mb-4"
-        />
+        <p className="text-sm text-gray-600 mb-4">
+          Search and select a reference to insert its citation (e.g., [1], [2]) at your cursor position
+        </p>
+        
+        <div className="relative mb-4">
+          <Input
+            placeholder="🔍 Search references by title, author, or keywords..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-4 pr-10 h-12 text-base border-2 border-purple-200 focus:border-purple-400"
+            autoFocus
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
         
         {filteredRefs.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            {references.length === 0 
-              ? 'No references found. Add references in the References tab first.'
-              : 'No matching references found.'}
-          </p>
-        ) : (
-          <div className="space-y-2 overflow-y-auto flex-1">
-            {filteredRefs.map((ref, index) => (
-              <button
-                key={ref.id}
-                onClick={() => {
-                  onSelect(`[${index + 1}]`);
-                  onClose();
-                }}
-                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
-              >
-                <div className="font-medium text-purple-600">[{index + 1}]</div>
-                <div className="text-sm text-gray-900 mt-1">{ref.text}</div>
-              </button>
-            ))}
+          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div className="text-5xl mb-4">📚</div>
+            {references.length === 0 ? (
+              <>
+                <p className="text-gray-700 font-medium mb-2">No references found</p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Add references in the <strong>References tab</strong> first, then you can cite them here.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto text-left">
+                  <p className="text-sm text-blue-800">
+                    <strong>💡 Tip:</strong> Go to the References tab and add your bibliography entries. Then come back here to cite them!
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-700 font-medium mb-2">No matching references</p>
+                <p className="text-sm text-gray-500">
+                  Try a different search term or clear the search to see all references
+                </p>
+              </>
+            )}
           </div>
+        ) : (
+          <>
+            <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
+              <span>Found {filteredRefs.length} {filteredRefs.length === 1 ? 'reference' : 'references'}</span>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+            <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+              {filteredRefs.map((ref, index) => (
+                <button
+                  key={ref.id}
+                  onClick={() => {
+                    onSelect(`[${index + 1}]`);
+                    onClose();
+                  }}
+                  className="w-full text-left p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="bg-purple-100 text-purple-700 font-bold px-3 py-1 rounded-md text-sm flex-shrink-0 group-hover:bg-purple-200">
+                      [{index + 1}]
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-900 leading-relaxed">{ref.text}</div>
+                      <div className="text-xs text-gray-400 mt-2">Click to insert citation</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
         )}
+        
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500 text-center">
+            💡 Tip: The citation number [1], [2], etc. will be inserted where your cursor is in the text editor
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -308,7 +452,7 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-purple-700 font-medium">
             <Table className="w-4 h-4" />
-            <span className="text-sm">Table</span>
+            <span className="text-sm">📊 Table</span>
           </div>
           <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
@@ -325,31 +469,13 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-orange-700 font-medium">
             <Calculator className="w-4 h-4" />
-            <span className="text-sm">Equation {block.equationNumber ? `(${block.equationNumber})` : ''}</span>
+            <span className="text-sm">🔢 Equation {block.equationNumber ? `(${block.equationNumber})` : ''}</span>
           </div>
           <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
         <LaTeXEquationEditor value={block.content || ""} onChange={(content) => onUpdate({ content })} equationNumber={block.equationNumber} />
-        <div className="mt-3">
-          <label className="block text-xs font-medium text-gray-600 mb-2">Or Upload Equation Image</label>
-          <FileUpload
-            onFileSelect={(file, base64) => {
-              onUpdate({ imageId: `eq_${Date.now()}`, data: base64.split(',')[1], fileName: file.name });
-            }}
-            onClear={() => {
-              onUpdate({ imageId: undefined, data: undefined, fileName: undefined });
-            }}
-            accept="image/*"
-            maxSize={10 * 1024 * 1024}
-            currentFile={block.imageId ? { 
-              name: block.fileName || 'Equation Image',
-              preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
-            } : undefined}
-            compact={true}
-          />
-        </div>
       </div>
     );
   }
@@ -491,7 +617,114 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   };
 
   const deleteSubsection = (subId: string) => {
-    onUpdate({ subsections: subsections.filter(sub => sub.id !== subId) });
+    // Delete subsection and all its children recursively
+    const toDelete = new Set([subId]);
+    const findChildren = (parentId: string) => {
+      subsections.forEach(sub => {
+        if (sub.parentId === parentId) {
+          toDelete.add(sub.id);
+          findChildren(sub.id);
+        }
+      });
+    };
+    findChildren(subId);
+    onUpdate({ subsections: subsections.filter(sub => !toDelete.has(sub.id)) });
+  };
+
+  const addChildSubsection = (parentId: string, parentLevel: number) => {
+    const newSubsection = {
+      id: `subsection_${Date.now()}_${Math.random()}`,
+      title: '',
+      content: '',
+      order: subsections.length,
+      level: parentLevel + 1,
+      parentId: parentId
+    };
+    onUpdate({ subsections: [...subsections, newSubsection] });
+  };
+
+  // Calculate subsection numbering
+  const getSubsectionNumber = (sub: any, sectionIndex: number): string => {
+    if (!sub.parentId) {
+      // Top level subsection
+      const topLevelSubs = subsections.filter(s => !s.parentId);
+      const idx = topLevelSubs.findIndex(s => s.id === sub.id);
+      return `${sectionIndex + 1}.${idx + 1}`;
+    } else {
+      // Nested subsection
+      const parent = subsections.find(s => s.id === sub.parentId);
+      if (parent) {
+        const parentNumber = getSubsectionNumber(parent, sectionIndex);
+        const siblings = subsections.filter(s => s.parentId === sub.parentId);
+        const idx = siblings.findIndex(s => s.id === sub.id);
+        return `${parentNumber}.${idx + 1}`;
+      }
+    }
+    return '';
+  };
+
+  // Render subsection recursively
+  const renderSubsection = (sub: any, subIdx: number, sectionIndex: number, level: number): React.ReactNode => {
+    const children = subsections.filter(s => s.parentId === sub.id);
+    const subsectionNumber = getSubsectionNumber(sub, sectionIndex);
+    const canAddChild = level < 5; // Max 5 levels deep
+    const indentClass = level > 1 ? `ml-${Math.min(level - 1, 4) * 6}` : '';
+
+    return (
+      <div key={sub.id} className={indentClass}>
+        <div className="bg-gradient-to-br from-white to-green-50 border-2 border-green-200 rounded-lg p-4 hover:border-green-300 hover:shadow-md transition-all mb-3">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-bold px-3 py-2 rounded-lg min-w-[80px] text-center shadow-sm">
+              {subsectionNumber}
+            </div>
+            <Input
+              value={sub.title}
+              onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
+              placeholder={`Subsection title (e.g., ${subIdx === 0 ? 'Data Collection' : subIdx === 1 ? 'Analysis Method' : 'Implementation'})`}
+              className="flex-1 font-semibold bg-white border-green-200 focus:border-green-400"
+            />
+            {canAddChild && (
+              <Button 
+                onClick={() => addChildSubsection(sub.id, level)} 
+                variant="outline" 
+                size="sm" 
+                className="text-green-600 hover:bg-green-50 border-green-300"
+                title="Add nested subsection"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            )}
+            <Button 
+              onClick={() => deleteSubsection(sub.id)} 
+              variant="ghost" 
+              size="sm" 
+              className="text-red-600 hover:bg-red-50"
+              title="Delete this subsection and all nested subsections"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="relative">
+            <Textarea
+              value={sub.content}
+              onChange={(e) => updateSubsection(sub.id, { content: e.target.value })}
+              placeholder={`Write the content for "${sub.title || 'this subsection'}"...
+
+Explain this specific aspect in detail. Be clear and concise.`}
+              className="min-h-[120px] bg-white border-green-200 focus:border-green-400"
+            />
+            <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded">
+              {(sub.content || '').trim().split(/\s+/).filter(w => w.length > 0).length} words
+            </div>
+          </div>
+        </div>
+        {children.length > 0 && (
+          <div className="ml-6 space-y-3">
+            {children.map((child, childIdx) => renderSubsection(child, childIdx, sectionIndex, level + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -521,9 +754,14 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             {/* Text Editor with Helper Buttons */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">Section Content</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{wordCount} words</span>
+                  <label className="text-sm font-medium text-gray-700">Section Content</label>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {wordCount} {wordCount === 1 ? 'word' : 'words'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 mr-1">Quick Insert:</span>
                   <Button
                     onClick={() => {
                       setCrossRefType('figure');
@@ -531,10 +769,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                     }}
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                    className="h-8 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                    title="Insert reference to a figure (e.g., 'Figure 1')"
                   >
                     <Link2 className="w-3 h-3 mr-1" />
-                    Figure
+                    📷 Figure
                   </Button>
                   <Button
                     onClick={() => {
@@ -543,10 +782,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                     }}
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+                    className="h-8 text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+                    title="Insert reference to a table (e.g., 'Table 1')"
                   >
                     <Link2 className="w-3 h-3 mr-1" />
-                    Table
+                    📊 Table
                   </Button>
                   <Button
                     onClick={() => {
@@ -555,20 +795,37 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                     }}
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                    className="h-8 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                    title="Insert reference to an equation (e.g., 'Equation 1')"
                   >
                     <Link2 className="w-3 h-3 mr-1" />
-                    Equation
+                    🔢 Equation
                   </Button>
                   <Button
                     onClick={() => setShowCitationModal(true)}
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                    className="h-8 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                    title="Insert citation from your references (e.g., '[1]')"
                   >
                     <BookOpen className="w-3 h-3 mr-1" />
-                    Cite
+                    📚 Cite
                   </Button>
+                </div>
+              </div>
+              
+              <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <span className="text-2xl">👆</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-blue-900 mb-1">How to Reference Figures, Tables & Equations:</p>
+                    <ol className="text-xs text-blue-800 space-y-1 ml-4 list-decimal">
+                      <li>Click in your text where you want to add a reference</li>
+                      <li>Click one of the buttons above (📷 Figure, 📊 Table, 🔢 Equation, or 📚 Cite)</li>
+                      <li>Select from the list and it will insert automatically!</li>
+                    </ol>
+                    <p className="text-xs text-blue-700 mt-2 font-medium">Example: "As shown in Figure 1..." or "According to [1]..."</p>
+                  </div>
                 </div>
               </div>
               
@@ -576,10 +833,17 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 ref={textareaRef}
                 value={textBlock?.content || ""}
                 onChange={(e) => updateTextContent(e.target.value)}
-                placeholder="Start writing your section content here... You have plenty of space to write paragraphs, explain concepts, and develop your ideas.
+                placeholder={`Start writing your ${section.title || 'section'} content here...
 
-Use the buttons above to insert references to figures, tables, equations, or citations as you write."
-                className="min-h-[400px] text-base leading-relaxed resize-y"
+📝 Write naturally - explain your ideas, describe your methods, present your findings.
+
+💡 Quick Tips:
+• Click where you want to insert, then use the buttons above
+• Add figures, tables, and equations using the "Insert" buttons below
+• Break down complex topics using subsections at the bottom
+
+You have plenty of space - this text area expands as you write!`}
+                className="min-h-[400px] text-base leading-relaxed resize-y font-serif"
               />
             </div>
 
@@ -594,68 +858,93 @@ Use the buttons above to insert references to figures, tables, equations, or cit
             ))}
 
             {/* Insert Toolbar */}
-            <div className="flex items-center gap-2 pt-4 border-t-2 border-gray-100">
-              <span className="text-sm text-gray-600 font-medium">Insert:</span>
-              <Button onClick={() => addContentBlock('image')} variant="outline" size="sm" className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50">
-                <ImageIcon className="w-4 h-4" />
-                Image
-              </Button>
-              <Button onClick={() => addContentBlock('table')} variant="outline" size="sm" className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50">
-                <Table className="w-4 h-4" />
-                Table
-              </Button>
-              <Button onClick={() => addContentBlock('equation')} variant="outline" size="sm" className="flex items-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50">
-                <Calculator className="w-4 h-4" />
-                Equation
-              </Button>
+            <div className="pt-4 border-t-2 border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-700 font-semibold">📎 Add Visual Content</span>
+                <span className="text-xs text-gray-500">Click to add images, tables, or equations to this section</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={() => addContentBlock('image')} 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all"
+                  title="Add an image/figure to illustrate your point"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  📷 Add Image
+                </Button>
+                <Button 
+                  onClick={() => addContentBlock('table')} 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400 transition-all"
+                  title="Add a table to present data"
+                >
+                  <Table className="w-4 h-4" />
+                  📊 Add Table
+                </Button>
+                <Button 
+                  onClick={() => addContentBlock('equation')} 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400 transition-all"
+                  title="Add a mathematical equation"
+                >
+                  <Calculator className="w-4 h-4" />
+                  🔢 Add Equation
+                </Button>
+              </div>
             </div>
 
             {/* Subsections */}
             <div className="pt-6 border-t-2 border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-1">
                     📑 Subsections
                   </h3>
-                  <p className="text-xs text-gray-600 mt-1">Organize your section into smaller parts (e.g., {index + 1}.1, {index + 1}.2)</p>
+                  <p className="text-xs text-gray-600">
+                    Break down complex topics into smaller, organized parts. Each subsection will be numbered automatically (e.g., {index + 1}.1, {index + 1}.2, {index + 1}.3)
+                  </p>
+                  {subsections.length === 0 && (
+                    <p className="text-xs text-blue-600 mt-2 bg-blue-50 p-2 rounded border border-blue-200">
+                      💡 <strong>Example:</strong> In a "Methodology" section, you might have subsections like "Data Collection", "Analysis Method", and "Tools Used"
+                    </p>
+                  )}
                 </div>
-                <Button onClick={addSubsection} variant="outline" size="sm" className="border-green-500 text-green-700 hover:bg-green-50 font-semibold">
+                <Button 
+                  onClick={addSubsection} 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-green-500 text-green-700 hover:bg-green-50 font-semibold ml-4"
+                  title="Add a new subsection to organize this section better"
+                >
                   <Plus className="w-4 h-4 mr-1" />
                   Add Subsection
                 </Button>
               </div>
               
               {subsections.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <p className="text-sm text-gray-500 mb-2">No subsections yet</p>
-                  <p className="text-xs text-gray-400">Break down complex sections for better organization</p>
+                <div className="text-center py-8 bg-gradient-to-br from-gray-50 to-green-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <div className="text-4xl mb-3">📝</div>
+                  <p className="text-sm text-gray-700 font-medium mb-2">No subsections yet</p>
+                  <p className="text-xs text-gray-500 mb-4">Subsections help organize complex topics into manageable parts</p>
+                  <Button 
+                    onClick={addSubsection} 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-green-500 text-green-700 hover:bg-green-100"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Create First Subsection
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {subsections.map((sub, subIdx) => (
-                    <div key={sub.id} className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-all">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-green-500 text-white text-sm font-bold px-3 py-1 rounded-md min-w-[60px] text-center">
-                          {index + 1}.{subIdx + 1}
-                        </div>
-                        <Input
-                          value={sub.title}
-                          onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
-                          placeholder="Subsection title (e.g., Data Collection, Analysis Method...)"
-                          className="flex-1 font-semibold bg-white"
-                        />
-                        <Button onClick={() => deleteSubsection(sub.id)} variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <Textarea
-                        value={sub.content}
-                        onChange={(e) => updateSubsection(sub.id, { content: e.target.value })}
-                        placeholder="Write the content for this subsection..."
-                        className="min-h-[150px] bg-white"
-                      />
-                    </div>
-                  ))}
+                  {subsections.filter(s => !s.parentId).map((sub, subIdx) => 
+                    renderSubsection(sub, subIdx, index, 1)
+                  )}
                 </div>
               )}
             </div>

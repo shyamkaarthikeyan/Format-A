@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, Code, Image, Plus, Minus } from "lucide-react";
+import { Table, Image, Plus, Minus } from "lucide-react";
 import FileUpload from "./file-upload";
 import type { ContentBlock as ContentBlockType } from "@shared/schema";
 
@@ -15,7 +15,7 @@ interface TableBlockEditorProps {
 
 export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorProps) {
   // Initialize table type from block data or default to interactive
-  const [tableType, setTableType] = useState<'interactive' | 'image' | 'latex'>(
+  const [tableType, setTableType] = useState<'interactive' | 'image'>(
     (block as any).tableType || 'interactive'
   );
 
@@ -91,11 +91,11 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
     });
   };
 
-  const handleTableTypeChange = (newType: 'interactive' | 'image' | 'latex') => {
+  const handleTableTypeChange = (newType: 'interactive' | 'image') => {
     setTableType(newType);
     onUpdate({ 
-      tableType: newType,
-      type: newType  // Ensure both type and tableType are synchronized
+      tableType: newType
+      // type remains 'table' - don't change it
     });
   };
 
@@ -181,18 +181,14 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
 
       {/* Table Creation Options */}
       <Tabs value={tableType} onValueChange={handleTableTypeChange}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="interactive" className="flex items-center gap-2">
             <Table className="w-4 h-4" />
-            Interactive
+            Create Table
           </TabsTrigger>
           <TabsTrigger value="image" className="flex items-center gap-2">
             <Image className="w-4 h-4" />
-            Image
-          </TabsTrigger>
-          <TabsTrigger value="latex" className="flex items-center gap-2">
-            <Code className="w-4 h-4" />
-            LaTeX
+            Upload Image
           </TabsTrigger>
         </TabsList>
 
@@ -303,24 +299,6 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
           </div>
         </TabsContent>
 
-        <TabsContent value="latex" className="space-y-4">
-          <div>
-            <Label>LaTeX Table Code</Label>
-            <Textarea
-              rows={10}
-              placeholder="Enter your LaTeX table code here..."
-              value={(block as any).latexCode || ""}
-              onChange={(e) => onUpdate({ 
-                tableType: 'latex',
-                latexCode: e.target.value 
-              })}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Example: \begin{"{tabular}"}{"{|c|c|c|}"} \hline Header 1 & Header 2 & Header 3 \\ \hline Row 1 & Data & Data \\ \hline \end{"{tabular}"}
-            </p>
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );
