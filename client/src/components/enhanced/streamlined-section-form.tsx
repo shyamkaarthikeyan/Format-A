@@ -55,11 +55,20 @@ const SectionItem: React.FC<SectionItemProps> = ({
 
   // Add content block
   const addContentBlock = (type: ContentBlockType['type']) => {
+    // Calculate equation number if this is an equation block
+    let equationNumber: number | undefined;
+    if (type === 'equation') {
+      // Count existing equations across all sections to get the next number
+      const existingEquations = contentBlocks.filter(b => b.type === 'equation').length;
+      equationNumber = existingEquations + 1;
+    }
+
     const newBlock: ContentBlockType = {
       id: `block_${Date.now()}_${Math.random()}`,
       type,
       content: '',
       order: contentBlocks.length,
+      ...(equationNumber !== undefined && { equationNumber })
     };
 
     onUpdate({
@@ -80,8 +89,19 @@ const SectionItem: React.FC<SectionItemProps> = ({
 
   // Remove content block
   const removeContentBlock = (blockId: string) => {
+    const updatedBlocks = contentBlocks.filter(block => block.id !== blockId);
+    
+    // Renumber equations after removal
+    let equationCounter = 1;
+    const renumberedBlocks = updatedBlocks.map(block => {
+      if (block.type === 'equation') {
+        return { ...block, equationNumber: equationCounter++ };
+      }
+      return block;
+    });
+    
     onUpdate({
-      contentBlocks: contentBlocks.filter(block => block.id !== blockId)
+      contentBlocks: renumberedBlocks
     });
   };
 

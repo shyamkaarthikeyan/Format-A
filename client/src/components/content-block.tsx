@@ -67,10 +67,10 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
             />
             
             {showImageSection ? (
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Add Image to This Text Block (Optional)
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-medium text-gray-600">
+                    Add Image (Optional)
                   </label>
                   <Button
                     onClick={() => {
@@ -86,8 +86,8 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                     }}
                     variant="ghost"
                     size="sm"
-                    className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
-                    title="Remove image section from this text block"
+                    className="text-red-600 hover:text-red-800 h-5 w-5 p-0"
+                    title="Remove image section"
                   >
                     <X className="w-3 h-3" />
                   </Button>
@@ -120,11 +120,12 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                     name: block.fileName || 'Uploaded Image',
                     preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
                   } : undefined}
+                  compact={true}
                 />
                 {block.imageId && (
-                  <div className="mt-2">
-                    <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800 flex justify-between items-center">
-                      <span>✅ Image uploaded: {block.fileName || 'Uploaded Image'}</span>
+                  <div className="mt-1.5 space-y-1.5">
+                    <div className="p-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-800 flex justify-between items-center">
+                      <span>✅ {block.fileName || 'Image uploaded'}</span>
                       <Button
                         onClick={() => {
                           // Remove only the image data, keep the text content
@@ -138,21 +139,20 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                         }}
                         variant="ghost"
                         size="sm"
-                        className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
-                        title="Remove image from this text block"
+                        className="text-red-600 hover:text-red-800 h-5 w-5 p-0"
+                        title="Remove image"
                       >
                         <X className="w-3 h-3" />
                       </Button>
                     </div>
-                    <Textarea
-                      rows={2}
-                      placeholder="Image caption"
+                    <Input
+                      placeholder="Caption"
                       value={block.caption || ""}
                       onChange={(e) => onUpdate({ caption: e.target.value })}
-                      className="mb-2"
+                      className="text-xs h-7"
                     />
                     <select
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs h-7"
                       value={block.size || "medium"}
                       onChange={(e) => onUpdate({ size: e.target.value as any })}
                     >
