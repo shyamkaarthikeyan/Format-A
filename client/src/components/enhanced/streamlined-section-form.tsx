@@ -433,18 +433,18 @@ export default function StreamlinedSectionForm({
         
         <EnhancedButton
           variant="default"
-          size="sm"
+          size="lg"
           onClick={addSection}
-          className="flex items-center gap-2"
+          className="flex items-center gap-3 px-8 py-4 text-lg font-semibold"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-6 h-6" />
           Add Section
         </EnhancedButton>
       </div>
 
       {/* Sections */}
       {hasSections ? (
-        <div className="space-y-4">
+        <div className="space-y-8">
           {sections.map((section, index) => (
             <SectionItem
               key={section.id}
@@ -465,10 +465,11 @@ export default function StreamlinedSectionForm({
             <p className="text-gray-600 mb-4">Create your first section to begin building your IEEE paper.</p>
             <EnhancedButton
               variant="default"
+              size="lg"
               onClick={addSection}
-              className="flex items-center gap-2 mx-auto"
+              className="flex items-center gap-3 mx-auto px-8 py-4 text-lg font-semibold"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-6 h-6" />
               Create First Section
             </EnhancedButton>
           </div>
