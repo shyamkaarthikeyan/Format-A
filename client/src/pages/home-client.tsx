@@ -11,6 +11,7 @@ import DocumentForm from "@/components/document-form";
 import DocumentPreview from "@/components/document-preview";
 import AuthorForm from "@/components/author-form";
 import StreamlinedSectionForm from "@/components/enhanced/streamlined-section-form";
+import ResearchWriterSectionForm from "@/components/enhanced/research-writer-section-form";
 import ReferenceForm from "@/components/reference-form";
 
 import { DownloadHistory } from "@/components/download-history";
@@ -769,14 +770,15 @@ export default function HomeClient() {
                     </div>
                   )}
 
-                  {/* Document Sections Tab - EXTRA LARGE TEXT AREAS */}
+                  {/* Document Sections Tab */}
                   {activeTab === 'sections' && (
                     <div className="animate-fadeIn">
                       <Card className="bg-white border-2 border-purple-200 shadow-sm">
                         <CardContent className="p-6">
-                          <StreamlinedSectionForm 
+                          <ResearchWriterSectionForm 
                             sections={documentToDisplay.sections}
                             onUpdate={(sections) => handleUpdateDocument({ sections })}
+                            references={documentToDisplay.references}
                           />
                         </CardContent>
                       </Card>
