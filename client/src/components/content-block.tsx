@@ -22,7 +22,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
 
   return (
     <Card className="bg-white border border-gray-200">
-      <CardContent className="p-3">
+      <CardContent className="p-2">
         <div className="flex justify-between items-start mb-2">
           <Badge variant="secondary" className="text-xs">
             {block.type === "text" ? (
@@ -58,7 +58,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
         </div>
         
         {block.type === "text" ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <RichTextEditor
               rows={4}
               placeholder="Enter text content"
@@ -228,7 +228,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
         ) : block.type === "table" ? (
           <TableBlockEditor block={block} onUpdate={onUpdate} />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <LaTeXEquationEditor
               value={block.content || ""}
               onChange={(content) => onUpdate({ content })}

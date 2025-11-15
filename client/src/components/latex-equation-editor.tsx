@@ -47,19 +47,19 @@ export default function LaTeXEquationEditor({
   }, [value]);
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+    <div className="space-y-2">
+      <div className="space-y-1.5">
+        <label className="block text-xs font-medium text-gray-600">
           Equation Content (LaTeX Format)
         </label>
 
         {/* LaTeX Input */}
         <Textarea
-          rows={4}
+          rows={3}
           placeholder="Type LaTeX equation here. Example: E = mc^2 or \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="font-mono text-sm"
+          className="font-mono text-xs"
           style={{ fontFamily: 'monospace' }}
         />
 
@@ -72,26 +72,26 @@ export default function LaTeXEquationEditor({
       </div>
 
       {/* Live Preview */}
-      <div className="border border-gray-300 rounded-md p-4 bg-white min-h-[80px]">
-        <div className="text-xs font-medium text-gray-700 mb-2">Live Preview:</div>
+      <div className="border border-gray-300 rounded-md p-2 bg-white min-h-[60px]">
+        <div className="text-xs font-medium text-gray-600 mb-1">Preview:</div>
         {value ? (
           <div className="flex items-center justify-center">
             <div 
               ref={previewRef} 
               className="text-center"
-              style={{ fontSize: '1.2em' }}
+              style={{ fontSize: '1em' }}
             />
             {equationNumber !== undefined && (
-              <span className="ml-4 text-gray-600">({equationNumber})</span>
+              <span className="ml-3 text-gray-600 text-sm">({equationNumber})</span>
             )}
           </div>
         ) : (
-          <div className="text-center text-gray-400 text-sm italic">
-            Type LaTeX code above to see preview
+          <div className="text-center text-gray-400 text-xs italic">
+            Type LaTeX to see preview
           </div>
         )}
         {error && (
-          <div className="mt-2 text-xs text-red-600">
+          <div className="mt-1 text-xs text-red-600">
             ⚠️ {error}
           </div>
         )}

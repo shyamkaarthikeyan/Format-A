@@ -327,6 +327,12 @@ export default function HomeClient() {
       return;
     }
     
+    // Prevent multiple simultaneous downloads
+    if (isGenerating) {
+      console.log('⚠️ Download already in progress, ignoring duplicate request');
+      return;
+    }
+    
     // Get the latest document data from storage to ensure we have all form updates
     const latestDocument = clientStorage.getDocument(currentDocument.id);
     if (!latestDocument) {
@@ -429,6 +435,12 @@ export default function HomeClient() {
     // Check authentication for download
     if (!isAuthenticated) {
       handleAuthRequired('download');
+      return;
+    }
+    
+    // Prevent multiple simultaneous downloads
+    if (isGenerating) {
+      console.log('⚠️ Download already in progress, ignoring duplicate request');
       return;
     }
     
