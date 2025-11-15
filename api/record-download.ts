@@ -23,7 +23,7 @@ async function sendDownloadNotification(downloadId: string, downloadData: any, u
       documentTitle: downloadData.documentTitle
     });
 
-    const pythonBackendUrl = process.env.VITE_PYTHON_BACKEND_URL || 'https://format-a-python-backend.vercel.app/api';
+    const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://format-a-python-backend.vercel.app/api';
     const emailEndpoint = `${pythonBackendUrl}/email-generator`;
     
     console.log('📧 Python email endpoint:', emailEndpoint);
