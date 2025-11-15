@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History, Download, Mail, Lock, Table } from "lucide-react";
+import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History, Download, Mail, Lock, Table, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
@@ -108,6 +108,18 @@ export default function HomeClient() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
   const [, setLocation] = useLocation();
+  
+  // Layout state for resizable panels
+  const [formWidth, setFormWidth] = useState(() => {
+    const saved = localStorage.getItem('layout-form-width');
+    return saved ? parseFloat(saved) : 50;
+  });
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(() => {
+    const saved = localStorage.getItem('layout-preview-collapsed');
+    return saved === 'true';
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Load documents from localStorage on mount
   useEffect(() => {
@@ -122,6 +134,48 @@ export default function HomeClient() {
       setCurrentDocument(loadedDocuments[0]);
     }
   }, []);
+
+  // Handle resizable divider drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current || isPreviewCollapsed) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Constrain between 30% and 80%
+      const constrainedWidth = Math.min(Math.max(newWidth, 30), 80);
+      setFormWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        localStorage.setItem('layout-form-width', formWidth.toString());
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, formWidth, isPreviewCollapsed]);
+
+  // Toggle preview collapse
+  const togglePreviewCollapse = () => {
+    const newState = !isPreviewCollapsed;
+    setIsPreviewCollapsed(newState);
+    localStorage.setItem('layout-preview-collapsed', newState.toString());
+  };
 
   const handleCreateDocument = () => {
     // Check if we already have 1 document (maximum allowed)
@@ -609,9 +663,14 @@ export default function HomeClient() {
               </Card>
             </div>
           ) : (
-            <div className="flex gap-4 h-[calc(100vh-120px)]">
-              {/* Left Column - Forms (50% width, scrollable) */}
-              <div className="w-[50%] space-y-4 overflow-y-auto pr-4 bg-white/70 backdrop-blur-sm rounded-lg p-5 shadow-lg border border-purple-200">
+            <div ref={containerRef} className="flex gap-0 h-[calc(100vh-120px)] relative">
+              {/* Left Column - Forms (resizable width, scrollable) */}
+              <div 
+                className="space-y-4 overflow-y-auto pr-4 bg-white/70 backdrop-blur-sm rounded-lg p-5 shadow-lg border border-purple-200 transition-all duration-300"
+                style={{ 
+                  width: isPreviewCollapsed ? 'calc(100% - 80px)' : `${formWidth}%` 
+                }}
+              >
               {/* Document Info - Compact */}
               <Card className="bg-white/90 border border-purple-200 shadow-sm">
                 <CardHeader className="pb-2 pt-3 px-4">
@@ -682,20 +741,50 @@ export default function HomeClient() {
               </Card>
             </div>
 
-            {/* Right Column - Preview (50% width) */}
-            <div className="w-[50%] h-full">
+            {/* Resizable Divider */}
+            {!isPreviewCollapsed && (
+              <div
+                className="w-1 bg-purple-200 hover:bg-purple-400 cursor-col-resize flex items-center justify-center group relative transition-colors"
+                onMouseDown={() => setIsDragging(true)}
+                title="Drag to resize"
+              >
+                <div className="absolute inset-y-0 -left-1 -right-1" />
+                <GripVertical className="w-4 h-4 text-purple-400 group-hover:text-purple-600 absolute" />
+              </div>
+            )}
+
+            {/* Right Column - Preview (resizable width) */}
+            <div 
+              className="h-full transition-all duration-300"
+              style={{ 
+                width: isPreviewCollapsed ? '80px' : `${100 - formWidth}%` 
+              }}
+            >
               <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
                 <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-white/80">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      Live Preview
-                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={togglePreviewCollapse}
+                      className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                      title={isPreviewCollapsed ? "Expand preview" : "Collapse preview"}
+                    >
+                      {isPreviewCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </Button>
+                    {!isPreviewCollapsed && (
+                      <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        Live Preview
+                      </CardTitle>
+                    )}
                   </div>
                 </CardHeader>
-                <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
-                  <DocumentPreview document={documentToDisplay} />
-                </CardContent>
+                {!isPreviewCollapsed && (
+                  <CardContent className="h-[calc(100%-60px)] overflow-hidden p-0">
+                    <DocumentPreview document={documentToDisplay} />
+                  </CardContent>
+                )}
               </Card>
             </div>
           </div>
