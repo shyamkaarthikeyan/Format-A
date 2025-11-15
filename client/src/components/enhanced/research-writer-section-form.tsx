@@ -127,30 +127,22 @@ export default function ResearchWriterSectionForm({
   return (
     <div className={cn('space-y-6', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b-2 border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 rounded-lg mb-2">
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">
             ✍️ Write Your Research Paper
             {sections.length > 0 && (
-              <span className="text-sm font-normal bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
-                {sections.length} {sections.length === 1 ? 'section' : 'sections'}
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                ({sections.length} {sections.length === 1 ? 'section' : 'sections'})
               </span>
             )}
           </h2>
-          <p className="text-sm text-gray-600 mt-2 flex items-start gap-2">
-            <span className="text-lg">💡</span>
-            <span>
-              <strong>Quick Guide:</strong> Write naturally, use the helper buttons to insert references, and add visual content as needed. Everything auto-saves!
-            </span>
-          </p>
         </div>
         <Button 
           onClick={addSection} 
-          size="lg" 
-          className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 shadow-lg hover:shadow-xl transition-all"
-          title="Add a new section to your paper"
+          className="bg-purple-600 hover:bg-purple-700 text-white"
         >
-          <Plus className="w-5 h-5 mr-2" />
+          <Plus className="w-4 h-4 mr-2" />
           Add Section
         </Button>
       </div>
@@ -171,92 +163,23 @@ export default function ResearchWriterSectionForm({
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 bg-gradient-to-br from-purple-50 via-white to-blue-50 rounded-xl border-2 border-dashed border-purple-300 shadow-inner">
-          <div className="max-w-2xl mx-auto px-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <span className="text-5xl">📝</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Start Writing?</h3>
-            <p className="text-gray-600 mb-6 text-base leading-relaxed">
-              Create sections like <strong>Introduction</strong>, <strong>Methodology</strong>, <strong>Results</strong>, and <strong>Conclusion</strong>. 
-              Each section gives you a large writing space with powerful tools to insert images, tables, equations, and citations.
-            </p>
-            
-            <div className="bg-white rounded-lg p-6 mb-6 border border-purple-200 text-left">
-              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <span className="text-xl">✨</span>
-                What makes this special:
-              </h4>
-              <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
-                <div className="flex items-start gap-2">
-                  <span className="text-blue-500">📷</span>
-                  <span><strong>Smart References:</strong> Insert figure/table references with one click</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-green-500">📚</span>
-                  <span><strong>Easy Citations:</strong> Add citations from your references instantly</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-purple-500">📊</span>
-                  <span><strong>Visual Content:</strong> Add images, tables, and equations inline</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-orange-500">📑</span>
-                  <span><strong>Subsections:</strong> Organize complex topics easily</span>
-                </div>
-              </div>
-            </div>
-            
-            <Button 
-              onClick={addSection} 
-              size="lg" 
-              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-10 py-6 text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
-            >
-              <Plus className="w-6 h-6 mr-2" />
-              Create Your First Section
-            </Button>
-            
-            <p className="text-xs text-gray-500 mt-4">
-              💾 Everything auto-saves as you type - never lose your work!
-            </p>
-          </div>
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-5xl mb-4">📝</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Writing Your Paper</h3>
+          <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+            Create sections like Introduction, Methodology, Results, and Conclusion.
+          </p>
+          <Button 
+            onClick={addSection} 
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create First Section
+          </Button>
         </div>
       )}
 
-      {/* Writing Tips */}
-      {sections.length > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
-          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <span className="text-xl">✨</span>
-            Writing Tips for Research Papers
-          </h4>
-          <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-700">
-            <div>
-              <p className="font-medium mb-1">📝 Common Sections:</p>
-              <ul className="space-y-1 text-gray-600">
-                <li>• <strong>Abstract</strong> - Summary of your work</li>
-                <li>• <strong>Introduction</strong> - Background & motivation</li>
-                <li>• <strong>Related Work</strong> - Previous research</li>
-                <li>• <strong>Methodology</strong> - Your approach</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-medium mb-1">📊 More Sections:</p>
-              <ul className="space-y-1 text-gray-600">
-                <li>• <strong>Results</strong> - Findings & data</li>
-                <li>• <strong>Discussion</strong> - Interpretation</li>
-                <li>• <strong>Conclusion</strong> - Summary & future work</li>
-                <li>• <strong>References</strong> - Added in References tab</li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
-            <p className="text-sm text-gray-700">
-              <strong>💡 Pro Tip:</strong> Use the helper buttons above the text editor to quickly insert references to your figures, tables, equations, and citations. No more manual tracking!
-            </p>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
@@ -672,54 +595,47 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
 
     return (
       <div key={sub.id} className={indentClass}>
-        <div className="bg-gradient-to-br from-white to-green-50 border-2 border-green-200 rounded-lg p-4 hover:border-green-300 hover:shadow-md transition-all mb-3">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-bold px-3 py-2 rounded-lg min-w-[80px] text-center shadow-sm">
+        <div className="bg-white border border-gray-200 rounded p-3 mb-2">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">
               {subsectionNumber}
-            </div>
+            </span>
             <Input
               value={sub.title}
               onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
-              placeholder={`Subsection title (e.g., ${subIdx === 0 ? 'Data Collection' : subIdx === 1 ? 'Analysis Method' : 'Implementation'})`}
-              className="flex-1 font-semibold bg-white border-green-200 focus:border-green-400"
+              placeholder="Subsection title"
+              className="flex-1 h-8 text-sm"
             />
             {canAddChild && (
               <Button 
                 onClick={() => addChildSubsection(sub.id, level)} 
-                variant="outline" 
+                variant="ghost" 
                 size="sm" 
-                className="text-green-600 hover:bg-green-50 border-green-300"
-                title="Add nested subsection"
+                className="h-7 w-7 p-0"
+                title="Add nested"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3" />
               </Button>
             )}
             <Button 
               onClick={() => deleteSubsection(sub.id)} 
               variant="ghost" 
               size="sm" 
-              className="text-red-600 hover:bg-red-50"
-              title="Delete this subsection and all nested subsections"
+              className="h-7 w-7 p-0 text-red-600"
+              title="Delete"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3 h-3" />
             </Button>
           </div>
-          <div className="relative">
-            <Textarea
-              value={sub.content}
-              onChange={(e) => updateSubsection(sub.id, { content: e.target.value })}
-              placeholder={`Write the content for "${sub.title || 'this subsection'}"...
-
-Explain this specific aspect in detail. Be clear and concise.`}
-              className="min-h-[120px] bg-white border-green-200 focus:border-green-400"
-            />
-            <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded">
-              {(sub.content || '').trim().split(/\s+/).filter(w => w.length > 0).length} words
-            </div>
-          </div>
+          <Textarea
+            value={sub.content}
+            onChange={(e) => updateSubsection(sub.id, { content: e.target.value })}
+            placeholder="Write content..."
+            className="min-h-[100px] text-sm"
+          />
         </div>
         {children.length > 0 && (
-          <div className="ml-6 space-y-3">
+          <div className="ml-4">
             {children.map((child, childIdx) => renderSubsection(child, childIdx, sectionIndex, level + 1))}
           </div>
         )}
@@ -754,78 +670,55 @@ Explain this specific aspect in detail. Be clear and concise.`}
             {/* Text Editor with Helper Buttons */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Section Content</label>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {wordCount} {wordCount === 1 ? 'word' : 'words'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 mr-1">Quick Insert:</span>
+                <label className="text-sm font-medium text-gray-700">
+                  Write your content ({wordCount} words)
+                </label>
+                <div className="flex items-center gap-1">
                   <Button
                     onClick={() => {
                       setCrossRefType('figure');
                       setShowCrossRefModal(true);
                     }}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-                    title="Insert reference to a figure (e.g., 'Figure 1')"
+                    className="h-7 text-xs"
+                    title="Reference a figure"
                   >
-                    <Link2 className="w-3 h-3 mr-1" />
-                    📷 Figure
+                    📷
                   </Button>
                   <Button
                     onClick={() => {
                       setCrossRefType('table');
                       setShowCrossRefModal(true);
                     }}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
-                    title="Insert reference to a table (e.g., 'Table 1')"
+                    className="h-7 text-xs"
+                    title="Reference a table"
                   >
-                    <Link2 className="w-3 h-3 mr-1" />
-                    📊 Table
+                    📊
                   </Button>
                   <Button
                     onClick={() => {
                       setCrossRefType('equation');
                       setShowCrossRefModal(true);
                     }}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
-                    title="Insert reference to an equation (e.g., 'Equation 1')"
+                    className="h-7 text-xs"
+                    title="Reference an equation"
                   >
-                    <Link2 className="w-3 h-3 mr-1" />
-                    🔢 Equation
+                    🔢
                   </Button>
                   <Button
                     onClick={() => setShowCitationModal(true)}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 text-xs border-green-300 text-green-700 hover:bg-green-50"
-                    title="Insert citation from your references (e.g., '[1]')"
+                    className="h-7 text-xs"
+                    title="Insert citation"
                   >
-                    <BookOpen className="w-3 h-3 mr-1" />
-                    📚 Cite
+                    📚
                   </Button>
-                </div>
-              </div>
-              
-              <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <span className="text-2xl">👆</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-blue-900 mb-1">How to Reference Figures, Tables & Equations:</p>
-                    <ol className="text-xs text-blue-800 space-y-1 ml-4 list-decimal">
-                      <li>Click in your text where you want to add a reference</li>
-                      <li>Click one of the buttons above (📷 Figure, 📊 Table, 🔢 Equation, or 📚 Cite)</li>
-                      <li>Select from the list and it will insert automatically!</li>
-                    </ol>
-                    <p className="text-xs text-blue-700 mt-2 font-medium">Example: "As shown in Figure 1..." or "According to [1]..."</p>
-                  </div>
                 </div>
               </div>
               
@@ -833,17 +726,8 @@ Explain this specific aspect in detail. Be clear and concise.`}
                 ref={textareaRef}
                 value={textBlock?.content || ""}
                 onChange={(e) => updateTextContent(e.target.value)}
-                placeholder={`Start writing your ${section.title || 'section'} content here...
-
-📝 Write naturally - explain your ideas, describe your methods, present your findings.
-
-💡 Quick Tips:
-• Click where you want to insert, then use the buttons above
-• Add figures, tables, and equations using the "Insert" buttons below
-• Break down complex topics using subsections at the bottom
-
-You have plenty of space - this text area expands as you write!`}
-                className="min-h-[400px] text-base leading-relaxed resize-y font-serif"
+                placeholder="Start writing your content here... Write naturally and use the emoji buttons above to insert references."
+                className="min-h-[350px] text-base leading-relaxed resize-y"
               />
             </div>
 
@@ -858,88 +742,55 @@ You have plenty of space - this text area expands as you write!`}
             ))}
 
             {/* Insert Toolbar */}
-            <div className="pt-4 border-t-2 border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-700 font-semibold">📎 Add Visual Content</span>
-                <span className="text-xs text-gray-500">Click to add images, tables, or equations to this section</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button 
-                  onClick={() => addContentBlock('image')} 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all"
-                  title="Add an image/figure to illustrate your point"
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  📷 Add Image
-                </Button>
-                <Button 
-                  onClick={() => addContentBlock('table')} 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400 transition-all"
-                  title="Add a table to present data"
-                >
-                  <Table className="w-4 h-4" />
-                  📊 Add Table
-                </Button>
-                <Button 
-                  onClick={() => addContentBlock('equation')} 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400 transition-all"
-                  title="Add a mathematical equation"
-                >
-                  <Calculator className="w-4 h-4" />
-                  🔢 Add Equation
-                </Button>
-              </div>
+            <div className="flex items-center gap-2 pt-3 border-t">
+              <span className="text-xs text-gray-500">Add:</span>
+              <Button 
+                onClick={() => addContentBlock('image')} 
+                variant="outline" 
+                size="sm" 
+                className="h-8"
+              >
+                📷 Image
+              </Button>
+              <Button 
+                onClick={() => addContentBlock('table')} 
+                variant="outline" 
+                size="sm" 
+                className="h-8"
+              >
+                📊 Table
+              </Button>
+              <Button 
+                onClick={() => addContentBlock('equation')} 
+                variant="outline" 
+                size="sm" 
+                className="h-8"
+              >
+                🔢 Equation
+              </Button>
             </div>
 
             {/* Subsections */}
-            <div className="pt-6 border-t-2 border-gray-200">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-1">
-                    📑 Subsections
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    Break down complex topics into smaller, organized parts. Each subsection will be numbered automatically (e.g., {index + 1}.1, {index + 1}.2, {index + 1}.3)
-                  </p>
-                  {subsections.length === 0 && (
-                    <p className="text-xs text-blue-600 mt-2 bg-blue-50 p-2 rounded border border-blue-200">
-                      💡 <strong>Example:</strong> In a "Methodology" section, you might have subsections like "Data Collection", "Analysis Method", and "Tools Used"
-                    </p>
-                  )}
-                </div>
+            <div className="pt-4 border-t">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-medium text-gray-700">
+                  Subsections (optional)
+                </h3>
                 <Button 
                   onClick={addSubsection} 
                   variant="outline" 
                   size="sm" 
-                  className="border-green-500 text-green-700 hover:bg-green-50 font-semibold ml-4"
-                  title="Add a new subsection to organize this section better"
+                  className="h-8"
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Subsection
+                  Add
                 </Button>
               </div>
               
               {subsections.length === 0 ? (
-                <div className="text-center py-8 bg-gradient-to-br from-gray-50 to-green-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <div className="text-4xl mb-3">📝</div>
-                  <p className="text-sm text-gray-700 font-medium mb-2">No subsections yet</p>
-                  <p className="text-xs text-gray-500 mb-4">Subsections help organize complex topics into manageable parts</p>
-                  <Button 
-                    onClick={addSubsection} 
-                    variant="outline" 
-                    size="sm" 
-                    className="border-green-500 text-green-700 hover:bg-green-100"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Create First Subsection
-                  </Button>
-                </div>
+                <p className="text-xs text-gray-500 text-center py-4">
+                  No subsections. Click "Add" to create one.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {subsections.filter(s => !s.parentId).map((sub, subIdx) => 
