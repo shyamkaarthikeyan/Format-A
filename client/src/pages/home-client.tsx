@@ -277,7 +277,7 @@ export default function HomeClient() {
   };
 
   // Record download and trigger email notification with file attachment
-  const recordDownload = async (documentTitle: string, fileFormat: string, fileSize: number, documentMetadata: any, fileData?: string) => {
+  const recordDownload = async (documentTitle: string, fileFormat: string, fileSize: number, documentMetadata: any, fileData?: string, sendEmail: boolean = true) => {
     try {
       const token = localStorage.getItem('auth-token');
       if (!token) {
@@ -296,13 +296,18 @@ export default function HomeClient() {
           fileFormat,
           fileSize,
           documentMetadata,
-          fileData // Include the base64 file data for email attachment
+          fileData, // Include the base64 file data for email attachment
+          sendEmail // Control whether to send email
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Download recorded and email sent with document attached:', result);
+        if (sendEmail) {
+          console.log('✅ Download recorded and email sent with document attached:', result);
+        } else {
+          console.log('✅ Download recorded (no email sent):', result);
+        }
       } else {
         console.error('Failed to record download:', response.status);
       }

@@ -148,7 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const { documentTitle, fileFormat, fileSize, documentMetadata, fileData } = req.body;
+    const { documentTitle, fileFormat, fileSize, documentMetadata, fileData, sendEmail = true } = req.body;
 
     if (!documentTitle || !fileFormat) {
       return res.status(400).json({
@@ -201,30 +201,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       documentMetadata: downloadRecord.document_metadata
     };
 
-    // Send email with document attachment asynchronously (don't wait for it)
-    console.log('📧 Initiating email notification...', {
-      downloadId: downloadRecord.id,
-      hasFileData: !!fileData,
-      fileDataLength: fileData?.length || 0,
-      userEmail: user.email
-    });
-    
-    sendDownloadNotification(downloadRecord.id, { ...downloadData, fileData }, user)
-      .then((result) => {
-        console.log('📧 Email sent successfully with document attached:', {
-          downloadId: downloadRecord.id,
-          messageId: result?.data?.messageId,
-          recipient: user.email
-        });
-      })
-      .catch((error) => {
-        console.error('📧 Failed to send email with document:', {
-          downloadId: downloadRecord.id,
-          error: error.message,
-          stack: error.stack,
-          userEmail: user.email
-        });
+    // Send email with document attachment asynchronously (don't wait for it) - only if requested
+    if (sendEmail) {
+      console.log('📧 Initiating email notification...', {
+        downloadId: downloadRecord.id,
+        hasFileData: !!fileData,
+        fileDataLength: fileData?.length || 0,
+        userEmail: user.email
       });
+      
+      sendDownloadNotification(downloadRecord.id, { ...downloadData, fileData }, user)
+        .then((result) => {
+          console.log('📧 Email sent successfully with document attached:', {
+            downloadId: downloadRecord.id,
+            messageId: result?.data?.messageId,
+            recipient: user.email
+          });
+        })
+        .catch((error) => {
+          console.error('📧 Failed to send email with document:', {
+            downloadId: downloadRecord.id,
+            error: error.message,
+            stack: error.stack,
+            userEmail: user.email
+          });
+        });
+    } else {
+      console.log('📧 Email sending skipped (sendEmail=false)');
+    }
 
     res.json({
       success: true,
