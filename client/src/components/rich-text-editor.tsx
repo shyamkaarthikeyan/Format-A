@@ -210,8 +210,8 @@ export default function RichTextEditor({
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
-        className={`p-3 min-h-[${rows * 1.5}rem] max-h-40 overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
-        style={{ minHeight: `${rows * 1.5}rem` }}
+        className={`p-6 overflow-y-auto focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 text-base leading-relaxed`}
+        style={{ minHeight: `${rows * 2}rem`, maxHeight: '600px' }}
         onInput={handleInput}
         onKeyUp={handleKeyUp}
         onMouseUp={handleMouseUp}

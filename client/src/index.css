@@ -419,3 +419,38 @@ Custom styles for tabbed document editor */
     animation: fadeIn 0.3s ease-out;
   }
 }
+
+
+/* Make ALL textareas and editors MUCH BIGGER and user-friendly */
+@layer utilities {
+  /* Target all textareas - make them BIG */
+  textarea {
+    min-height: 250px !important;
+    font-size: 16px !important;
+    line-height: 1.8 !important;
+    padding: 16px !important;
+  }
+  
+  /* Extra large for ProseMirror rich text editors in content blocks */
+  .ProseMirror {
+    min-height: 400px !important;
+    max-height: 600px !important;
+    font-size: 17px !important;
+    line-height: 1.9 !important;
+    padding: 24px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Make inputs bigger and more comfortable */
+  input[type="text"],
+  input[type="email"] {
+    font-size: 16px !important;
+    padding: 14px 16px !important;
+    min-height: 48px !important;
+  }
+  
+  /* Content blocks should have more padding */
+  .content-block {
+    padding: 24px !important;
+  }
+}

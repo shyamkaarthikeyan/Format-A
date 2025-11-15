@@ -692,7 +692,7 @@ export default function HomeClient() {
                 }}
               >
                 {/* Tab Navigation */}
-                <div className="flex bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-purple-200">
+                <div className="flex bg-white border-b-2 border-gray-200">
                   <button
                     onClick={() => setActiveTab('basic')}
                     className={`flex items-center gap-2 px-8 py-4 font-semibold text-base transition-all border-b-4 ${

@@ -60,7 +60,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
         {block.type === "text" ? (
           <div className="space-y-2">
             <RichTextEditor
-              rows={4}
+              rows={15}
               placeholder="Enter text content"
               value={block.content || ""}
               onChange={(content) => onUpdate({ content })}
