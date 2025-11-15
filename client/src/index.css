@@ -423,34 +423,49 @@ Custom styles for tabbed document editor */
 
 /* Make ALL textareas and editors MUCH BIGGER and user-friendly */
 @layer utilities {
-  /* Target all textareas - make them BIG */
+  /* Target all textareas - make them HUGE */
   textarea {
-    min-height: 250px !important;
-    font-size: 16px !important;
-    line-height: 1.8 !important;
-    padding: 16px !important;
+    min-height: 350px !important;
+    font-size: 17px !important;
+    line-height: 1.9 !important;
+    padding: 20px !important;
   }
   
   /* Extra large for ProseMirror rich text editors in content blocks */
   .ProseMirror {
-    min-height: 400px !important;
-    max-height: 600px !important;
-    font-size: 17px !important;
-    line-height: 1.9 !important;
-    padding: 24px !important;
+    min-height: 500px !important;
+    max-height: 800px !important;
+    font-size: 18px !important;
+    line-height: 2.0 !important;
+    padding: 28px !important;
     overflow-y: auto !important;
+  }
+  
+  /* Make contenteditable divs (rich text editors) HUGE */
+  [contenteditable] {
+    min-height: 500px !important;
+    max-height: 800px !important;
+    font-size: 18px !important;
+    line-height: 2.0 !important;
+    padding: 28px !important;
   }
   
   /* Make inputs bigger and more comfortable */
   input[type="text"],
   input[type="email"] {
-    font-size: 16px !important;
-    padding: 14px 16px !important;
-    min-height: 48px !important;
+    font-size: 17px !important;
+    padding: 16px 18px !important;
+    min-height: 52px !important;
   }
   
-  /* Content blocks should have more padding */
+  /* Content blocks should have more padding and be bigger */
   .content-block {
-    padding: 24px !important;
+    padding: 32px !important;
+    margin-bottom: 24px !important;
+  }
+  
+  /* Card content padding */
+  .card-content {
+    padding: 28px !important;
   }
 }

@@ -21,8 +21,8 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
   const [showImageSection, setShowImageSection] = useState(true);
 
   return (
-    <Card className="bg-white border border-gray-200">
-      <CardContent className="p-2">
+    <Card className="bg-white border-2 border-purple-200 shadow-md">
+      <CardContent className="p-6">
         <div className="flex justify-between items-start mb-2">
           <Badge variant="secondary" className="text-xs">
             {block.type === "text" ? (
@@ -60,8 +60,8 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
         {block.type === "text" ? (
           <div className="space-y-2">
             <RichTextEditor
-              rows={15}
-              placeholder="Enter text content"
+              rows={25}
+              placeholder="Enter text content - Type your section content here with plenty of space..."
               value={block.content || ""}
               onChange={(content) => onUpdate({ content })}
             />

@@ -568,22 +568,22 @@ export default function HomeClient() {
         <div className="max-w-8xl mx-auto">
           {/* Enhanced Header with Download Options */}
           <div className={`mb-4 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-5 shadow-xl border border-purple-300">
+            <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg p-5 shadow-xl border-2 border-purple-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Button
                     onClick={() => setLocation("/")}
                     variant="ghost"
                     size="sm"
-                    className="text-white hover:text-white hover:bg-white/20"
+                    className="text-purple-700 hover:text-purple-900 hover:bg-purple-200/50"
                   >
                     <ArrowLeft className="w-4 h-4 mr-1" />
                     Back
                   </Button>
                   
                   <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-white" />
-                    <span className="text-lg font-bold text-white">IEEE Document Generator</span>
+                    <FileText className="w-5 h-5 text-purple-700" />
+                    <span className="text-lg font-bold text-purple-900">IEEE Document Generator</span>
                   </div>
                 </div>
 
@@ -593,7 +593,7 @@ export default function HomeClient() {
                     onClick={handleGenerateDocx}
                     disabled={isGenerating}
                     size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-700 shadow-md"
                   >
                     <Download className="w-4 h-4 mr-1" />
                     {isGenerating ? 'Generating...' : 'Word'}
@@ -603,7 +603,7 @@ export default function HomeClient() {
                     onClick={handleGeneratePdf}
                     disabled={isGenerating}
                     size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-700 shadow-md"
                   >
                     <Download className="w-4 h-4 mr-1" />
                     {isGenerating ? 'Generating...' : 'PDF'}
@@ -612,13 +612,13 @@ export default function HomeClient() {
                   <Button
                     onClick={handleEmailDocument}
                     size="sm"
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-700 shadow-md"
                   >
                     <Mail className="w-4 h-4 mr-1" />
                     Email
                   </Button>
 
-                  <div className="w-px h-6 bg-white/30 mx-1"></div>
+                  <div className="w-px h-6 bg-purple-300 mx-1"></div>
 
                   {/* Admin Panel Button */}
                   {isAdmin && (
@@ -626,7 +626,7 @@ export default function HomeClient() {
                       onClick={() => setLocation('/admin')}
                       variant="outline"
                       size="sm"
-                      className="bg-orange-500/20 text-white border-white/30 hover:bg-orange-500/30"
+                      className="bg-orange-500 text-white border-2 border-orange-600 hover:bg-orange-600 shadow-md"
                     >
                       <Users className="w-4 h-4 mr-1" />
                       Admin
@@ -637,7 +637,7 @@ export default function HomeClient() {
                     onClick={() => setShowDownloadHistory(!showDownloadHistory)}
                     variant="outline"
                     size="sm"
-                    className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                    className="bg-purple-600 text-white border-2 border-purple-700 hover:bg-purple-700 shadow-md"
                   >
                     <History className="w-4 h-4 mr-1" />
                     History
@@ -646,7 +646,7 @@ export default function HomeClient() {
                   <Button 
                     onClick={handleCreateDocument} 
                     size="sm"
-                    className="bg-white text-purple-600 hover:bg-white/90 font-semibold"
+                    className="bg-white text-purple-700 hover:bg-purple-50 font-semibold border-2 border-purple-600 shadow-md"
                   >
                     <Plus className="w-4 h-4 mr-1" />
                     New
@@ -657,7 +657,7 @@ export default function HomeClient() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteDocument(currentDocument.id)}
-                      className="text-white hover:text-white hover:bg-red-500/30"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-100 border-2 border-red-300"
                     >
                       Delete
                     </Button>
