@@ -589,38 +589,6 @@ export default function HomeClient() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Download Options */}
-                  <Button
-                    onClick={handleGenerateDocx}
-                    disabled={isGenerating}
-                    size="sm"
-                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-700 shadow-md"
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    {isGenerating ? 'Generating...' : 'Word'}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleGeneratePdf}
-                    disabled={isGenerating}
-                    size="sm"
-                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-700 shadow-md"
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    {isGenerating ? 'Generating...' : 'PDF'}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleEmailDocument}
-                    size="sm"
-                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-700 shadow-md"
-                  >
-                    <Mail className="w-4 h-4 mr-1" />
-                    Email
-                  </Button>
-
-                  <div className="w-px h-6 bg-purple-300 mx-1"></div>
-
                   {/* Admin Panel Button */}
                   {isAdmin && (
                     <Button
