@@ -142,11 +142,11 @@ const SubsectionItem: React.FC<SubsectionItemProps> = ({
       <EnhancedCard 
         variant="glass" 
         className={cn(
-          'border border-gray-200 transition-all duration-200 overflow-hidden',
+          'border-2 border-purple-200 transition-all duration-200 overflow-hidden shadow-md',
           borderLeft
         )}
       >
-        <div className={cn('p-3 space-y-3', bgGradient)}>
+        <div className={cn('p-6 space-y-5', bgGradient)}>
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
