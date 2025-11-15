@@ -7,6 +7,7 @@ import { X, Type, Image as ImageIcon, Plus, Table, Calculator } from "lucide-rea
 import FileUpload from "./file-upload";
 import RichTextEditor from "./rich-text-editor";
 import TableBlockEditor from "./table-block-editor";
+import LaTeXEquationEditor from "./latex-equation-editor";
 import type { ContentBlock as ContentBlockType } from "@shared/schema";
 import { useState } from "react";
 
@@ -164,19 +165,7 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="text-center py-3">
-                <Button
-                  onClick={() => setShowImageSection(true)}
-                  variant="outline"
-                  size="sm"
-                  className="text-gray-600"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Image Section
-                </Button>
-              </div>
-            )}
+            ) : null}
           </div>
         ) : block.type === "image" ? (
           <div className="space-y-1.5">
@@ -240,66 +229,14 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
           <TableBlockEditor block={block} onUpdate={onUpdate} />
         ) : (
           <div className="space-y-3">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Equation Content (LaTeX Format)
-              </label>
-              <div className="text-xs text-gray-500 mb-2">
-                You can copy and paste equations from any source. Common LaTeX symbols: \frac{`{a}`}{`{b}`}, \sqrt{`{x}`}, \sum, \int, \alpha, \beta, etc.
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => onUpdate({ content: (block.content || "") + "\\frac{1}{2}" })}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                >
-                  Add Fraction
-                </Button>
-                <Button
-                  onClick={() => onUpdate({ content: (block.content || "") + "\\sqrt{x}" })}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                >
-                  Add Square Root
-                </Button>
-                <Button
-                  onClick={() => onUpdate({ content: (block.content || "") + "\\sum_{i=1}^{n}" })}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                >
-                  Add Summation
-                </Button>
-                <Button
-                  onClick={() => onUpdate({ content: (block.content || "") + "\\int_{a}^{b}" })}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                >
-                  Add Integral
-                </Button>
-              </div>
-              <Textarea
-                rows={4}
-                placeholder="Paste or type your equation here (LaTeX format). Example: E = mc^2 or \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
-                value={block.content || ""}
-                onChange={(e) => {
-                  // Preserve the original content without any transformations
-                  const rawContent = e.target.value;
-                  onUpdate({ content: rawContent });
-                }}
-                className="font-mono text-sm"
-                style={{ fontFamily: 'monospace' }}
-              />
-              <div className="text-xs text-gray-500">
-                Will be numbered as ({block.equationNumber || 0}). Supports standard LaTeX syntax.
-              </div>
-            </div>
+            <LaTeXEquationEditor
+              value={block.content || ""}
+              onChange={(content) => onUpdate({ content })}
+              equationNumber={block.equationNumber}
+            />
             
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-gray-600">
                 Or Upload Equation Image
               </label>
               <FileUpload
@@ -323,10 +260,11 @@ export default function ContentBlock({ block, onUpdate, onRemove }: ContentBlock
                   name: block.fileName || 'Equation Image',
                   preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
                 } : undefined}
+                compact={true}
               />
               {block.imageId && (
-                <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                  ✅ Equation image uploaded: {block.fileName || 'Equation Image'}
+                <div className="p-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                  ✅ {block.fileName || 'Equation image uploaded'}
                 </div>
               )}
             </div>
