@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History, Download, Mail, Lock, Table, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { Plus, ArrowLeft, Sparkles, FileText, Users, BookOpen, Image, Link, History, Download, Mail, Lock, Table, ChevronLeft, ChevronRight, GripVertical, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
@@ -120,6 +120,10 @@ export default function HomeClient() {
   });
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showLayoutHint, setShowLayoutHint] = useState(() => {
+    const seen = localStorage.getItem('layout-hint-seen');
+    return !seen;
+  });
 
   // Load documents from localStorage on mount
   useEffect(() => {
@@ -175,6 +179,10 @@ export default function HomeClient() {
     const newState = !isPreviewCollapsed;
     setIsPreviewCollapsed(newState);
     localStorage.setItem('layout-preview-collapsed', newState.toString());
+    if (showLayoutHint) {
+      setShowLayoutHint(false);
+      localStorage.setItem('layout-hint-seen', 'true');
+    }
   };
 
   const handleCreateDocument = () => {
@@ -755,29 +763,61 @@ export default function HomeClient() {
 
             {/* Right Column - Preview (resizable width) */}
             <div 
-              className="h-full transition-all duration-300"
+              className="h-full transition-all duration-300 relative"
               style={{ 
                 width: isPreviewCollapsed ? '80px' : `${100 - formWidth}%` 
               }}
             >
+              {/* Layout Hint - First time users */}
+              {showLayoutHint && !isPreviewCollapsed && (
+                <div className="absolute top-16 right-4 z-50 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-xl max-w-xs animate-bounce">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium mb-1">💡 Tip: Need more typing space?</p>
+                      <p className="text-xs opacity-90">Click "Collapse" to maximize the form area, or drag the divider to resize!</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowLayoutHint(false);
+                        localStorage.setItem('layout-hint-seen', 'true');
+                      }}
+                      className="text-white hover:text-purple-200 ml-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
                 <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-white/80">
-                  <div className="flex items-center justify-between">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={togglePreviewCollapse}
-                      className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                      title={isPreviewCollapsed ? "Expand preview" : "Collapse preview"}
-                    >
-                      {isPreviewCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </Button>
+                  <div className="flex items-center justify-between w-full">
                     {!isPreviewCollapsed && (
                       <CardTitle className="flex items-center gap-2 text-gray-900 text-sm font-medium">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                         Live Preview
                       </CardTitle>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={togglePreviewCollapse}
+                      className={`${isPreviewCollapsed ? 'w-full' : ''} flex items-center gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-300 shadow-sm`}
+                      title={isPreviewCollapsed ? "Expand preview" : "Collapse preview for more typing space"}
+                    >
+                      {isPreviewCollapsed ? (
+                        <>
+                          <ChevronLeft className="w-4 h-4" />
+                          <span className="text-xs font-medium">Expand</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-4 h-4" />
+                          <span className="text-xs font-medium">Collapse</span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardHeader>
                 {!isPreviewCollapsed && (
