@@ -275,9 +275,9 @@ function estimateWordCount(documentData: any): number {
 
 // Document generation API functions
 export const documentApi = {
-  // Generate DOCX document - Try Python backend first, fallback to Node.js backend
-  generateDocx: async (documentData: any) => {
-    console.log('Generating DOCX...');
+  // Internal DOCX generation (with preview flag to skip email)
+  generateDocxInternal: async (documentData: any, preview: boolean = false) => {
+    console.log(`Generating DOCX (${preview ? 'preview' : 'download'})...`);
     
     // In development, try local Node.js backend first, then Python backend
     // In production, use the Python backend
@@ -293,7 +293,7 @@ export const documentApi = {
         payload: {
           ...documentData,
           format: 'docx',
-          action: 'download'
+          action: preview ? 'preview' : 'download'
         }
       }
     ] : [
@@ -303,7 +303,7 @@ export const documentApi = {
         payload: {
           ...documentData,
           format: 'docx',
-          action: 'download'
+          action: preview ? 'preview' : 'download'
         }
       }
     ];
@@ -337,8 +337,8 @@ export const documentApi = {
         
         console.log(`✓ DOCX generated successfully using ${endpoint.name}`);
         
-        // Record download if successful
-        if (result.file_data) {
+        // Record download ONLY if not a preview
+        if (!preview && result.file_data) {
           try {
             await recordDownload(documentData, 'docx', result.file_size || 0, result.file_data);
           } catch (e) {
@@ -358,13 +358,18 @@ export const documentApi = {
     throw lastError || new Error('DOCX generation failed: No endpoints available');
   },
 
+  // Generate DOCX document - Public API for downloads (always sends email)
+  generateDocx: async (documentData: any) => {
+    return documentApi.generateDocxInternal(documentData, false);
+  },
+
   // Generate PDF document - Word→PDF conversion ONLY
   generatePdf: async (documentData: any, preview: boolean = false) => {
     console.log(`Generating PDF (${preview ? 'preview' : 'download'}) via Word→PDF conversion...`);
     
-    // Step 1: Generate DOCX first
+    // Step 1: Generate DOCX first (but don't record download for preview)
     console.log('Step 1: Generating DOCX document...');
-    const docxResult = await documentApi.generateDocx(documentData);
+    const docxResult = await documentApi.generateDocxInternal(documentData, preview);
     
     if (!docxResult.success || !docxResult.file_data) {
       throw new Error('Failed to generate DOCX for PDF conversion');

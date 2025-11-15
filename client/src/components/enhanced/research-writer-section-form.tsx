@@ -124,60 +124,96 @@ export default function ResearchWriterSectionForm({
     onUpdate(sections.filter(section => section.id !== sectionId));
   };
 
-  return (
-    <div className={cn('space-y-6', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            ✍️ Write Your Research Paper
-            {sections.length > 0 && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
-                ({sections.length} {sections.length === 1 ? 'section' : 'sections'})
-              </span>
-            )}
-          </h2>
-        </div>
-        <Button 
-          onClick={addSection} 
-          className="bg-purple-600 hover:bg-purple-700 text-white"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Section
-        </Button>
-      </div>
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(`section-${sectionId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
-      {/* Sections */}
-      {sections.length > 0 ? (
-        <div className="space-y-6">
-          {sections.map((section, index) => (
-            <SectionEditor
-              key={section.id}
-              section={section}
-              index={index}
-              onUpdate={(updates) => updateSection(section.id, updates)}
-              onDelete={() => deleteSection(section.id)}
-              allSections={sections}
-              references={references}
-            />
-          ))}
+  return (
+    <div className={cn('relative', className)}>
+      {/* Section Navigation Sidebar - Only show if there are multiple sections */}
+      {sections.length > 1 && (
+        <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
+          <div className="bg-white rounded-lg shadow-xl border-2 border-purple-200 p-2">
+            <div className="text-xs font-semibold text-purple-600 mb-2 px-2">Sections</div>
+            <div className="space-y-1">
+              {sections.map((section, index) => (
+                <button
+                  key={section.id}
+                  onClick={() => scrollToSection(section.id)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-purple-50 transition-colors group"
+                  title={section.title || `Section ${index + 1}`}
+                >
+                  <div className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white rounded-full font-bold text-sm flex-shrink-0 group-hover:bg-purple-700 transition-colors">
+                    {index + 1}
+                  </div>
+                  <div className="text-left text-sm font-medium text-gray-700 truncate max-w-[120px]">
+                    {section.title || 'Untitled'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <div className="text-5xl mb-4">📝</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Writing Your Paper</h3>
-          <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
-            Create sections like Introduction, Methodology, Results, and Conclusion.
-          </p>
+      )}
+
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              ✍️ Write Your Research Paper
+              {sections.length > 0 && (
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  ({sections.length} {sections.length === 1 ? 'section' : 'sections'})
+                </span>
+              )}
+            </h2>
+          </div>
           <Button 
             onClick={addSection} 
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Create First Section
+            Add Section
           </Button>
         </div>
-      )}
+
+        {/* Sections */}
+        {sections.length > 0 ? (
+          <div className="space-y-6">
+            {sections.map((section, index) => (
+              <div key={section.id} id={`section-${section.id}`}>
+                <SectionEditor
+                  section={section}
+                  index={index}
+                  onUpdate={(updates) => updateSection(section.id, updates)}
+                  onDelete={() => deleteSection(section.id)}
+                  allSections={sections}
+                  references={references}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div className="text-5xl mb-4">📝</div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Writing Your Paper</h3>
+            <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+              Create sections like Introduction, Methodology, Results, and Conclusion.
+            </p>
+            <Button 
+              onClick={addSection} 
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create First Section
+            </Button>
+          </div>
+        )}
+      </div>
 
 
     </div>
@@ -420,7 +456,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   const [showCrossRefModal, setShowCrossRefModal] = useState(false);
   const [showCitationModal, setShowCitationModal] = useState(false);
   const [crossRefType, setCrossRefType] = useState<'figure' | 'table' | 'equation'>('figure');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [subsectionsCollapsed, setSubsectionsCollapsed] = useState(false);
   
   const contentBlocks = section.contentBlocks || [];
   const textBlock = contentBlocks.find(b => b.type === 'text');
@@ -451,23 +487,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     return items;
   };
 
-  // Insert text at cursor position
+  // Insert text at end of content (since we can't easily access cursor in contentEditable)
   const insertAtCursor = (text: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
     const currentText = textBlock?.content || '';
-    const newText = currentText.substring(0, start) + text + currentText.substring(end);
-    
+    const newText = currentText + (currentText ? ' ' : '') + text;
     updateTextContent(newText);
-    
-    // Set cursor position after inserted text
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + text.length, start + text.length);
-    }, 0);
   };
 
   const addContentBlock = (type: ContentBlockType['type']) => {
@@ -591,51 +615,51 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     const children = subsections.filter(s => s.parentId === sub.id);
     const subsectionNumber = getSubsectionNumber(sub, sectionIndex);
     const canAddChild = level < 5; // Max 5 levels deep
-    const indentClass = level > 1 ? `ml-${Math.min(level - 1, 4) * 6}` : '';
 
     return (
-      <div key={sub.id} className={indentClass}>
-        <div className="bg-white border border-gray-200 rounded p-3 mb-2">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">
+      <div key={sub.id}>
+        <div className="bg-gradient-to-r from-green-50 to-white border-2 border-green-200 rounded-lg p-5 mb-4 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-sm font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-md shadow-sm">
               {subsectionNumber}
             </span>
             <Input
               value={sub.title}
               onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
               placeholder="Subsection title"
-              className="flex-1 h-8 text-sm"
+              className="flex-1 h-10 text-base font-medium"
             />
             {canAddChild && (
               <Button 
                 onClick={() => addChildSubsection(sub.id, level)} 
-                variant="ghost" 
+                variant="outline" 
                 size="sm" 
-                className="h-7 w-7 p-0"
-                title="Add nested"
+                className="h-9 w-9 p-0 hover:bg-green-50"
+                title="Add nested subsection"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </Button>
             )}
             <Button 
               onClick={() => deleteSubsection(sub.id)} 
-              variant="ghost" 
+              variant="outline" 
               size="sm" 
-              className="h-7 w-7 p-0 text-red-600"
-              title="Delete"
+              className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 hover:border-red-300"
+              title="Delete subsection"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
-          <Textarea
+          <RichTextEditor
             value={sub.content}
-            onChange={(e) => updateSubsection(sub.id, { content: e.target.value })}
-            placeholder="Write content..."
-            className="min-h-[100px] text-sm"
+            onChange={(content) => updateSubsection(sub.id, { content })}
+            placeholder="Write subsection content with formatting..."
+            rows={6}
+            className="text-base"
           />
         </div>
         {children.length > 0 && (
-          <div className="ml-4">
+          <div>
             {children.map((child, childIdx) => renderSubsection(child, childIdx, sectionIndex, level + 1))}
           </div>
         )}
@@ -645,89 +669,89 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
 
   return (
     <>
-      <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+      <div className="bg-white rounded-xl border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all">
         {/* Section Header */}
-        <div className="bg-gradient-to-r from-purple-50 to-white border-b-2 border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 bg-purple-600 text-white rounded-full font-bold text-lg flex-shrink-0">
+        <div className="bg-gradient-to-r from-purple-50 to-white border-b-2 border-gray-200 p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-12 h-12 bg-purple-600 text-white rounded-full font-bold text-xl flex-shrink-0 shadow-md">
               {index + 1}
             </div>
             <Input
               value={section.title}
               onChange={(e) => onUpdate({ title: e.target.value })}
               placeholder="Section Title (e.g., Introduction, Methodology, Results...)"
-              className="flex-1 text-lg font-semibold border-0 bg-transparent focus:bg-white focus:border-2 focus:border-purple-300 transition-all"
+              className="flex-1 text-xl font-semibold border-0 bg-transparent focus:bg-white focus:border-2 focus:border-purple-300 transition-all py-3"
             />
-            <Button onClick={onDelete} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-              <Trash2 className="w-4 h-4" />
+            <Button onClick={onDelete} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 p-3">
+              <Trash2 className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
         {/* Section Body */}
-        <div className="p-6">
-          <div className="space-y-4">
+        <div className="p-8">
+          <div className="space-y-6">
             {/* Text Editor with Helper Buttons */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Write your content ({wordCount} words)
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-base font-semibold text-gray-800">
+                  ✍️ Write your content ({wordCount} words)
                 </label>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <Button
                     onClick={() => {
                       setCrossRefType('figure');
                       setShowCrossRefModal(true);
                     }}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-9 px-3 text-sm hover:bg-blue-50 hover:border-blue-300"
                     title="Reference a figure"
                   >
-                    📷
+                    📷 Figure
                   </Button>
                   <Button
                     onClick={() => {
                       setCrossRefType('table');
                       setShowCrossRefModal(true);
                     }}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-9 px-3 text-sm hover:bg-purple-50 hover:border-purple-300"
                     title="Reference a table"
                   >
-                    📊
+                    📊 Table
                   </Button>
                   <Button
                     onClick={() => {
                       setCrossRefType('equation');
                       setShowCrossRefModal(true);
                     }}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-9 px-3 text-sm hover:bg-orange-50 hover:border-orange-300"
                     title="Reference an equation"
                   >
-                    🔢
+                    🔢 Equation
                   </Button>
                   <Button
                     onClick={() => setShowCitationModal(true)}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-9 px-3 text-sm hover:bg-green-50 hover:border-green-300"
                     title="Insert citation"
                   >
-                    📚
+                    📚 Cite
                   </Button>
                 </div>
               </div>
               
-              <Textarea
-                ref={textareaRef}
+              <RichTextEditor
                 value={textBlock?.content || ""}
-                onChange={(e) => updateTextContent(e.target.value)}
-                placeholder="Start writing your content here... Write naturally and use the emoji buttons above to insert references."
-                className="min-h-[350px] text-base leading-relaxed resize-y"
+                onChange={(content) => updateTextContent(content)}
+                placeholder="Start writing your content here... Write naturally and use the emoji buttons above to insert references. Use the formatting toolbar for bold, italic, underline, lists, and alignment."
+                rows={18}
+                className="min-h-[350px]"
               />
             </div>
 
@@ -742,13 +766,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             ))}
 
             {/* Insert Toolbar */}
-            <div className="flex items-center gap-2 pt-3 border-t">
-              <span className="text-xs text-gray-500">Add:</span>
+            <div className="flex items-center gap-3 pt-6 border-t-2 border-gray-200">
+              <span className="text-sm font-medium text-gray-700">📎 Add to section:</span>
               <Button 
                 onClick={() => addContentBlock('image')} 
                 variant="outline" 
                 size="sm" 
-                className="h-8"
+                className="h-10 px-4 hover:bg-blue-50 hover:border-blue-300"
               >
                 📷 Image
               </Button>
@@ -756,7 +780,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 onClick={() => addContentBlock('table')} 
                 variant="outline" 
                 size="sm" 
-                className="h-8"
+                className="h-10 px-4 hover:bg-purple-50 hover:border-purple-300"
               >
                 📊 Table
               </Button>
@@ -764,39 +788,52 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 onClick={() => addContentBlock('equation')} 
                 variant="outline" 
                 size="sm" 
-                className="h-8"
+                className="h-10 px-4 hover:bg-orange-50 hover:border-orange-300"
               >
                 🔢 Equation
               </Button>
             </div>
 
-            {/* Subsections */}
-            <div className="pt-4 border-t">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-medium text-gray-700">
-                  Subsections (optional)
-                </h3>
+            {/* Subsections - Collapsible */}
+            <div className="pt-6 border-t-2 border-gray-200 mt-6">
+              <div className="flex justify-between items-center mb-4">
+                <button
+                  onClick={() => setSubsectionsCollapsed(!subsectionsCollapsed)}
+                  className="flex items-center gap-3 text-base font-semibold text-gray-800 hover:text-purple-600 transition-colors"
+                >
+                  <span className={`transform transition-transform text-purple-600 ${subsectionsCollapsed ? '' : 'rotate-90'}`}>
+                    ▶
+                  </span>
+                  <span>
+                    📑 Subsections {subsections.length > 0 && `(${subsections.length})`}
+                  </span>
+                  <span className="text-sm text-gray-500 font-normal">- click to {subsectionsCollapsed ? 'expand' : 'collapse'}</span>
+                </button>
                 <Button 
                   onClick={addSubsection} 
                   variant="outline" 
                   size="sm" 
-                  className="h-8"
+                  className="h-10 px-4 bg-purple-50 hover:bg-purple-100 border-purple-300"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Subsection
                 </Button>
               </div>
               
-              {subsections.length === 0 ? (
-                <p className="text-xs text-gray-500 text-center py-4">
-                  No subsections. Click "Add" to create one.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {subsections.filter(s => !s.parentId).map((sub, subIdx) => 
-                    renderSubsection(sub, subIdx, index, 1)
+              {!subsectionsCollapsed && (
+                <>
+                  {subsections.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      No subsections yet. Click "Add" to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                      {subsections.filter(s => !s.parentId).map((sub, subIdx) => 
+                        renderSubsection(sub, subIdx, index, 1)
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>
