@@ -146,19 +146,7 @@ export default function TableBlockEditor({ block, onUpdate }: TableBlockEditorPr
         </div>
       </div>
 
-      {/* Table Caption */}
-      <div>
-        <Label>Table Caption</Label>
-        <Textarea
-          rows={2}
-          placeholder="Enter table caption/description"
-          value={block.caption || ""}
-          onChange={(e) => onUpdate({ caption: e.target.value })}
-        />
-        <div className="text-xs text-gray-500 mt-1">
-          Brief description of the table content
-        </div>
-      </div>
+
 
       {/* Table Size */}
       <div>
