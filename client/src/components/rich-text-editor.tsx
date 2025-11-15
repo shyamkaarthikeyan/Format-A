@@ -219,7 +219,7 @@ export default function RichTextEditor({
         data-placeholder={placeholder}
       />
 
-      {/* Placeholder styling */}
+      {/* Placeholder and list styling */}
       <style>{`
         [contenteditable]:empty:before {
           content: attr(data-placeholder);
@@ -228,6 +228,41 @@ export default function RichTextEditor({
         }
         [contenteditable]:focus:before {
           content: '';
+        }
+        
+        /* List styling - make bullets and numbers visible in editor */
+        [contenteditable] ul {
+          list-style-type: disc;
+          padding-left: 2rem;
+          margin: 0.5rem 0;
+        }
+        
+        [contenteditable] ol {
+          list-style-type: decimal;
+          padding-left: 2rem;
+          margin: 0.5rem 0;
+        }
+        
+        [contenteditable] li {
+          margin: 0.25rem 0;
+          display: list-item;
+        }
+        
+        /* Alignment styling - make alignment visible in editor */
+        [contenteditable] [style*="text-align: left"] {
+          text-align: left;
+        }
+        
+        [contenteditable] [style*="text-align: center"] {
+          text-align: center;
+        }
+        
+        [contenteditable] [style*="text-align: right"] {
+          text-align: right;
+        }
+        
+        [contenteditable] [style*="text-align: justify"] {
+          text-align: justify;
         }
       `}</style>
     </div>
