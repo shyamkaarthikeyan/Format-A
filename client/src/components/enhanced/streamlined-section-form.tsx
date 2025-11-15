@@ -129,7 +129,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
         className="overflow-hidden transition-all duration-200 hover:shadow-lg"
       >
         {/* Section Header */}
-        <div className="bg-gradient-to-r from-purple-50 to-white border-b-2 border-purple-200 p-6 border-l-4 border-l-purple-600">
+        <div className="bg-gradient-to-r from-purple-50 to-white border-b border-purple-200 p-4 border-l-4 border-l-purple-600">
           <div className="flex items-center justify-between">
             <div 
               className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-purple-50/50 -m-2 p-2 rounded transition-colors"
@@ -199,12 +199,12 @@ const SectionItem: React.FC<SectionItemProps> = ({
 
           {/* Edit Form */}
           {isEditing && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-4 space-y-3">
               <Input
                 value={section.title}
                 onChange={(e) => onUpdate({ title: e.target.value })}
                 placeholder="Enter section title..."
-                className="text-xl font-semibold h-14 px-5"
+                className="text-lg font-medium h-12 px-4"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSave();
                   if (e.key === 'Escape') handleCancel();
@@ -236,12 +236,12 @@ const SectionItem: React.FC<SectionItemProps> = ({
 
         {/* Section Content - Only when expanded */}
         {isExpanded && !isEditing && (
-          <div className="p-8 space-y-8 bg-gradient-to-br from-white to-purple-50/20">
+          <div className="p-6 space-y-6 bg-gradient-to-br from-white to-purple-50/20">
             {/* Content Blocks */}
             {contentBlocks.length > 0 && (
-              <div className="space-y-6">
-                <h4 className="text-lg font-semibold text-purple-900 flex items-center gap-3 pb-3 border-b-2 border-purple-200">
-                  <Type className="w-5 h-5" />
+              <div className="space-y-4">
+                <h4 className="text-base font-semibold text-purple-900 flex items-center gap-2 pb-2 border-b border-purple-200">
+                  <Type className="w-4 h-4" />
                   Content Blocks ({contentBlocks.length})
                 </h4>
                 {contentBlocks.map((block) => (
@@ -257,9 +257,9 @@ const SectionItem: React.FC<SectionItemProps> = ({
 
             {/* Subsections */}
             {subsections.length > 0 && (
-              <div className="space-y-6 mt-8">
-                <h4 className="text-lg font-semibold text-purple-900 flex items-center gap-3 pb-3 border-b-2 border-purple-200">
-                  <Plus className="w-5 h-5" />
+              <div className="space-y-4 mt-6">
+                <h4 className="text-base font-semibold text-purple-900 flex items-center gap-2 pb-2 border-b border-purple-200">
+                  <Plus className="w-4 h-4" />
                   Subsections ({subsections.length})
                 </h4>
                 <NestedSubsectionManager
@@ -433,18 +433,18 @@ export default function StreamlinedSectionForm({
         
         <EnhancedButton
           variant="default"
-          size="lg"
+          size="default"
           onClick={addSection}
-          className="flex items-center gap-3 px-8 py-4 text-lg font-semibold"
+          className="flex items-center gap-2 px-6 py-3"
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-5 h-5" />
           Add Section
         </EnhancedButton>
       </div>
 
       {/* Sections */}
       {hasSections ? (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {sections.map((section, index) => (
             <SectionItem
               key={section.id}
@@ -465,11 +465,11 @@ export default function StreamlinedSectionForm({
             <p className="text-gray-600 mb-4">Create your first section to begin building your IEEE paper.</p>
             <EnhancedButton
               variant="default"
-              size="lg"
+              size="default"
               onClick={addSection}
-              className="flex items-center gap-3 mx-auto px-8 py-4 text-lg font-semibold"
+              className="flex items-center gap-2 mx-auto px-6 py-3"
             >
-              <Plus className="w-6 h-6" />
+              <Plus className="w-5 h-5" />
               Create First Section
             </EnhancedButton>
           </div>

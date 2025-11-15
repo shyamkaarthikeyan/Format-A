@@ -469,3 +469,124 @@ Custom styles for tabbed document editor */
     padding: 28px !important;
   }
 }
+
+
+/* FORCE HUGE TEXT AREAS IN DOCUMENT SECTIONS TAB - 100% USER FR
+
+/
+* DOCUMENT SECTIONS TAB - MAXIMUM USER-FRIENDLINESS */
+@layer components {
+  /* All cards in sections should be spacious */
+  .enhanced-card {
+    padding: 32px !important;
+    margin-bottom: 28px !important;
+  }
+  
+  /* Section headers should be bigger */
+  .section-header {
+    padding: 24px !important;
+    font-size: 20px !important;
+  }
+  
+  /* Subsection spacing */
+  .subsection-item {
+    padding: 24px !important;
+    margin-bottom: 20px !important;
+  }
+  
+  /* All inputs in sections tab should be bigger */
+  #sections input[type="text"] {
+    min-height: 56px !important;
+    font-size: 18px !important;
+    padding: 18px 20px !important;
+  }
+  
+  /* All textareas in sections tab should be HUGE */
+  #sections textarea {
+    min-height: 400px !important;
+    font-size: 18px !important;
+    line-height: 2.0 !important;
+    padding: 24px !important;
+  }
+  
+  /* Content blocks in sections should have more space */
+  #sections .content-block {
+    padding: 36px !important;
+    margin-bottom: 28px !important;
+  }
+  
+  /* Rich text editors in sections should be MASSIVE */
+  #sections [contenteditable] {
+    min-height: 600px !important;
+    max-height: 900px !important;
+    font-size: 19px !important;
+    line-height: 2.1 !important;
+    padding: 32px !important;
+  }
+  
+  /* Buttons in sections should be bigger */
+  #sections button {
+    min-height: 48px !important;
+    padding: 14px 24px !important;
+    font-size: 16px !important;
+  }
+}
+
+
+/* SUPER AGGRESSIVE SIZING - PERFECT BALANCE! */
+/* Text boxes: Good height + WIDE width for comfortable typing */
+div[contenteditable="true"],
+div[contenteditable],
+[contenteditable="true"],
+[contenteditable] {
+  min-height: 500px !important;
+  max-height: 800px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 17px !important;
+  line-height: 1.9 !important;
+  padding: 24px !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 8px !important;
+}
+
+/* Make sure ProseMirror is WIDE and comfortable */
+.ProseMirror,
+div.ProseMirror {
+  min-height: 500px !important;
+  max-height: 800px !important;
+  width: 100% !important;
+  font-size: 17px !important;
+  line-height: 1.9 !important;
+  padding: 24px !important;
+}
+
+/* Override any inline styles on textareas - WIDE */
+textarea[style] {
+  min-height: 350px !important;
+  width: 100% !important;
+  font-size: 16px !important;
+  line-height: 1.8 !important;
+  padding: 20px !important;
+}
+
+/* Make ALL inputs normal size */
+input[type="text"][style],
+input[type="email"][style] {
+  min-height: 48px !important;
+  font-size: 16px !important;
+  padding: 14px 16px !important;
+}
+
+/* Enhanced cards - normal padding */
+.enhanced-card,
+[class*="enhanced-card"],
+[class*="EnhancedCard"] {
+  padding: 20px !important;
+}
+
+/* Card content - normal padding */
+[class*="CardContent"],
+[class*="card-content"] {
+  padding: 20px !important;
+}
