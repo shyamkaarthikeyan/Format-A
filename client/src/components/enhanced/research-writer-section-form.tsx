@@ -135,7 +135,7 @@ export default function ResearchWriterSectionForm({
   };
 
   return (
-    <div className={cn('space-y-6 pl-16', className)}>
+    <div className={cn('space-y-6', className)}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -206,18 +206,7 @@ export default function ResearchWriterSectionForm({
         {sections.length > 0 ? (
           <div className="space-y-6">
             {sections.map((section, index) => (
-              <div key={section.id} id={`section-${section.id}`} className="relative">
-                {/* Section Number Badge - Left Border */}
-                {sections.length > 1 && (
-                  <button
-                    onClick={() => scrollToSection(section.id)}
-                    className="absolute -left-14 top-8 flex items-center justify-center w-10 h-10 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-bold text-lg shadow-lg transition-all hover:scale-110 hover:shadow-xl z-10"
-                    title={`Jump to: ${section.title || `Section ${index + 1}`}`}
-                  >
-                    {index + 1}
-                  </button>
-                )}
-                
+              <div key={section.id} id={`section-${section.id}`}>
                 <SectionEditor
                   section={section}
                   index={index}

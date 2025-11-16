@@ -788,26 +788,7 @@ export default function HomeClient() {
                   width: isPreviewCollapsed ? '80px' : `${100 - formWidth}%` 
                 }}
               >
-                {showLayoutHint && !isPreviewCollapsed && (
-                  <div className="absolute top-16 right-4 z-50 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-xl max-w-xs animate-bounce">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium mb-1">💡 Tip: Need more typing space?</p>
-                        <p className="text-xs opacity-90">Click "Collapse" to maximize the form area, or drag the divider to resize!</p>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setShowLayoutHint(false);
-                          localStorage.setItem('layout-hint-seen', 'true');
-                        }}
-                        className="text-white hover:text-purple-200 ml-2"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
+
                 
                 <Card className="h-full bg-white/95 backdrop-blur-sm border-2 border-purple-300 shadow-xl rounded-lg overflow-hidden">
                   <CardHeader className="pb-2 pt-3 px-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
