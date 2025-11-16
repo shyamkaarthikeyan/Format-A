@@ -155,7 +155,7 @@ export default function ResearchWriterSectionForm({
 
   return (
     <>
-      <div className={cn('space-y-6 max-w-5xl mx-auto px-4', className)}>
+      <div className={cn('space-y-4 max-w-7xl mx-auto px-4', className)}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -178,25 +178,26 @@ export default function ResearchWriterSectionForm({
           </Button>
         </div>
 
-        {/* Wizard Navigation */}
+        {/* Wizard Navigation - Compact */}
         {sections.length > 0 ? (
           <>
-            <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-5">
-              <div className="flex items-center justify-between gap-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+              <div className="flex items-center justify-between gap-3">
                 <Button
                   onClick={previousSection}
                   disabled={currentSectionIndex === 0}
                   variant="outline"
-                  className="flex-shrink-0"
+                  size="sm"
+                  className="flex-shrink-0 h-8 px-3 text-sm"
                 >
-                  ← Previous
+                  ← Prev
                 </Button>
                 
                 <div className="flex-1 text-center">
-                  <div className="text-lg font-bold text-gray-900 mb-2">
+                  <div className="text-sm font-semibold text-gray-700 mb-1">
                     Section {currentSectionIndex + 1} of {totalSections}
                   </div>
-                  <div className="w-full max-w-md mx-auto h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-full max-w-xs mx-auto h-1.5 bg-gray-200 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all duration-300"
                       style={{ width: `${progressPercentage}%` }}
@@ -208,7 +209,8 @@ export default function ResearchWriterSectionForm({
                   onClick={nextSection}
                   disabled={currentSectionIndex === totalSections - 1}
                   variant="outline"
-                  className="flex-shrink-0"
+                  size="sm"
+                  className="flex-shrink-0 h-8 px-3 text-sm"
                 >
                   Next →
                 </Button>
@@ -235,31 +237,36 @@ export default function ResearchWriterSectionForm({
               </div>
             )}
 
-            {/* Bottom Navigation */}
-            <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-5">
-              <div className="flex items-center justify-between gap-4">
+            {/* Bottom Navigation - Compact */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+              <div className="flex items-center justify-between gap-3">
                 <Button
                   onClick={previousSection}
                   disabled={currentSectionIndex === 0}
                   variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-sm"
                 >
-                  ← Previous Section
+                  ← Prev
                 </Button>
                 
                 <Button 
                   onClick={addSection} 
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white h-8 px-4 text-sm"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add New Section
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Section
                 </Button>
                 
                 <Button
                   onClick={nextSection}
                   disabled={currentSectionIndex === totalSections - 1}
                   variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-sm"
                 >
-                  Next Section →
+                  Next →
                 </Button>
               </div>
             </div>
@@ -436,8 +443,8 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
           value={block.content || ""}
           onChange={(content) => onUpdate({ content })}
           placeholder="Write additional text here... This is useful for adding text after images, tables, or equations."
-          rows={10}
-          className="min-h-[200px]"
+          rows={15}
+          className="min-h-[300px] text-base leading-relaxed"
         />
       </div>
     );
@@ -745,8 +752,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             value={sub.content}
             onChange={(content) => updateSubsection(sub.id, { content })}
             placeholder="Write subsection content..."
-            rows={12}
-            className="min-h-[250px]"
+            rows={18}
+            className="min-h-[400px] text-base leading-relaxed"
           />
         </div>
         
@@ -798,8 +805,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 value={textBlock?.content || ""}
                 onChange={(content) => updateTextContent(content)}
                 placeholder="Start writing your content here... Write naturally and use the emoji buttons above to insert references. Use the formatting toolbar for bold, italic, underline, lists, and alignment."
-                rows={18}
-                className="min-h-[350px]"
+                rows={25}
+                className="min-h-[500px] text-lg leading-relaxed"
               />
             </div>
 
