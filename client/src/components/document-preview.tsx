@@ -76,6 +76,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<'download' | 'email' | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false); // Auto-refresh disabled by default
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   
@@ -423,8 +424,14 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
     }
   };
 
-  // Auto-generate preview when document changes
+  // Auto-generate preview when document changes (only if auto-refresh is enabled)
   useEffect(() => {
+    // Skip if auto-refresh is disabled
+    if (!autoRefresh) {
+      console.log('⏭️ Auto-refresh disabled - use Refresh button to update preview');
+      return;
+    }
+
     // Don't trigger if already generating
     if (isGeneratingPreview) {
       console.log('⏭️ Skipping preview - already generating');
@@ -434,9 +441,10 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
     // Clear any existing preview error when document changes
     setPreviewError(null);
 
+    // Debounce: wait 3 seconds after last change before regenerating
     const timer = setTimeout(() => {
       if (document.title && Array.isArray(document.authors) && document.authors.some(author => author?.name)) {
-        console.log('Triggering PDF preview generation...');
+        console.log('Triggering PDF preview generation after debounce...');
         generatePdfPreview();
       } else {
         console.log('Skipping PDF generation - missing title or authors');
@@ -447,10 +455,10 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         }
         setPreviewError(null);
       }
-    }, 2000); // Increased to 2 seconds to reduce backend load
+    }, 3000); // 3 seconds debounce - only regenerate after user stops typing
 
     return () => clearTimeout(timer);
-  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references, isGeneratingPreview]);
+  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references, isGeneratingPreview, autoRefresh]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -513,10 +521,19 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900">
-              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              Live PDF Preview (Word→PDF)
+              <div className={`w-3 h-3 rounded-full ${autoRefresh ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
+              PDF Preview (Word→PDF)
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`text-sm ${autoRefresh ? 'text-green-600 hover:text-green-700' : 'text-gray-600 hover:text-gray-700'}`}
+                title={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
+              >
+                {autoRefresh ? 'Auto: ON' : 'Auto: OFF'}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
