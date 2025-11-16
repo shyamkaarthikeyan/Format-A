@@ -101,6 +101,8 @@ export default function ResearchWriterSectionForm({
   references = [],
   className
 }: ResearchWriterSectionFormProps) {
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
   const addSection = () => {
     const newSection: Section = {
       id: `section_${Date.now()}_${Math.random()}`,
@@ -132,32 +134,65 @@ export default function ResearchWriterSectionForm({
   };
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Section Navigation - Horizontal at top */}
+    <div className={cn('relative flex gap-0', className)}>
+      {/* Collapsible Left Sidebar */}
       {sections.length > 1 && (
-        <div className="bg-white rounded-lg shadow-md border-2 border-purple-200 p-4 mb-6">
-          <div className="text-sm font-semibold text-purple-600 mb-3">Quick Navigation</div>
-          <div className="flex flex-wrap gap-2">
-            {sections.map((section, index) => (
-              <button
-                key={section.id}
-                onClick={() => scrollToSection(section.id)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-200 hover:border-purple-400 transition-all group"
-                title={section.title || `Section ${index + 1}`}
-              >
-                <div className="flex items-center justify-center w-7 h-7 bg-purple-600 text-white rounded-full font-bold text-sm flex-shrink-0 group-hover:bg-purple-700 transition-colors">
-                  {index + 1}
+        <div 
+          className={cn(
+            'sticky top-4 h-fit transition-all duration-300 ease-in-out',
+            isSidebarExpanded ? 'w-48' : 'w-12'
+          )}
+          onMouseEnter={() => setIsSidebarExpanded(true)}
+          onMouseLeave={() => setIsSidebarExpanded(false)}
+        >
+          <div className="bg-white rounded-lg shadow-xl border-2 border-purple-200 overflow-hidden">
+            {/* Collapsed State - Just Numbers */}
+            {!isSidebarExpanded && (
+              <div className="p-2 space-y-1">
+                {sections.map((section, index) => (
+                  <button
+                    key={section.id}
+                    onClick={() => scrollToSection(section.id)}
+                    className="w-full flex items-center justify-center p-2 rounded-md hover:bg-purple-100 transition-colors group"
+                    title={section.title || `Section ${index + 1}`}
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white rounded-full font-bold text-sm group-hover:bg-purple-700 transition-colors">
+                      {index + 1}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Expanded State - Numbers + Titles */}
+            {isSidebarExpanded && (
+              <div className="p-2">
+                <div className="text-xs font-semibold text-purple-600 mb-2 px-2">Sections</div>
+                <div className="space-y-1">
+                  {sections.map((section, index) => (
+                    <button
+                      key={section.id}
+                      onClick={() => scrollToSection(section.id)}
+                      className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-purple-50 transition-colors group"
+                      title={section.title || `Section ${index + 1}`}
+                    >
+                      <div className="flex items-center justify-center w-7 h-7 bg-purple-600 text-white rounded-full font-bold text-sm flex-shrink-0 group-hover:bg-purple-700 transition-colors">
+                        {index + 1}
+                      </div>
+                      <div className="text-left text-sm font-medium text-gray-700 truncate flex-1">
+                        {section.title || 'Untitled'}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                <div className="text-sm font-medium text-gray-700 max-w-[150px] truncate">
-                  {section.title || 'Untitled'}
-                </div>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      <div className="space-y-6">
+      {/* Main Content Area */}
+      <div className="flex-1 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
