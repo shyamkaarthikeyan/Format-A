@@ -562,61 +562,24 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   };
 
   const deleteSubsection = (subId: string) => {
-    const toDelete = new Set([subId]);
-    const findChildren = (parentId: string) => {
-      subsections.forEach(sub => {
-        if (sub.parentId === parentId) {
-          toDelete.add(sub.id);
-          findChildren(sub.id);
-        }
-      });
-    };
-    findChildren(subId);
-    onUpdate({ subsections: subsections.filter(sub => !toDelete.has(sub.id)) });
+    onUpdate({ subsections: subsections.filter(sub => sub.id !== subId) });
   };
 
-  const addChildSubsection = (parentId: string, parentLevel: number) => {
-    const newSubsection = {
-      id: `subsection_${Date.now()}_${Math.random()}`,
-      title: '',
-      content: '',
-      order: subsections.length,
-      level: parentLevel + 1,
-      parentId: parentId
-    };
-    onUpdate({ subsections: [...subsections, newSubsection] });
-  };
-
-  // Nested subsection numbering (up to 5 levels)
+  // Simple numbering - just one level (1.1, 1.2, 1.3)
   const getSubsectionNumber = (sub: any, sectionIndex: number): string => {
-    if (!sub.parentId) {
-      const topLevelSubs = subsections.filter(s => !s.parentId);
-      const idx = topLevelSubs.findIndex(s => s.id === sub.id);
-      return `${sectionIndex + 1}.${idx + 1}`;
-    } else {
-      const parent = subsections.find(s => s.id === sub.parentId);
-      if (parent) {
-        const parentNumber = getSubsectionNumber(parent, sectionIndex);
-        const siblings = subsections.filter(s => s.parentId === sub.parentId);
-        const idx = siblings.findIndex(s => s.id === sub.id);
-        return `${parentNumber}.${idx + 1}`;
-      }
-    }
-    return '';
+    const idx = subsections.findIndex(s => s.id === sub.id);
+    return `${sectionIndex + 1}.${idx + 1}`;
   };
 
-  // Render subsection with nesting (up to 5 levels)
-  const renderSubsection = (sub: any, subIdx: number, sectionIndex: number, level: number): React.ReactNode => {
-    const children = subsections.filter(s => s.parentId === sub.id);
+  // Simple subsection rendering - no nesting
+  const renderSubsection = (sub: any, subIdx: number, sectionIndex: number): React.ReactNode => {
     const subsectionNumber = getSubsectionNumber(sub, sectionIndex);
-    const canAddChild = level < 5;
-    const indent = (level - 1) * 20;
 
     return (
-      <div key={sub.id} style={{ marginLeft: `${indent}px` }}>
-        <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-all">
+      <div key={sub.id}>
+        <div className="bg-white border border-gray-300 rounded-lg p-4 mb-3 hover:shadow-md transition-all">
           <div className="flex items-center gap-3 mb-3">
-            <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">
+            <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
               {subsectionNumber}
             </span>
             <Input
@@ -625,17 +588,6 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
               placeholder="Subsection title"
               className="flex-1 h-9 text-sm font-medium"
             />
-            {canAddChild && (
-              <Button 
-                onClick={() => addChildSubsection(sub.id, level)} 
-                variant="outline" 
-                size="sm" 
-                className="h-8 w-8 p-0 hover:bg-blue-50"
-                title="Add nested subsection"
-              >
-                <Plus className="w-3 h-3" />
-              </Button>
-            )}
             <Button 
               onClick={() => deleteSubsection(sub.id)} 
               variant="outline" 
@@ -654,11 +606,6 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             className="text-sm min-h-[120px]"
           />
         </div>
-        {children.length > 0 && (
-          <div className="mt-2">
-            {children.map((child, childIdx) => renderSubsection(child, childIdx, sectionIndex, level + 1))}
-          </div>
-        )}
       </div>
     );
   };
@@ -824,8 +771,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {subsections.filter(s => !s.parentId).map((sub, subIdx) => 
-                        renderSubsection(sub, subIdx, index, 1)
+                      {subsections.map((sub, subIdx) => 
+                        renderSubsection(sub, subIdx, index)
                       )}
                     </div>
                   )}
