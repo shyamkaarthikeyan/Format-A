@@ -562,7 +562,6 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   };
 
   const deleteSubsection = (subId: string) => {
-    // Delete subsection and all its children recursively
     const toDelete = new Set([subId]);
     const findChildren = (parentId: string) => {
       subsections.forEach(sub => {
@@ -588,15 +587,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     onUpdate({ subsections: [...subsections, newSubsection] });
   };
 
-  // Calculate subsection numbering
+  // Nested subsection numbering (up to 5 levels)
   const getSubsectionNumber = (sub: any, sectionIndex: number): string => {
     if (!sub.parentId) {
-      // Top level subsection
       const topLevelSubs = subsections.filter(s => !s.parentId);
       const idx = topLevelSubs.findIndex(s => s.id === sub.id);
       return `${sectionIndex + 1}.${idx + 1}`;
     } else {
-      // Nested subsection
       const parent = subsections.find(s => s.id === sub.parentId);
       if (parent) {
         const parentNumber = getSubsectionNumber(parent, sectionIndex);
@@ -608,41 +605,42 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     return '';
   };
 
-  // Render subsection recursively
+  // Render subsection with nesting (up to 5 levels)
   const renderSubsection = (sub: any, subIdx: number, sectionIndex: number, level: number): React.ReactNode => {
     const children = subsections.filter(s => s.parentId === sub.id);
     const subsectionNumber = getSubsectionNumber(sub, sectionIndex);
-    const canAddChild = level < 5; // Max 5 levels deep
+    const canAddChild = level < 5;
+    const indent = (level - 1) * 20;
 
     return (
-      <div key={sub.id}>
-        <div className="bg-gradient-to-r from-green-50 to-white border-2 border-green-200 rounded-lg p-5 mb-4 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-sm font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-md shadow-sm">
+      <div key={sub.id} style={{ marginLeft: `${indent}px` }}>
+        <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">
               {subsectionNumber}
             </span>
             <Input
               value={sub.title}
               onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
               placeholder="Subsection title"
-              className="flex-1 h-10 text-base font-medium"
+              className="flex-1 h-9 text-sm font-medium"
             />
             {canAddChild && (
               <Button 
                 onClick={() => addChildSubsection(sub.id, level)} 
                 variant="outline" 
                 size="sm" 
-                className="h-9 w-9 p-0 hover:bg-green-50"
+                className="h-8 w-8 p-0 hover:bg-blue-50"
                 title="Add nested subsection"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3" />
               </Button>
             )}
             <Button 
               onClick={() => deleteSubsection(sub.id)} 
               variant="outline" 
               size="sm" 
-              className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 hover:border-red-300"
+              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
               title="Delete subsection"
             >
               <Trash2 className="w-4 h-4" />
@@ -651,13 +649,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
           <RichTextEditor
             value={sub.content}
             onChange={(content) => updateSubsection(sub.id, { content })}
-            placeholder="Write subsection content with formatting..."
-            rows={6}
-            className="text-base"
+            placeholder="Write subsection content..."
+            rows={4}
+            className="text-sm min-h-[120px]"
           />
         </div>
         {children.length > 0 && (
-          <div>
+          <div className="mt-2">
             {children.map((child, childIdx) => renderSubsection(child, childIdx, sectionIndex, level + 1))}
           </div>
         )}
@@ -669,16 +667,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     <>
       <div className="bg-white rounded-xl border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all">
         {/* Section Header */}
-        <div className="bg-gradient-to-r from-purple-50 to-white border-b-2 border-gray-200 p-6">
+        <div className="bg-gradient-to-r from-gray-50 to-white border-b-2 border-gray-200 p-6">
           <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-12 h-12 bg-purple-600 text-white rounded-full font-bold text-xl flex-shrink-0 shadow-md">
+            <div className="flex items-center justify-center w-8 h-8 bg-gray-700 text-white rounded font-bold text-sm flex-shrink-0">
               {index + 1}
             </div>
             <Input
               value={section.title}
               onChange={(e) => onUpdate({ title: e.target.value })}
               placeholder="Section Title (e.g., Introduction, Methodology, Results...)"
-              className="flex-1 text-xl font-semibold border-0 bg-transparent focus:bg-white focus:border-2 focus:border-purple-300 transition-all py-3"
+              className="flex-1 text-xl font-semibold border-0 bg-transparent focus:bg-white focus:border-2 focus:border-gray-300 transition-all py-3"
             />
             <Button onClick={onDelete} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 p-3">
               <Trash2 className="w-5 h-5" />
@@ -825,7 +823,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                       No subsections yet. Click "Add" to create one.
                     </p>
                   ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="space-y-3">
                       {subsections.filter(s => !s.parentId).map((sub, subIdx) => 
                         renderSubsection(sub, subIdx, index, 1)
                       )}

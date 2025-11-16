@@ -360,7 +360,7 @@ export default function Homepage() {
                 Automate Your IEEE Paper Formatting.
               </span>
               <span className="block mt-2 text-3xl md:text-4xl font-bold">
-                <span className="inline-flex items-center gap-3">
+                <span className="inline-flex items-center gap-1">
                   <span className="text-gray-600">
                     Done
                   </span>
