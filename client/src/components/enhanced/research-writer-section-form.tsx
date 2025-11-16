@@ -132,29 +132,27 @@ export default function ResearchWriterSectionForm({
   };
 
   return (
-    <div className={cn('relative', className)}>
-      {/* Section Navigation Sidebar - Only show if there are multiple sections */}
+    <div className={cn('space-y-6', className)}>
+      {/* Section Navigation - Horizontal at top */}
       {sections.length > 1 && (
-        <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
-          <div className="bg-white rounded-lg shadow-xl border-2 border-purple-200 p-2">
-            <div className="text-xs font-semibold text-purple-600 mb-2 px-2">Sections</div>
-            <div className="space-y-1">
-              {sections.map((section, index) => (
-                <button
-                  key={section.id}
-                  onClick={() => scrollToSection(section.id)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-purple-50 transition-colors group"
-                  title={section.title || `Section ${index + 1}`}
-                >
-                  <div className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white rounded-full font-bold text-sm flex-shrink-0 group-hover:bg-purple-700 transition-colors">
-                    {index + 1}
-                  </div>
-                  <div className="text-left text-sm font-medium text-gray-700 truncate max-w-[120px]">
-                    {section.title || 'Untitled'}
-                  </div>
-                </button>
-              ))}
-            </div>
+        <div className="bg-white rounded-lg shadow-md border-2 border-purple-200 p-4 mb-6">
+          <div className="text-sm font-semibold text-purple-600 mb-3">Quick Navigation</div>
+          <div className="flex flex-wrap gap-2">
+            {sections.map((section, index) => (
+              <button
+                key={section.id}
+                onClick={() => scrollToSection(section.id)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-200 hover:border-purple-400 transition-all group"
+                title={section.title || `Section ${index + 1}`}
+              >
+                <div className="flex items-center justify-center w-7 h-7 bg-purple-600 text-white rounded-full font-bold text-sm flex-shrink-0 group-hover:bg-purple-700 transition-colors">
+                  {index + 1}
+                </div>
+                <div className="text-sm font-medium text-gray-700 max-w-[150px] truncate">
+                  {section.title || 'Untitled'}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
