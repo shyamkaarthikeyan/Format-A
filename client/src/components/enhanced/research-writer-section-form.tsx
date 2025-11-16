@@ -102,6 +102,7 @@ export default function ResearchWriterSectionForm({
   className
 }: ResearchWriterSectionFormProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [showNewSectionNotice, setShowNewSectionNotice] = useState(false);
 
   const addSection = () => {
     const newSection: Section = {
@@ -114,6 +115,11 @@ export default function ResearchWriterSectionForm({
     onUpdate([...sections, newSection]);
     // Navigate to the new section
     setCurrentSectionIndex(sections.length);
+    // Show notification
+    setShowNewSectionNotice(true);
+    setTimeout(() => setShowNewSectionNotice(false), 3000);
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   const previousSection = () => {
@@ -181,6 +187,17 @@ export default function ResearchWriterSectionForm({
         {/* Wizard Navigation - Compact */}
         {sections.length > 0 ? (
           <>
+            {/* New Section Notice */}
+            {showNewSectionNotice && (
+              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-3 mb-3 animate-pulse">
+                <div className="flex items-center justify-center gap-2 text-green-700 font-semibold">
+                  <span className="text-xl">✨</span>
+                  <span>New Section {currentSectionIndex + 1} Created! You're now editing it.</span>
+                  <span className="text-xl">✨</span>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
               <div className="flex items-center justify-between gap-3">
                 <Button
@@ -791,8 +808,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
         </div>
 
         {/* Section Body */}
-        <div className="p-8">
-          <div className="space-y-6">
+        <div className="p-6">
+          <div className="space-y-4">
             {/* Text Editor */}
             <div>
               <div className="mb-4">
