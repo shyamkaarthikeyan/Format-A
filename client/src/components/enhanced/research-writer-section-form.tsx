@@ -577,33 +577,33 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
 
     return (
       <div key={sub.id}>
-        <div className="bg-white border border-gray-300 rounded-lg p-4 mb-3 hover:shadow-md transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+        <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-all">
+          <div className="flex items-center gap-4 mb-4">
+            <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-2 rounded">
               {subsectionNumber}
             </span>
             <Input
               value={sub.title}
               onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
               placeholder="Subsection title"
-              className="flex-1 h-9 text-sm font-medium"
+              className="flex-1 text-lg font-semibold"
             />
             <Button 
               onClick={() => deleteSubsection(sub.id)} 
               variant="outline" 
               size="sm" 
-              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+              className="h-10 w-10 p-0 text-red-600 hover:bg-red-50"
               title="Delete subsection"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-5 h-5" />
             </Button>
           </div>
           <RichTextEditor
             value={sub.content}
             onChange={(content) => updateSubsection(sub.id, { content })}
             placeholder="Write subsection content..."
-            rows={4}
-            className="text-sm min-h-[120px]"
+            rows={12}
+            className="min-h-[250px]"
           />
         </div>
       </div>
@@ -634,59 +634,12 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
         {/* Section Body */}
         <div className="p-8">
           <div className="space-y-6">
-            {/* Text Editor with Helper Buttons */}
+            {/* Text Editor */}
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4">
                 <label className="text-base font-semibold text-gray-800">
                   ✍️ Write your content ({wordCount} words)
                 </label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => {
-                      setCrossRefType('figure');
-                      setShowCrossRefModal(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 text-sm hover:bg-blue-50 hover:border-blue-300"
-                    title="Reference a figure"
-                  >
-                    📷 Figure
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setCrossRefType('table');
-                      setShowCrossRefModal(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 text-sm hover:bg-purple-50 hover:border-purple-300"
-                    title="Reference a table"
-                  >
-                    📊 Table
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setCrossRefType('equation');
-                      setShowCrossRefModal(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 text-sm hover:bg-orange-50 hover:border-orange-300"
-                    title="Reference an equation"
-                  >
-                    🔢 Equation
-                  </Button>
-                  <Button
-                    onClick={() => setShowCitationModal(true)}
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 text-sm hover:bg-green-50 hover:border-green-300"
-                    title="Insert citation"
-                  >
-                    📚 Cite
-                  </Button>
-                </div>
               </div>
               
               <RichTextEditor
