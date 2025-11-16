@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Image as ImageIcon, Table, Calculator, Link2, BookOpen, X } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Table, Calculator, Link2, BookOpen, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -101,6 +101,8 @@ export default function ResearchWriterSectionForm({
   references = [],
   className
 }: ResearchWriterSectionFormProps) {
+  const [showJumpMenu, setShowJumpMenu] = useState(false);
+
   const addSection = () => {
     const newSection: Section = {
       id: `section_${Date.now()}_${Math.random()}`,
@@ -124,11 +126,19 @@ export default function ResearchWriterSectionForm({
     onUpdate(sections.filter(section => section.id !== sectionId));
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(`section-${sectionId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setShowJumpMenu(false);
+    }
+  };
+
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('space-y-6 pl-16', className)}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
+          <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-gray-900">
               ✍️ Write Your Research Paper
               {sections.length > 0 && (
@@ -137,7 +147,52 @@ export default function ResearchWriterSectionForm({
                 </span>
               )}
             </h2>
+            
+            {/* Quick Jump Dropdown - Only show if 2+ sections */}
+            {sections.length > 1 && (
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowJumpMenu(!showJumpMenu)}
+                  className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                >
+                  Jump to Section
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+                
+                {showJumpMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowJumpMenu(false)}
+                    />
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border-2 border-purple-200 z-50 max-h-96 overflow-y-auto">
+                      <div className="p-2">
+                        {sections.map((section, index) => (
+                          <button
+                            key={section.id}
+                            onClick={() => scrollToSection(section.id)}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-purple-50 transition-colors text-left"
+                          >
+                            <div className="flex items-center justify-center w-7 h-7 bg-purple-600 text-white rounded-full font-bold text-sm flex-shrink-0">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {section.title || 'Untitled Section'}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+          
           <Button 
             onClick={addSection} 
             className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -151,7 +206,18 @@ export default function ResearchWriterSectionForm({
         {sections.length > 0 ? (
           <div className="space-y-6">
             {sections.map((section, index) => (
-              <div key={section.id} id={`section-${section.id}`}>
+              <div key={section.id} id={`section-${section.id}`} className="relative">
+                {/* Section Number Badge - Left Border */}
+                {sections.length > 1 && (
+                  <button
+                    onClick={() => scrollToSection(section.id)}
+                    className="absolute -left-14 top-8 flex items-center justify-center w-10 h-10 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-bold text-lg shadow-lg transition-all hover:scale-110 hover:shadow-xl z-10"
+                    title={`Jump to: ${section.title || `Section ${index + 1}`}`}
+                  >
+                    {index + 1}
+                  </button>
+                )}
+                
                 <SectionEditor
                   section={section}
                   index={index}
