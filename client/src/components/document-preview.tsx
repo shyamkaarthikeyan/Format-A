@@ -394,16 +394,43 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
     } catch (error) {
       console.error('❌ PDF preview generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF preview';
+      let errorMessage = 'Failed to generate PDF preview';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // Extract more specific error if available
+        if (error.message.includes('500')) {
+          errorMessage = 'Server error: PDF service may be unavailable. Please try again in a moment.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timeout: PDF service is taking too long. Please try again.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error: Cannot reach PDF service. Check your connection.';
+        }
+      }
+      
       setPreviewError(errorMessage);
       setPdfUrl(null);
+      
+      // Show toast for persistent errors
+      toast({
+        title: 'Preview Generation Failed',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     } finally {
       setIsGeneratingPreview(false);
+      pdfGeneration.reset();
     }
   };
 
   // Auto-generate preview when document changes
   useEffect(() => {
+    // Don't trigger if already generating
+    if (isGeneratingPreview) {
+      console.log('⏭️ Skipping preview - already generating');
+      return;
+    }
+
     // Clear any existing preview error when document changes
     setPreviewError(null);
 
@@ -420,10 +447,10 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         }
         setPreviewError(null);
       }
-    }, 1000); // Reduced to 1 second for better responsiveness
+    }, 2000); // Increased to 2 seconds to reduce backend load
 
     return () => clearTimeout(timer);
-  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references]);
+  }, [document.title, document.authors, document.sections, document.abstract, document.keywords, document.references, isGeneratingPreview]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
