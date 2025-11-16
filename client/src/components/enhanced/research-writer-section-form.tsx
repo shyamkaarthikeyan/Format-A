@@ -101,6 +101,7 @@ export default function ResearchWriterSectionForm({
   references = [],
   className
 }: ResearchWriterSectionFormProps) {
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
 
   const addSection = () => {
     const newSection: Section = {
@@ -111,6 +112,22 @@ export default function ResearchWriterSectionForm({
       order: sections.length,
     };
     onUpdate([...sections, newSection]);
+    // Navigate to the new section
+    setCurrentSectionIndex(sections.length);
+  };
+  
+  const previousSection = () => {
+    if (currentSectionIndex > 0) {
+      setCurrentSectionIndex(currentSectionIndex - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+  
+  const nextSection = () => {
+    if (currentSectionIndex < sections.length - 1) {
+      setCurrentSectionIndex(currentSectionIndex + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const updateSection = (sectionId: string, updates: Partial<Section>) => {
@@ -132,35 +149,15 @@ export default function ResearchWriterSectionForm({
     }
   };
 
+  const currentSection = sections[currentSectionIndex];
+  const totalSections = sections.length;
+  const progressPercentage = totalSections > 0 ? ((currentSectionIndex + 1) / totalSections) * 100 : 0;
+
   return (
     <>
-      {/* Vertical Stepper - Fixed Position */}
-      {sections.length > 1 && (
-        <div className="fixed left-2 top-1/2 -translate-y-1/2 z-50">
-          <div className="bg-white rounded-lg shadow-xl border-2 border-purple-300 p-1.5 w-11">
-            {sections.map((sec, idx) => (
-              <div key={sec.id} className="relative">
-                <button
-                  onClick={() => scrollToSection(sec.id)}
-                  className="w-full flex items-center justify-center py-1.5 hover:bg-purple-50 rounded transition-all group"
-                  title={sec.title || `Section ${idx + 1}`}
-                >
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs bg-purple-600 text-white group-hover:scale-110 group-hover:bg-purple-700 transition-all">
-                    {idx + 1}
-                  </div>
-                </button>
-                {idx < sections.length - 1 && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-8 w-0.5 h-3 bg-purple-200" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className={cn('space-y-10 max-w-5xl mx-auto px-4', className)}>
+      <div className={cn('space-y-6 max-w-5xl mx-auto px-4', className)}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
               ✍️ Write Your Research Paper
@@ -181,22 +178,92 @@ export default function ResearchWriterSectionForm({
           </Button>
         </div>
 
-        {/* Sections - More Spacious */}
+        {/* Wizard Navigation */}
         {sections.length > 0 ? (
-          <div className="space-y-12">
-            {sections.map((section, index) => (
-              <div key={section.id} id={`section-${section.id}`} className="scroll-mt-20">
+          <>
+            <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-5">
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  onClick={previousSection}
+                  disabled={currentSectionIndex === 0}
+                  variant="outline"
+                  className="flex-shrink-0"
+                >
+                  ← Previous
+                </Button>
+                
+                <div className="flex-1 text-center">
+                  <div className="text-lg font-bold text-gray-900 mb-2">
+                    Section {currentSectionIndex + 1} of {totalSections}
+                  </div>
+                  <div className="w-full max-w-md mx-auto h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all duration-300"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={nextSection}
+                  disabled={currentSectionIndex === totalSections - 1}
+                  variant="outline"
+                  className="flex-shrink-0"
+                >
+                  Next →
+                </Button>
+              </div>
+            </div>
+
+            {/* Current Section */}
+            {currentSection && (
+              <div className="scroll-mt-20">
                 <SectionEditor
-                  section={section}
-                  index={index}
-                  onUpdate={(updates) => updateSection(section.id, updates)}
-                  onDelete={() => deleteSection(section.id)}
+                  section={currentSection}
+                  index={currentSectionIndex}
+                  onUpdate={(updates) => updateSection(currentSection.id, updates)}
+                  onDelete={() => {
+                    deleteSection(currentSection.id);
+                    // Adjust current index if needed
+                    if (currentSectionIndex >= sections.length - 1 && currentSectionIndex > 0) {
+                      setCurrentSectionIndex(currentSectionIndex - 1);
+                    }
+                  }}
                   allSections={sections}
                   references={references}
                 />
               </div>
-            ))}
-          </div>
+            )}
+
+            {/* Bottom Navigation */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-5">
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  onClick={previousSection}
+                  disabled={currentSectionIndex === 0}
+                  variant="outline"
+                >
+                  ← Previous Section
+                </Button>
+                
+                <Button 
+                  onClick={addSection} 
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Section
+                </Button>
+                
+                <Button
+                  onClick={nextSection}
+                  disabled={currentSectionIndex === totalSections - 1}
+                  variant="outline"
+                >
+                  Next Section →
+                </Button>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="text-center py-16 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-dashed border-purple-300">
             <div className="text-6xl mb-6">📝</div>
@@ -354,6 +421,28 @@ interface InlineContentProps {
 }
 
 const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove }) => {
+  if (block.type === 'text') {
+    return (
+      <div className="my-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-gray-700 font-medium">
+            <span className="text-sm">📝 Additional Text Block</span>
+          </div>
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+        <RichTextEditor
+          value={block.content || ""}
+          onChange={(content) => onUpdate({ content })}
+          placeholder="Write additional text here... This is useful for adding text after images, tables, or equations."
+          rows={10}
+          className="min-h-[200px]"
+        />
+      </div>
+    );
+  }
+
   if (block.type === 'image') {
     return (
       <div className="my-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
@@ -457,7 +546,9 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   const [subsectionsCollapsed, setSubsectionsCollapsed] = useState(false);
   
   const contentBlocks = section.contentBlocks || [];
-  const textBlock = contentBlocks.find(b => b.type === 'text');
+  const textBlocks = contentBlocks.filter(b => b.type === 'text');
+  const textBlock = textBlocks[0]; // First text block is the main one
+  const additionalTextBlocks = textBlocks.slice(1); // Additional text blocks
   const otherBlocks = contentBlocks.filter(b => b.type !== 'text');
   const subsections = section.subsections || [];
 
@@ -562,21 +653,63 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   };
 
   const deleteSubsection = (subId: string) => {
-    onUpdate({ subsections: subsections.filter(sub => sub.id !== subId) });
+    // Also delete all children of this subsection
+    const toDelete = new Set([subId]);
+    const findChildren = (parentId: string) => {
+      subsections.forEach(sub => {
+        if (sub.parentId === parentId) {
+          toDelete.add(sub.id);
+          findChildren(sub.id);
+        }
+      });
+    };
+    findChildren(subId);
+    onUpdate({ subsections: subsections.filter(sub => !toDelete.has(sub.id)) });
   };
 
-  // Simple numbering - just one level (1.1, 1.2, 1.3)
+  const addNestedSubsection = (parentId: string) => {
+    const parent = subsections.find(s => s.id === parentId);
+    const parentLevel = parent?.level || 1;
+    const newSubsection = {
+      id: `subsection_${Date.now()}_${Math.random()}`,
+      title: '',
+      content: '',
+      order: subsections.length,
+      level: parentLevel + 1,
+      parentId: parentId
+    };
+    onUpdate({ subsections: [...subsections, newSubsection] });
+  };
+
+  // Nested numbering (1.1, 1.1.1, 1.1.2, 1.2, etc.)
   const getSubsectionNumber = (sub: any, sectionIndex: number): string => {
-    const idx = subsections.findIndex(s => s.id === sub.id);
-    return `${sectionIndex + 1}.${idx + 1}`;
+    const buildNumber = (s: any): string => {
+      if (!s.parentId) {
+        // Top-level subsection
+        const topLevelSubs = subsections.filter(sub => !sub.parentId);
+        const idx = topLevelSubs.findIndex(sub => sub.id === s.id);
+        return `${sectionIndex + 1}.${idx + 1}`;
+      } else {
+        // Nested subsection
+        const parent = subsections.find(sub => sub.id === s.parentId);
+        if (!parent) return `${sectionIndex + 1}.?`;
+        const parentNumber = buildNumber(parent);
+        const siblings = subsections.filter(sub => sub.parentId === s.parentId);
+        const idx = siblings.findIndex(sub => sub.id === s.id);
+        return `${parentNumber}.${idx + 1}`;
+      }
+    };
+    return buildNumber(sub);
   };
 
-  // Simple subsection rendering - no nesting
-  const renderSubsection = (sub: any, subIdx: number, sectionIndex: number): React.ReactNode => {
+  // Nested subsection rendering
+  const renderSubsection = (sub: any, subIdx: number, sectionIndex: number, depth: number = 0): React.ReactNode => {
     const subsectionNumber = getSubsectionNumber(sub, sectionIndex);
+    const children = subsections.filter(s => s.parentId === sub.id);
+    const indentClass = depth > 0 ? `ml-${Math.min(depth * 8, 16)}` : '';
 
     return (
-      <div key={sub.id}>
+      <div key={sub.id} className={indentClass}>
         <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-all">
           <div className="flex items-center gap-4 mb-4">
             <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-2 rounded">
@@ -588,6 +721,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
               placeholder="Subsection title"
               className="flex-1 text-lg font-semibold"
             />
+            <Button 
+              onClick={() => addNestedSubsection(sub.id)} 
+              variant="outline" 
+              size="sm" 
+              className="h-10 px-3 text-green-600 hover:bg-green-50 hover:border-green-300"
+              title="Add nested subsection"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Sub
+            </Button>
             <Button 
               onClick={() => deleteSubsection(sub.id)} 
               variant="outline" 
@@ -606,6 +749,15 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             className="min-h-[250px]"
           />
         </div>
+        
+        {/* Render nested children */}
+        {children.length > 0 && (
+          <div className="ml-8 space-y-3">
+            {children.map((child, childIdx) => 
+              renderSubsection(child, childIdx, sectionIndex, depth + 1)
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -651,8 +803,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
               />
             </div>
 
-            {/* Inline Content Blocks */}
-            {otherBlocks.map((block) => (
+            {/* Inline Content Blocks (including additional text blocks) */}
+            {[...additionalTextBlocks, ...otherBlocks].map((block) => (
               <InlineContent
                 key={block.id}
                 block={block}
@@ -665,12 +817,20 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             <div className="flex items-center gap-3 pt-6 border-t-2 border-gray-200">
               <span className="text-sm font-medium text-gray-700">📎 Add to section:</span>
               <Button 
+                onClick={() => addContentBlock('text')} 
+                variant="outline" 
+                size="sm" 
+                className="h-10 px-4 hover:bg-gray-50 hover:border-gray-300"
+              >
+                � Texgt
+              </Button>
+              <Button 
                 onClick={() => addContentBlock('image')} 
                 variant="outline" 
                 size="sm" 
                 className="h-10 px-4 hover:bg-blue-50 hover:border-blue-300"
               >
-                📷 Image
+                � TImage
               </Button>
               <Button 
                 onClick={() => addContentBlock('table')} 
@@ -678,7 +838,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 size="sm" 
                 className="h-10 px-4 hover:bg-purple-50 hover:border-purple-300"
               >
-                📊 Table
+                � Tqable
               </Button>
               <Button 
                 onClick={() => addContentBlock('equation')} 
@@ -724,8 +884,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {subsections.map((sub, subIdx) => 
-                        renderSubsection(sub, subIdx, index)
+                      {subsections.filter(sub => !sub.parentId).map((sub, subIdx) => 
+                        renderSubsection(sub, subIdx, index, 0)
                       )}
                     </div>
                   )}
