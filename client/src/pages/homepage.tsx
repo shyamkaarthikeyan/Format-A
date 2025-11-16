@@ -354,13 +354,25 @@ export default function Homepage() {
               </span>
             </h1>
 
-            {/* Subtitle with animated gradient */}
+            {/* Subtitle with animated gradient and word cycling */}
             <h2 className={`text-4xl md:text-5xl font-semibold mb-8 transition-all duration-1500 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
               <span className="bg-gradient-to-r from-gray-800 via-purple-800 to-gray-800 bg-clip-text text-transparent">
                 Automate Your IEEE Paper Formatting.
               </span>
-              <span className="block mt-2 text-3xl md:text-4xl bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent font-bold animate-pulse">
-                Perfectly.
+              <span className="block mt-2 text-3xl md:text-4xl font-bold flex items-center justify-center gap-2">
+                <span className="bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
+                  Perfectly
+                </span>
+                <span className="relative h-[1.2em] overflow-hidden">
+                  <span className="absolute top-0 left-0 animate-word-cycle bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
+                    <span className="block">Effortlessly</span>
+                    <span className="block">Professionally</span>
+                    <span className="block">Accurately</span>
+                    <span className="block">Instantly</span>
+                    <span className="block">Beautifully</span>
+                    <span className="block">Effortlessly</span>
+                  </span>
+                </span>
               </span>
             </h2>
 

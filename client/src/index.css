@@ -628,3 +628,30 @@ input[type="email"][style] {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+
+/* Animated Word Cycling Effect */
+@keyframes word-cycle {
+  0%, 15% {
+    transform: translateY(0%);
+  }
+  20%, 35% {
+    transform: translateY(-16.66%);
+  }
+  40%, 55% {
+    transform: translateY(-33.33%);
+  }
+  60%, 75% {
+    transform: translateY(-50%);
+  }
+  80%, 95% {
+    transform: translateY(-66.66%);
+  }
+  100% {
+    transform: translateY(-83.33%);
+  }
+}
+
+.animate-word-cycle {
+  animation: word-cycle 12s infinite;
+}

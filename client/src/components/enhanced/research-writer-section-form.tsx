@@ -158,36 +158,27 @@ export default function ResearchWriterSectionForm({
 
 
 
-        {/* Vertical Stepper Navigation - Left Side */}
+        {/* Vertical Stepper Navigation - Compact Left Side */}
         {sections.length > 1 && (
-          <div className="fixed left-4 top-1/2 -translate-y-1/2 z-30">
-            <div className="bg-white rounded-xl shadow-2xl border-2 border-purple-200 p-4 max-w-[200px]">
+          <div className="fixed left-2 top-1/2 -translate-y-1/2 z-30">
+            <div className="bg-white rounded-lg shadow-lg border border-purple-200 p-2 w-12">
               {sections.map((sec, idx) => (
                 <div key={sec.id} className="relative">
-                  {/* Stepper Step */}
+                  {/* Stepper Step - Just Circle */}
                   <button
                     onClick={() => scrollToSection(sec.id)}
-                    className="flex items-start gap-3 w-full text-left py-3 hover:bg-purple-50 rounded-lg transition-all group"
+                    className="w-full flex items-center justify-center py-2 hover:bg-purple-50 rounded transition-all group"
+                    title={sec.title || `Section ${idx + 1}`}
                   >
                     {/* Circle */}
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-purple-600 text-white group-hover:scale-110 transition-transform">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs bg-purple-600 text-white group-hover:scale-125 group-hover:bg-purple-700 transition-all shadow-sm">
                       {idx + 1}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <div className="text-sm font-semibold text-gray-900 truncate group-hover:text-purple-600">
-                        {sec.title || 'Untitled'}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {sec.contentBlocks?.length || 0} blocks
-                      </div>
                     </div>
                   </button>
                   
                   {/* Connecting Line */}
                   {idx < sections.length - 1 && (
-                    <div className="absolute left-4 top-11 w-0.5 h-8 bg-purple-200" />
+                    <div className="absolute left-1/2 -translate-x-1/2 top-9 w-0.5 h-4 bg-purple-200" />
                   )}
                 </div>
               ))}
