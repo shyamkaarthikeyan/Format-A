@@ -360,23 +360,23 @@ export default function Homepage() {
                 Automate Your IEEE Paper Formatting.
               </span>
               <span className="block mt-2 text-3xl md:text-4xl font-bold">
-                <span className="inline-flex items-center gap-2">
-                  <span className="bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
-                    Perfectly
+                <span className="inline-flex items-center gap-3">
+                  <span className="text-gray-600">
+                    Done
                   </span>
-                  <span className="relative inline-block h-[1.2em] w-[200px] overflow-hidden align-bottom">
+                  <span className="relative inline-block h-[1.2em] w-[250px] overflow-hidden align-bottom">
                     <span 
                       className="absolute top-0 left-0 w-full bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent"
                       style={{
                         animation: 'wordCycle 12s infinite'
                       }}
                     >
+                      <span className="block h-[1.2em]">Perfectly</span>
                       <span className="block h-[1.2em]">Effortlessly</span>
                       <span className="block h-[1.2em]">Professionally</span>
                       <span className="block h-[1.2em]">Accurately</span>
                       <span className="block h-[1.2em]">Instantly</span>
-                      <span className="block h-[1.2em]">Beautifully</span>
-                      <span className="block h-[1.2em]">Effortlessly</span>
+                      <span className="block h-[1.2em]">Perfectly</span>
                     </span>
                   </span>
                 </span>

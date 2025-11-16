@@ -133,14 +133,39 @@ export default function ResearchWriterSectionForm({
   };
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <>
+      {/* Vertical Stepper - Fixed Position */}
+      {sections.length > 1 && (
+        <div className="fixed left-2 top-1/2 -translate-y-1/2 z-50">
+          <div className="bg-white rounded-lg shadow-xl border-2 border-purple-300 p-1.5 w-11">
+            {sections.map((sec, idx) => (
+              <div key={sec.id} className="relative">
+                <button
+                  onClick={() => scrollToSection(sec.id)}
+                  className="w-full flex items-center justify-center py-1.5 hover:bg-purple-50 rounded transition-all group"
+                  title={sec.title || `Section ${idx + 1}`}
+                >
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs bg-purple-600 text-white group-hover:scale-110 group-hover:bg-purple-700 transition-all">
+                    {idx + 1}
+                  </div>
+                </button>
+                {idx < sections.length - 1 && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-8 w-0.5 h-3 bg-purple-200" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className={cn('space-y-10 max-w-5xl mx-auto px-4', className)}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-gray-900">
               ✍️ Write Your Research Paper
               {sections.length > 0 && (
-                <span className="text-sm font-normal text-gray-500 ml-2">
+                <span className="text-base font-normal text-gray-500 ml-3">
                   ({sections.length} {sections.length === 1 ? 'section' : 'sections'})
                 </span>
               )}
@@ -149,48 +174,18 @@ export default function ResearchWriterSectionForm({
           
           <Button 
             onClick={addSection} 
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-5 h-5 mr-2" />
             Add Section
           </Button>
         </div>
 
-
-
-        {/* Vertical Stepper Navigation - Compact Left Side */}
-        {sections.length > 1 && (
-          <div className="fixed left-2 top-1/2 -translate-y-1/2 z-30">
-            <div className="bg-white rounded-lg shadow-lg border border-purple-200 p-2 w-12">
-              {sections.map((sec, idx) => (
-                <div key={sec.id} className="relative">
-                  {/* Stepper Step - Just Circle */}
-                  <button
-                    onClick={() => scrollToSection(sec.id)}
-                    className="w-full flex items-center justify-center py-2 hover:bg-purple-50 rounded transition-all group"
-                    title={sec.title || `Section ${idx + 1}`}
-                  >
-                    {/* Circle */}
-                    <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs bg-purple-600 text-white group-hover:scale-125 group-hover:bg-purple-700 transition-all shadow-sm">
-                      {idx + 1}
-                    </div>
-                  </button>
-                  
-                  {/* Connecting Line */}
-                  {idx < sections.length - 1 && (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-9 w-0.5 h-4 bg-purple-200" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Sections */}
+        {/* Sections - More Spacious */}
         {sections.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-12">
             {sections.map((section, index) => (
-              <div key={section.id} id={`section-${section.id}`}>
+              <div key={section.id} id={`section-${section.id}`} className="scroll-mt-20">
                 <SectionEditor
                   section={section}
                   index={index}
@@ -203,22 +198,23 @@ export default function ResearchWriterSectionForm({
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-            <div className="text-5xl mb-4">📝</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Writing Your Paper</h3>
-            <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+          <div className="text-center py-16 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-dashed border-purple-300">
+            <div className="text-6xl mb-6">📝</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">Start Writing Your Paper</h3>
+            <p className="text-base text-gray-600 mb-8 max-w-lg mx-auto">
               Create sections like Introduction, Methodology, Results, and Conclusion.
             </p>
             <Button 
               onClick={addSection} 
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-5 h-5 mr-2" />
               Create First Section
             </Button>
           </div>
         )}
-    </div>
+      </div>
+    </>
   );
 }
 
