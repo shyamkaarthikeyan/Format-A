@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Image as ImageIcon, Table, Calculator, Link2, BookOpen, X, ChevronDown } from 'lucide-react';
+import { Plus, Trash2,Image asImageIcon,Table, Calculator, Link2, BookOpen, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import {Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import RichTextEditor from '@/components/rich-text-editor';
 import FileUpload from '@/components/file-upload';
-import TableBlockEditor from '@/components/table-block-editor';
+importTableBlockEditor from '@/components/table-block-editor';
 import LaTeXEquationEditor from '@/components/latex-equation-editor';
 import type { Section, ContentBlock as ContentBlockType, Reference } from '@shared/schema';
 
@@ -50,7 +50,7 @@ const CrossRefModal: React.FC<CrossRefModalProps> = ({ isOpen, onClose, onSelect
           </button>
         </div>
         
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-smText-gray-600 mb-4">
           Click on a {type} below to insert its reference at your cursor position
         </p>
         
@@ -58,7 +58,7 @@ const CrossRefModal: React.FC<CrossRefModalProps> = ({ isOpen, onClose, onSelect
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
             <div className="text-4xl mb-3">{emoji}</div>
             <p className="text-gray-700 font-medium mb-2">No {type}s found</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-smText-gray-500">
               Add a {type} to your document first, then you can reference it here.
             </p>
           </div>
@@ -71,23 +71,23 @@ const CrossRefModal: React.FC<CrossRefModalProps> = ({ isOpen, onClose, onSelect
                   onSelect(`${typeLabel} ${item.number}`);
                   onClose();
                 }}
-                className={`w-full text-left p-4 border-2 border-${colorClass}-200 rounded-lg hover:bg-${colorClass}-50 hover:border-${colorClass}-400 hover:shadow-md transition-all group`}
+                className={`w-fullText-left p-4 border-2 border-${colorClass}-200 rounded-lg hover:bg-${colorClass}-50 hover:border-${colorClass}-400 hover:shadow-md transition-all group`}
               >
-                <div className={`font-bold text-${colorClass}-600 text-lg mb-1 group-hover:text-${colorClass}-700`}>
+                <div className={`font-boldText-${colorClass}-600Text-lg mb-1 group-hover:text-${colorClass}-700`}>
                   {emoji} {typeLabel} {item.number}
                 </div>
                 {item.caption && (
-                  <div className="text-sm text-gray-600 line-clamp-2">{item.caption}</div>
+                  <div className="text-smText-gray-600 line-clamp-2">{item.caption}</div>
                 )}
-                <div className="text-xs text-gray-400 mt-2">Click to insert reference</div>
+                <div className="text-xsText-gray-400 mt-2">Click to insert reference</div>
               </button>
             ))}
           </div>
         )}
         
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            💡 Tip: The reference will be inserted where your cursor is in the text editor
+          <p className="text-xsText-gray-500Text-center">
+            💡 Tip: The reference will be inserted where your cursor is in theText editor
           </p>
         </div>
       </div>
@@ -102,7 +102,23 @@ export default function ResearchWriterSectionForm({
   className
 }: ResearchWriterSectionFormProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [showNewSectionNotice, setShowNewSectionNotice] = useState(false);
+
+  const scrollToTop = () => {
+    // Scroll both window and any parent scrollable containers
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Also scroll the main content area if it exists
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // Scroll any overflow containers
+    const scrollContainers = document.querySelectorAll('[style*="overflow"]');
+    scrollContainers.forEach(container => {
+      if (container.scrollTop > 0) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  };
 
   const addSection = () => {
     const newSection: Section = {
@@ -115,24 +131,21 @@ export default function ResearchWriterSectionForm({
     onUpdate([...sections, newSection]);
     // Navigate to the new section
     setCurrentSectionIndex(sections.length);
-    // Show notification
-    setShowNewSectionNotice(true);
-    setTimeout(() => setShowNewSectionNotice(false), 3000);
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll to top with delay to ensure DOM updates
+    setTimeout(() => scrollToTop(), 100);
   };
   
   const previousSection = () => {
     if (currentSectionIndex > 0) {
       setCurrentSectionIndex(currentSectionIndex - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => scrollToTop(), 50);
     }
   };
   
   const nextSection = () => {
     if (currentSectionIndex < sections.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => scrollToTop(), 50);
     }
   };
 
@@ -165,10 +178,10 @@ export default function ResearchWriterSectionForm({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-boldText-gray-900">
               ✍️ Write Your Research Paper
               {sections.length > 0 && (
-                <span className="text-base font-normal text-gray-500 ml-3">
+                <span className="text-base font-normalText-gray-500 ml-3">
                   ({sections.length} {sections.length === 1 ? 'section' : 'sections'})
                 </span>
               )}
@@ -177,7 +190,7 @@ export default function ResearchWriterSectionForm({
           
           <Button 
             onClick={addSection} 
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3"
+            className="bg-purple-600 hover:bg-purple-700Text-white px-6 py-3"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Section
@@ -187,17 +200,7 @@ export default function ResearchWriterSectionForm({
         {/* Wizard Navigation - Compact */}
         {sections.length > 0 ? (
           <>
-            {/* New Section Notice */}
-            {showNewSectionNotice && (
-              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-3 mb-3 animate-pulse">
-                <div className="flex items-center justify-center gap-2 text-green-700 font-semibold">
-                  <span className="text-xl">✨</span>
-                  <span>New Section {currentSectionIndex + 1} Created! You're now editing it.</span>
-                  <span className="text-xl">✨</span>
-                </div>
-              </div>
-            )}
-            
+
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
               <div className="flex items-center justify-between gap-3">
                 <Button
@@ -205,13 +208,13 @@ export default function ResearchWriterSectionForm({
                   disabled={currentSectionIndex === 0}
                   variant="outline"
                   size="sm"
-                  className="flex-shrink-0 h-8 px-3 text-sm"
+                  className="flex-shrink-0 h-8 px-3Text-sm"
                 >
                   ← Prev
                 </Button>
                 
-                <div className="flex-1 text-center">
-                  <div className="text-sm font-semibold text-gray-700 mb-1">
+                <div className="flex-1Text-center">
+                  <div className="text-sm font-semiboldText-gray-700 mb-1">
                     Section {currentSectionIndex + 1} of {totalSections}
                   </div>
                   <div className="w-full max-w-xs mx-auto h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -227,7 +230,7 @@ export default function ResearchWriterSectionForm({
                   disabled={currentSectionIndex === totalSections - 1}
                   variant="outline"
                   size="sm"
-                  className="flex-shrink-0 h-8 px-3 text-sm"
+                  className="flex-shrink-0 h-8 px-3Text-sm"
                 >
                   Next →
                 </Button>
@@ -262,7 +265,7 @@ export default function ResearchWriterSectionForm({
                   disabled={currentSectionIndex === 0}
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 text-sm"
+                  className="h-8 px-3Text-sm"
                 >
                   ← Prev
                 </Button>
@@ -270,7 +273,7 @@ export default function ResearchWriterSectionForm({
                 <Button 
                   onClick={addSection} 
                   size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white h-8 px-4 text-sm"
+                  className="bg-purple-600 hover:bg-purple-700Text-white h-8 px-4Text-sm"
                 >
                   <Plus className="w-3 h-3 mr-1" />
                   Add Section
@@ -281,7 +284,7 @@ export default function ResearchWriterSectionForm({
                   disabled={currentSectionIndex === totalSections - 1}
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 text-sm"
+                  className="h-8 px-3Text-sm"
                 >
                   Next →
                 </Button>
@@ -291,13 +294,13 @@ export default function ResearchWriterSectionForm({
         ) : (
           <div className="text-center py-16 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-dashed border-purple-300">
             <div className="text-6xl mb-6">📝</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Start Writing Your Paper</h3>
-            <p className="text-base text-gray-600 mb-8 max-w-lg mx-auto">
+            <h3 className="text-2xl font-boldText-gray-900 mb-3">Start Writing Your Paper</h3>
+            <p className="text-baseText-gray-600 mb-8 max-w-lg mx-auto">
               Create sections like Introduction, Methodology, Results, and Conclusion.
             </p>
             <Button 
               onClick={addSection} 
-              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg"
+              className="bg-purple-600 hover:bg-purple-700Text-white px-8 py-4Text-lg"
             >
               <Plus className="w-5 h-5 mr-2" />
               Create First Section
@@ -343,7 +346,7 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
           </button>
         </div>
         
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-smText-gray-600 mb-4">
           Search and select a reference to insert its citation (e.g., [1], [2]) at your cursor position
         </p>
         
@@ -352,13 +355,13 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
             placeholder="🔍 Search references by title, author, or keywords..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-4 pr-10 h-12 text-base border-2 border-purple-200 focus:border-purple-400"
+            className="pl-4 pr-10 h-12Text-base border-2 border-purple-200 focus:border-purple-400"
             autoFocus
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2Text-gray-400 hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
@@ -371,11 +374,11 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
             {references.length === 0 ? (
               <>
                 <p className="text-gray-700 font-medium mb-2">No references found</p>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-smText-gray-500 mb-4">
                   Add references in the <strong>References tab</strong> first, then you can cite them here.
                 </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto text-left">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-autoText-left">
+                  <p className="text-smText-blue-800">
                     <strong>💡 Tip:</strong> Go to the References tab and add your bibliography entries. Then come back here to cite them!
                   </p>
                 </div>
@@ -383,7 +386,7 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
             ) : (
               <>
                 <p className="text-gray-700 font-medium mb-2">No matching references</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-smText-gray-500">
                   Try a different search term or clear the search to see all references
                 </p>
               </>
@@ -391,7 +394,7 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
           </div>
         ) : (
           <>
-            <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
+            <div className="text-xsText-gray-500 mb-2 flex items-center justify-between">
               <span>Found {filteredRefs.length} {filteredRefs.length === 1 ? 'reference' : 'references'}</span>
               {searchTerm && (
                 <button
@@ -410,15 +413,15 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
                     onSelect(`[${index + 1}]`);
                     onClose();
                   }}
-                  className="w-full text-left p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all group"
+                  className="w-fullText-left p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all group"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="bg-purple-100 text-purple-700 font-bold px-3 py-1 rounded-md text-sm flex-shrink-0 group-hover:bg-purple-200">
+                    <div className="bg-purple-100Text-purple-700 font-bold px-3 py-1 rounded-mdText-sm flex-shrink-0 group-hover:bg-purple-200">
                       [{index + 1}]
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-900 leading-relaxed">{ref.text}</div>
-                      <div className="text-xs text-gray-400 mt-2">Click to insert citation</div>
+                      <div className="text-smText-gray-900 leading-relaxed">{ref.text}</div>
+                      <div className="text-xsText-gray-400 mt-2">Click to insert citation</div>
                     </div>
                   </div>
                 </button>
@@ -428,8 +431,8 @@ const CitationModal: React.FC<CitationModalProps> = ({ isOpen, onClose, onSelect
         )}
         
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            💡 Tip: The citation number [1], [2], etc. will be inserted where your cursor is in the text editor
+          <p className="text-xsText-gray-500Text-center">
+            💡 Tip: The citation number [1], [2], etc. will be inserted where your cursor is in theText editor
           </p>
         </div>
       </div>
@@ -449,19 +452,19 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
     return (
       <div className="my-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-gray-700 font-medium">
-            <span className="text-sm">📝 Additional Text Block</span>
+          <div className="flex items-center gap-2Text-gray-700 font-medium">
+            <span className="text-sm">📝 AdditionalText Block</span>
           </div>
-          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0Text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
         <RichTextEditor
           value={block.content || ""}
           onChange={(content) => onUpdate({ content })}
-          placeholder="Write additional text here... This is useful for adding text after images, tables, or equations."
+          placeholder="Write additionalText here... This is useful for addingText afterImages,Tables, orEquations."
           rows={15}
-          className="min-h-[300px] text-base leading-relaxed"
+          className="min-h-[300px]Text-base leading-relaxed"
         />
       </div>
     );
@@ -471,18 +474,18 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
     return (
       <div className="my-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-blue-700 font-medium">
+          <div className="flex items-center gap-2Text-blue-700 font-medium">
             <ImageIcon className="w-4 h-4" />
             <span className="text-sm">Image</span>
           </div>
-          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0Text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
         <FileUpload
           onFileSelect={(file, base64) => {
             onUpdate({ 
-              imageId: `img_${Date.now()}`,
+             ImageId: `img_${Date.now()}`,
               data: base64.split(',')[1],
               fileName: file.name,
               caption: block.caption || "",
@@ -490,12 +493,12 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
             });
           }}
           onClear={() => {
-            onUpdate({ imageId: undefined, data: undefined, fileName: undefined });
+            onUpdate({ImageId: undefined, data: undefined, fileName: undefined });
           }}
           accept="image/*"
           maxSize={10 * 1024 * 1024}
           currentFile={block.imageId ? { 
-            name: block.fileName || 'Uploaded Image',
+            name: block.fileName || 'UploadedImage',
             preview: block.data ? `data:image/png;base64,${block.data}` : undefined 
           } : undefined}
           compact={true}
@@ -503,7 +506,7 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
         {block.imageId && (
           <div className="mt-3 space-y-2">
             <Input placeholder="Image caption" value={block.caption || ""} onChange={(e) => onUpdate({ caption: e.target.value })} className="text-sm" />
-            <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm" value={block.size || "medium"} onChange={(e) => onUpdate({ size: e.target.value as any })}>
+            <select className="w-full px-3 py-2 border border-gray-300 roundedText-sm" value={block.size || "medium"} onChange={(e) => onUpdate({ size: e.target.value as any })}>
               <option value="extra-small">Extra Small (1.0")</option>
               <option value="small">Small (1.5")</option>
               <option value="medium">Medium (2.0")</option>
@@ -520,11 +523,11 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
     return (
       <div className="my-4 p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-purple-700 font-medium">
+          <div className="flex items-center gap-2Text-purple-700 font-medium">
             <Table className="w-4 h-4" />
-            <span className="text-sm">📊 Table</span>
+            <span className="text-sm">📊Table</span>
           </div>
-          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0Text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -537,15 +540,15 @@ const InlineContent: React.FC<InlineContentProps> = ({ block, onUpdate, onRemove
     return (
       <div className="my-4 p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-orange-700 font-medium">
+          <div className="flex items-center gap-2Text-orange-700 font-medium">
             <Calculator className="w-4 h-4" />
-            <span className="text-sm">🔢 Equation {block.equationNumber ? `(${block.equationNumber})` : ''}</span>
+            <span className="text-sm">🔢Equation {block.equationNumber ? `(${block.equationNumber})` : ''}</span>
           </div>
-          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700">
+          <Button onClick={onRemove} variant="ghost" size="sm" className="h-7 w-7 p-0Text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
-        <LaTeXEquationEditor value={block.content || ""} onChange={(content) => onUpdate({ content })} equationNumber={block.equationNumber} />
+        <LaTeXEquationEditor value={block.content || ""} onChange={(content) => onUpdate({ content })}EquationNumber={block.equationNumber} />
       </div>
     );
   }
@@ -570,16 +573,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
   const [subsectionsCollapsed, setSubsectionsCollapsed] = useState(false);
   
   const contentBlocks = section.contentBlocks || [];
-  const textBlocks = contentBlocks.filter(b => b.type === 'text');
-  const textBlock = textBlocks[0]; // First text block is the main one
-  const additionalTextBlocks = textBlocks.slice(1); // Additional text blocks
+  constTextBlocks = contentBlocks.filter(b => b.type === 'text');
+  constTextBlock =TextBlocks[0]; // FirstText block is the main one
+  const additionalTextBlocks =TextBlocks.slice(1); // AdditionalText blocks
   const otherBlocks = contentBlocks.filter(b => b.type !== 'text');
   const subsections = section.subsections || [];
 
   // Count words
   const wordCount = (textBlock?.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
 
-  // Get all figures, tables, equations from all sections
+  // Get all figures,Tables,Equations from all sections
   const getAllItems = (type: 'figure' | 'table' | 'equation') => {
     const blockType: 'image' | 'table' | 'equation' = type === 'figure' ? 'image' : type;
     const items: Array<{ id: string; caption?: string; number: number }> = [];
@@ -600,18 +603,18 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     return items;
   };
 
-  // Insert text at end of content (since we can't easily access cursor in contentEditable)
+  // InsertText at end of content (since we can't easily access cursor in contentEditable)
   const insertAtCursor = (text: string) => {
-    const currentText = textBlock?.content || '';
-    const newText = currentText + (currentText ? ' ' : '') + text;
+    const currentText =TextBlock?.content || '';
+    const newText = currentText + (currentText ? ' ' : '') +Text;
     updateTextContent(newText);
   };
 
   const addContentBlock = (type: ContentBlockType['type']) => {
-    let equationNumber: number | undefined;
+    letEquationNumber: number | undefined;
     if (type === 'equation') {
       const existingEquations = contentBlocks.filter(b => b.type === 'equation').length;
-      equationNumber = existingEquations + 1;
+     EquationNumber = existingEquations + 1;
     }
 
     const newBlock: ContentBlockType = {
@@ -619,7 +622,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
       type,
       content: '',
       order: contentBlocks.length,
-      ...(equationNumber !== undefined && { equationNumber })
+      ...(equationNumber !== undefined && {EquationNumber })
     };
 
     onUpdate({ contentBlocks: [...contentBlocks, newBlock] });
@@ -635,10 +638,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
 
   const removeContentBlock = (blockId: string) => {
     const updatedBlocks = contentBlocks.filter(block => block.id !== blockId);
-    let equationCounter = 1;
+    letEquationCounter = 1;
     const renumberedBlocks = updatedBlocks.map(block => {
       if (block.type === 'equation') {
-        return { ...block, equationNumber: equationCounter++ };
+        return { ...block,EquationNumber:EquationCounter++ };
       }
       return block;
     });
@@ -736,20 +739,20 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
       <div key={sub.id} className={indentClass}>
         <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-all">
           <div className="flex items-center gap-4 mb-4">
-            <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-2 rounded">
+            <span className="text-sm font-semiboldText-gray-700 bg-gray-100 px-3 py-2 rounded">
               {subsectionNumber}
             </span>
             <Input
               value={sub.title}
               onChange={(e) => updateSubsection(sub.id, { title: e.target.value })}
               placeholder="Subsection title"
-              className="flex-1 text-lg font-semibold"
+              className="flex-1Text-lg font-semibold"
             />
             <Button 
               onClick={() => addNestedSubsection(sub.id)} 
               variant="outline" 
               size="sm" 
-              className="h-10 px-3 text-green-600 hover:bg-green-50 hover:border-green-300"
+              className="h-10 px-3Text-green-600 hover:bg-green-50 hover:border-green-300"
               title="Add nested subsection"
             >
               <Plus className="w-4 h-4 mr-1" />
@@ -759,7 +762,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
               onClick={() => deleteSubsection(sub.id)} 
               variant="outline" 
               size="sm" 
-              className="h-10 w-10 p-0 text-red-600 hover:bg-red-50"
+              className="h-10 w-10 p-0Text-red-600 hover:bg-red-50"
               title="Delete subsection"
             >
               <Trash2 className="w-5 h-5" />
@@ -770,7 +773,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
             onChange={(content) => updateSubsection(sub.id, { content })}
             placeholder="Write subsection content..."
             rows={18}
-            className="min-h-[400px] text-base leading-relaxed"
+            className="min-h-[400px]Text-base leading-relaxed"
           />
         </div>
         
@@ -792,14 +795,14 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
         {/* Section Header */}
         <div className="bg-gradient-to-r from-gray-50 to-white border-b-2 border-gray-200 p-6">
           <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-8 h-8 bg-gray-700 text-white rounded font-bold text-sm flex-shrink-0">
+            <div className="flex items-center justify-center w-8 h-8 bg-gray-700Text-white rounded font-boldText-sm flex-shrink-0">
               {index + 1}
             </div>
             <Input
               value={section.title}
               onChange={(e) => onUpdate({ title: e.target.value })}
               placeholder="Section Title (e.g., Introduction, Methodology, Results...)"
-              className="flex-1 text-xl font-semibold border-0 bg-transparent focus:bg-white focus:border-2 focus:border-gray-300 transition-all py-3"
+              className="flex-1Text-xl font-semibold border-0 bg-transparent focus:bg-white focus:border-2 focus:border-gray-300 transition-all py-3"
             />
             <Button onClick={onDelete} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 p-3">
               <Trash2 className="w-5 h-5" />
@@ -810,10 +813,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
         {/* Section Body */}
         <div className="p-6">
           <div className="space-y-4">
-            {/* Text Editor */}
+            {/*Text Editor */}
             <div>
               <div className="mb-4">
-                <label className="text-base font-semibold text-gray-800">
+                <label className="text-base font-semiboldText-gray-800">
                   ✍️ Write your content ({wordCount} words)
                 </label>
               </div>
@@ -823,11 +826,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 onChange={(content) => updateTextContent(content)}
                 placeholder="Start writing your content here... Write naturally and use the emoji buttons above to insert references. Use the formatting toolbar for bold, italic, underline, lists, and alignment."
                 rows={25}
-                className="min-h-[500px] text-lg leading-relaxed"
+                className="min-h-[500px]Text-lg leading-relaxed"
               />
             </div>
 
-            {/* Inline Content Blocks (including additional text blocks) */}
+            {/* Inline Content Blocks (including additionalText blocks) */}
             {[...additionalTextBlocks, ...otherBlocks].map((block) => (
               <InlineContent
                 key={block.id}
@@ -839,14 +842,14 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
 
             {/* Insert Toolbar */}
             <div className="flex items-center gap-3 pt-6 border-t-2 border-gray-200">
-              <span className="text-sm font-medium text-gray-700">📎 Add to section:</span>
+              <span className="text-sm font-mediumText-gray-700">📎 Add to section:</span>
               <Button 
                 onClick={() => addContentBlock('text')} 
                 variant="outline" 
                 size="sm" 
                 className="h-10 px-4 hover:bg-gray-50 hover:border-gray-300"
               >
-                � Texgt
+                Text
               </Button>
               <Button 
                 onClick={() => addContentBlock('image')} 
@@ -854,7 +857,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 size="sm" 
                 className="h-10 px-4 hover:bg-blue-50 hover:border-blue-300"
               >
-                � TImage
+                Image
               </Button>
               <Button 
                 onClick={() => addContentBlock('table')} 
@@ -862,7 +865,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 size="sm" 
                 className="h-10 px-4 hover:bg-purple-50 hover:border-purple-300"
               >
-                � Tqable
+                Table
               </Button>
               <Button 
                 onClick={() => addContentBlock('equation')} 
@@ -870,7 +873,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
                 size="sm" 
                 className="h-10 px-4 hover:bg-orange-50 hover:border-orange-300"
               >
-                🔢 Equation
+                🔢Equation
               </Button>
             </div>
 
@@ -879,15 +882,15 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
               <div className="flex justify-between items-center mb-4">
                 <button
                   onClick={() => setSubsectionsCollapsed(!subsectionsCollapsed)}
-                  className="flex items-center gap-3 text-base font-semibold text-gray-800 hover:text-purple-600 transition-colors"
+                  className="flex items-center gap-3Text-base font-semiboldText-gray-800 hover:text-purple-600 transition-colors"
                 >
-                  <span className={`transform transition-transform text-purple-600 ${subsectionsCollapsed ? '' : 'rotate-90'}`}>
+                  <span className={`transform transition-transformText-purple-600 ${subsectionsCollapsed ? '' : 'rotate-90'}`}>
                     ▶
                   </span>
                   <span>
                     📑 Subsections {subsections.length > 0 && `(${subsections.length})`}
                   </span>
-                  <span className="text-sm text-gray-500 font-normal">- click to {subsectionsCollapsed ? 'expand' : 'collapse'}</span>
+                  <span className="text-smText-gray-500 font-normal">- click to {subsectionsCollapsed ? 'expand' : 'collapse'}</span>
                 </button>
                 <Button 
                   onClick={addSubsection} 
@@ -903,7 +906,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
               {!subsectionsCollapsed && (
                 <>
                   {subsections.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <p className="text-smText-gray-500Text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                       No subsections yet. Click "Add" to create one.
                     </p>
                   ) : (
@@ -938,3 +941,5 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, index, onUpdate,
     </>
   );
 };
+
+
