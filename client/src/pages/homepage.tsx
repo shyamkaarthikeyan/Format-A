@@ -359,18 +359,25 @@ export default function Homepage() {
               <span className="bg-gradient-to-r from-gray-800 via-purple-800 to-gray-800 bg-clip-text text-transparent">
                 Automate Your IEEE Paper Formatting.
               </span>
-              <span className="block mt-2 text-3xl md:text-4xl font-bold flex items-center justify-center gap-2">
-                <span className="bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
-                  Perfectly
-                </span>
-                <span className="relative h-[1.2em] overflow-hidden">
-                  <span className="absolute top-0 left-0 animate-word-cycle bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
-                    <span className="block">Effortlessly</span>
-                    <span className="block">Professionally</span>
-                    <span className="block">Accurately</span>
-                    <span className="block">Instantly</span>
-                    <span className="block">Beautifully</span>
-                    <span className="block">Effortlessly</span>
+              <span className="block mt-2 text-3xl md:text-4xl font-bold">
+                <span className="inline-flex items-center gap-2">
+                  <span className="bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
+                    Perfectly
+                  </span>
+                  <span className="relative inline-block h-[1.2em] w-[200px] overflow-hidden align-bottom">
+                    <span 
+                      className="absolute top-0 left-0 w-full bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent"
+                      style={{
+                        animation: 'wordCycle 12s infinite'
+                      }}
+                    >
+                      <span className="block h-[1.2em]">Effortlessly</span>
+                      <span className="block h-[1.2em]">Professionally</span>
+                      <span className="block h-[1.2em]">Accurately</span>
+                      <span className="block h-[1.2em]">Instantly</span>
+                      <span className="block h-[1.2em]">Beautifully</span>
+                      <span className="block h-[1.2em]">Effortlessly</span>
+                    </span>
                   </span>
                 </span>
               </span>

@@ -631,7 +631,7 @@ input[type="email"][style] {
 
 
 /* Animated Word Cycling Effect */
-@keyframes word-cycle {
+@keyframes wordCycle {
   0%, 15% {
     transform: translateY(0%);
   }
@@ -650,8 +650,4 @@ input[type="email"][style] {
   100% {
     transform: translateY(-83.33%);
   }
-}
-
-.animate-word-cycle {
-  animation: word-cycle 12s infinite;
 }
